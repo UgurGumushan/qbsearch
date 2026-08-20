@@ -1,0 +1,93 @@
+# VERSION: 1.1
+# AUTHORS: Necrosis (zamunda.rip)
+
+import base64
+import json
+import os
+import sys
+import urllib.request
+import urllib.parse
+from dataclasses import dataclass, field
+from pathlib import Path
+
+try:
+    from novaprinter import prettyPrinter
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
+    from novaprinter import prettyPrinter
+
+FILE = Path(__file__)
+BASEDIR = FILE.parent.absolute()
+FILENAME = FILE.stem
+
+FILE_J = BASEDIR / (FILENAME + ".json")
+
+ICON = ("AAABAAEAIBwAAAEAIACYDgAAFgAAACgAAAAgAAAAOAAAAAEAIAAAAAAAAA4AAFA6AABQOgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbAAkKbwA0OtAAUlz3AEZP5wAzOssAICSjAAsMcgAAAD8AAAAVAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYHWAA9Rs8Ai536AMjh/wDc+f8A1vH/AMni/wC0y/8AlKf9AG587wBFTssAICSOAAgJRAAAAA4AAAAAABUXAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGQACAnMCHinmBrnT/wHm//8A4///AOL//wDj//8A4///AOX//wDm//8A4/7/ANTv/wCuxP8AdIP0ADlAvwASFWAACQoRAAQFAAAhJgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAFBlMAP0fKAIaX/QxgcP9Txtb/UO7//y7n//8T5P//A+L//wDi//8A4v//AOL//wDi//8A4///AOX//wDj/v8Ax+H/AIKS+gA3Pr8AERNIAB0hBAAaHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAkAExeIAG189ADL5P8A5v//AMjh/ySPnf9uxtL/hvH+/3fw//9b7P//Nej//xLk//8B4v//AOL//wDi//8A4v//AOL//wDk//8A5P//AMDZ/wBlcu8AHiKEAA8REQALDQAJztIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFAAAAZAIyQfUL0uz/B+X//wLi//8A5P//ANbx/xCou/9PtsP/gOTx/4rz//+G8v//de///07r//8f5f//A+L//wDi//8A4v//AOL//wDi//8A5P//ANz3/wCLnfwAKS+oAQcIGgEJCgAEcIAAAAAAAAAAAAAAAAAAAAAADwAbHowAWmbzEFFg/2LT4/9r8f//Xe7//03r//876f//Juf+/xfO5f8st8j/XcfV/3/m8/+J8///iPL//33w//9V6///HOX//wHi//8A4v//AOL//wDi//8A4///AOP+/wCdsf8BKjCvAQIDFwEJCwAJzOoAAAAAAAAAABkAIiafAJCi/ADe+f8CsMb/KJCe/1u0v/951eH/h+z5/4nz//+E8v//efH//2Tr/P9O0uT/TbjG/2PE0f995fL/hvP//4Xy//917///Pen//wjj//8A4v//AOL//wDi//8A4v//AOT//wKXq/8CHySaAAAACgAOEAAAAAAAAA4SqACOof0A5P//AOP//wDk//8A2fX/Ar3W/xGluP8voK7/VLPA/3TU4P+F6/n/ivT//4j0//9+7vz/Y9Lg/0+0wf9fws//d+f1/33y//958P//Uuv//xDk//8A4v//AOL//wDi//8A4v//AOH8/wN4iPgBCgxnBSEpAAAVGAAAER31HanB/zfs//876f//QOn//0Lq//9C7P//Pur//zfg9v8xyNv/Na29/0Oksf9at8P/c9bj/4Dt+v+C9P//d+37/1zN2/9NsL3/YMza/3Pu/P908P//Vuz//xDk//8A4v//AOL//wDi//8A4///AtDq/wNFUNkAAAAlAAICAAAWH+czorT/du79/4b1//+K9P//ivP//4ny//+I8f//h/H//4Xz//+B8v//c+f2/1nN3P9FsL7/Rqi1/1q+y/9v4O//dvL//2vo9/9Sv83/TLjG/2Xl9P9s7///Sur//wjj//8A4v//AOL//wDi//8A5f//BJmv/wIRFYQk//8AAAYHTQIqL6sUXWfhMJCc+Uq5x/9f1OT/bub1/3nv/v+A8///hPX//4X0//+E8///gfP//3rx//9o5PT/UMTT/0Kotf9NtsT/ZN/u/2vx//9T0+P/NrHA/1jd7f9j7///MOf//wDi//8A4v//AOL//wDj//8C0u//BENQ1gAAACIAAAAAAAAABwAAACcAAwRYABcbigUxN7QNTFTTFmZw6SGAjfYtmqj+OrPD/0rL3P9a4PH/Z+39/3Dz//9x8///aOz8/1DP4P82r77/SMPT/2Hr+/9G3O//JKq8/1LV5f9R7f//D+T//wDi//8A4v//AOL//wHk//8EfJH6AQABZwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAABYAAAArAAAARQAFBmMAFBiDASkupQZETMcRZnDlJJGf+D/D1P9Y5/j/Y/L//1Xp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")
+
+@dataclass
+class Config:
+    proxy: bool = False
+    proxies: dict = field(default_factory=lambda: {"http": "", "https": ""})
+
+    def __post_init__(self):
+        try:
+            if FILE_J.exists():
+                pass 
+        except Exception:
+            pass
+        (BASEDIR / f"{FILENAME}.ico").write_bytes(base64.b64decode(ICON))
+
+config = Config()
+
+class zamundarip(object):
+    url = 'https://zamunda.rip'
+    name = 'Zamunda.RIP'
+    supported_categories = {'all': 'all'}
+
+    def search(self, what, cat='all'):
+        query = urllib.parse.quote(urllib.parse.unquote(what))
+        api_url = f"{self.url}/api/torrents?q={query}&offset=0&limit=9000"
+
+        headers = {
+            'User-Agent': 'qBittorrent/Search-Plugin',
+            'Accept': 'application/json'
+        }
+
+        try:
+            req = urllib.request.Request(api_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode('utf-8'))
+                    self.parse_results(data)
+        except Exception:
+            pass
+
+    def parse_results(self, json_data):
+        for item in json_data:
+            title = item.get('title', 'Unknown')
+            description = item.get('description', '')
+            
+            if description and description != title:
+                title = f"{title} | {description}"
+
+            result = {
+                'link': item.get('link'),
+                'name': title,
+                'size': self.format_size(item.get('size')),
+                'seeds': 100,
+                'leech': 10,
+                'engine_url': self.url,
+                'desc_link': self.url
+            }
+            prettyPrinter(result)
+
+    def format_size(self, size_str):
+        if not size_str or size_str == 'N/A':
+            return "-1"
+        return size_str.replace('&nbsp;', ' ').strip()
+
+zamundarip = zamundarip
+
+if __name__ == "__main__":
+    engine = zamundarip()
+    engine.search("The Exit")

@@ -1,0 +1,11 @@
+07-31 22:57 imDMG_nnmclub INFO     Local cookies not exists, try to login
+07-31 22:57 imDMG_nnmclub ERROR    Empty cookies in config file
+Traceback (most recent call last):
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_nnmclub.py", line 258, in _catch_errors
+    self._init()
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_nnmclub.py", line 304, in _init
+    return self.login()
+           ^^^^^^^^^^^^
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_nnmclub.py", line 185, in login
+    raise EngineError("Empty cookies in config file")
+imDMG_nnmclub.EngineError: Empty cookies in config file

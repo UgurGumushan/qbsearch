@@ -1,0 +1,11 @@
+# Live credentials / session tokens — never commit these
+*.cookies
+all/danishbytes.cookies
+
+# Python / tooling caches
+__pycache__/
+*.pyc
+.ruff_cache/
+
+# macOS
+.DS_Store

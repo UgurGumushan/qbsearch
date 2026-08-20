@@ -1,0 +1,36 @@
+07-31 22:57 imDMG_rutracker INFO     Local cookies not exists, try to login
+07-31 22:57 imDMG_rutracker DEBUG    Login. Data before: {'login_username': 'USERNAME', 'login_password': 'PASSWORD', 'login': 'Вход'}
+07-31 22:57 imDMG_rutracker DEBUG    Login. Data after: b'login_username=USERNAME&login_password=PASSWORD&login=%C2%F5%EE%E4'
+07-31 22:57 imDMG_rutracker ERROR    Request to https://rutracker.org/forum/login.php failed with status: 403
+Traceback (most recent call last):
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_rutracker.py", line 324, in _request
+    with self.session.open(url, data, 15) as r:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ugurgumushan/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/ugurgumushan/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/Users/ugurgumushan/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/urllib/request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ugurgumushan/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/Users/ugurgumushan/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 403: Forbidden
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_rutracker.py", line 234, in _catch_errors
+    self._init()
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_rutracker.py", line 286, in _init
+    self.login()
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_rutracker.py", line 183, in login
+    self._request(self.url_login, data_encoded)
+  File "/Users/ugurgumushan/code/qbsearch/all/imDMG_rutracker.py", line 333, in _request
+    raise EngineError(
+imDMG_rutracker.EngineError: Request to https://rutracker.org/forum/login.php failed with status: 403

@@ -1,0 +1,12 @@
+[31-Jul-26 22:46:03] ERROR:lostfilm:create_new - Connection failed HTTP Error 403: Forbidden
+[31-Jul-26 22:46:03] ERROR:lostfilm:pretty_printer - {'link': 'Error', 'name': 'Error: Connection failed.', 'size': '0', 'seeds': -1, 'leech': -1, 'engine_url': 'https://www.lostfilm.tv', 'desc_link': 'https://www.lostfilm.tv'}
+[31-Jul-26 22:46:12] DEBUG:root:_login - Trying to connect using given credentials.
+[31-Jul-26 22:46:12] DEBUG:root:_login - https://iptorrents.com/take_login.php
+[31-Jul-26 22:46:12] DEBUG:root:_login - b'username=&password='
+[31-Jul-26 22:46:13] DEBUG:root:_login - Connected using given credentials.
+[31-Jul-26 22:46:13] DEBUG:root:search_parse - Parsing https://iptorrents.com/t?q=linux&o=seeders
+[31-Jul-26 22:46:13] DEBUG:root:_get_link - Trying to open https://iptorrents.com/t?q=linux&o=seeders&p=1
+[31-Jul-26 22:46:13] DEBUG:root:search_parse - Parsing https://iptorrents.com/t?q=linux&o=seeders
+[31-Jul-26 22:46:13] DEBUG:root:_get_link - Trying to open https://iptorrents.com/t?q=linux&o=seeders&p=1
+[31-Jul-26 22:56:47] ERROR:lostfilm:create_new - Connection failed HTTP Error 403: Forbidden
+[31-Jul-26 22:56:47] ERROR:lostfilm:pretty_printer - {'link': 'Error', 'name': 'Error: Connection failed.', 'size': '0', 'seeds': -1, 'leech': -1, 'engine_url': 'https://www.lostfilm.tv', 'desc_link': 'https://www.lostfilm.tv'}
