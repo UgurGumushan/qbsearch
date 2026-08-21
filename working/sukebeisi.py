@@ -1,17 +1,28 @@
-from typing import ClassVar
-
 #VERSION: 1.11
+"""
+Sukebei (https://sukebei.nyaa.si, an adult / anime-art site) search engine.
+Scrape-based with HTML parsing; pages of 75 results are fetched until a page
+returns fewer than 75 hits.
+"""
+from __future__ import annotations
 
-try:
-    from HTMLParser import HTMLParser
-except ImportError:
-    from html.parser import HTMLParser
+from html.parser import HTMLParser
+from typing import ClassVar, TypedDict, cast
 
 # import qBT modules
-try:
-    from helpers import retrieve_url
-    from novaprinter import prettyPrinter
-except Exception:pass
+from helpers import retrieve_url
+from novaprinter import SearchResults, prettyPrinter
+
+
+class SukebeiRow(TypedDict, total=False):
+    link: str
+    name: str
+    size: str
+    seeds: int
+    leech: int
+    engine_url: str
+    desc_link: str
+
 
 class sukebeisi:
     """Class used by qBittorrent to search for torrents"""
@@ -25,7 +36,7 @@ class sukebeisi:
     # Books     = sukebei.nyaa's "Art - Doujinshi"
     # Games     = sukebei.nyaa's "Art - Games"
     # Pictures  = sukebei.nyaa's "Real Life - Photobooks and Pictures"
-    # Movies    = sukbei.nyaa's "Real Life - Videos"
+    # Movies    = sukebei.nyaa's "Real Life - Videos"
     # If you wish to enable other categories by editing this list or by using one of the unused supported categories (music, software) they are:
     # Top level "Art" category = '1_0'
     # Top level "Real Life" category = '2_0'
@@ -43,42 +54,52 @@ class sukebeisi:
 
     class SukebeiSiParser(HTMLParser):
         """ Parses sukebei.nyaa.si browse page for search results and prints them"""
-        def __init__(self, res, url):
+        def __init__(self, res: list[SukebeiRow], url: str) -> None:
             try:
                 super().__init__()
             except Exception:#  See: http://stackoverflow.com/questions/9698614/
                 HTMLParser.__init__(self)
 
             self.engine_url = url
-            self.results = res
-            self.curr = None
+            self.results: list[SukebeiRow] = res
+            self.curr: SukebeiRow | None = None
             self.td_counter = -1
 
-        def handle_starttag(self, tag, attr):
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
             """Tell the parser what to do with which tags"""
             if tag == 'a':
-                self.start_a(attr)
+                self.start_a(attrs)
 
-        def handle_endtag(self, tag):
+        def handle_endtag(self, tag: str) -> None:
             if tag == 'td':
                 self.start_td()
 
-        def start_a(self, attr):
-            params = dict(attr)
+        def start_a(self, attrs: list[tuple[str, str | None]]) -> None:
+            params = {key: value for key, value in attrs if value is not None}
+            title = params.get('title')
+            href = params.get('href')
             # get torrent name
-            if 'title' in params and 'class' not in params and params['href'].startswith('/view/'):
-                hit = {
-                        'name': params['title'],
-                        'desc_link': self.engine_url + params['href']}
-                if not self.curr:
+            if (
+                title is not None
+                and href is not None
+                and 'class' not in params
+                and href.startswith('/view/')
+            ):
+                hit: SukebeiRow = {
+                    'name': title,
+                    'desc_link': self.engine_url + href,
+                }
+                if self.curr is None:
                     hit['engine_url'] = self.engine_url
                     self.curr = hit
-            elif 'href' in params and params['href'].startswith("magnet:?"):
-                if self.curr:
-                    self.curr['link'] = params['href']
+            elif href is not None and href.startswith("magnet:?"):
+                if self.curr is not None:
+                    self.curr['link'] = href
                     self.td_counter += 1
 
-        def start_td(self):
+        def start_td(self) -> None:
             # Keep track of timers
             if self.td_counter >= 0:
                 self.td_counter += 1
@@ -86,11 +107,14 @@ class sukebeisi:
             # Add the hit to the results,
             # then reset the counters for the next result
             if self.td_counter >= 5:
-                self.results.append(self.curr)
+                if self.curr is not None:
+                    self.results.append(self.curr)
                 self.curr = None
                 self.td_counter = -1
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
+            if self.curr is None:
+                return
             # These fields matter
             if self.td_counter > 0 and self.td_counter <= 5:
                 # Catch the size
@@ -112,9 +136,9 @@ class sukebeisi:
 
     # DO NOT CHANGE the name and parameters of this function
     # This function will be the one called by nova2.py
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         """
-        Retreive and parse engine search results by category and query.
+        Retrieve and parse engine search results by category and query.
 
         Parameters:
         :param what: a string with the search tokens, already escaped
@@ -125,14 +149,14 @@ class sukebeisi:
         url = str(f"{self.url}/?f=0&s=seeders&o=desc&c={self.supported_categories.get(cat)}&q={what}"
                   )
 
-        hits = []
+        hits: list[SukebeiRow] = []
         page = 1
         parser = self.SukebeiSiParser(hits, self.url)
         while True:
             res = retrieve_url(url + f"&p={page}")
             parser.feed(res)
             for each in hits:
-                prettyPrinter(each)
+                prettyPrinter(cast(SearchResults, cast(object, each)))
 
             if len(hits) < 75:
                 break

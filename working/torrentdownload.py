@@ -1,10 +1,15 @@
 # VERSION: 1.1
+"""
+TorrentDownload (https://www.torrentdownload.info) search engine. Scrape-based;
+the info hash is read from the href of each row's title link to build the
+magnet. Up to 10 pages are fetched sequentially with a short delay between.
+"""
 
 import re
 from time import sleep
 
 from helpers import retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class torrentdownload:
@@ -17,7 +22,7 @@ class torrentdownload:
             self.url = url
             self.pageResSize = 0
 
-        def feed(self, html):
+        def feed(self, html: str):
             self.pageResSize = 0
             torrents = self.__findTorrents(html)
             resultSize = len(torrents)
@@ -28,19 +33,19 @@ class torrentdownload:
                 count = 0
             for torrent in range(resultSize):
                 count = count + 1
-                data = {
+                data: SearchResults = {
                     "link": torrents[torrent][0],
                     "name": torrents[torrent][1],
                     "size": torrents[torrent][2],
-                    "seeds": torrents[torrent][3],
-                    "leech": torrents[torrent][4],
+                    "seeds": int(torrents[torrent][3]),
+                    "leech": int(torrents[torrent][4]),
                     "engine_url": self.url,
                     "desc_link": torrents[torrent][5],
                 }
                 prettyPrinter(data)
 
-        def __findTorrents(self, html):
-            torrents = []
+        def __findTorrents(self, html: str) -> list[list[str]]:
+            torrents: list[list[str]] = []
             trs = re.findall(r"<tr><td.+?tt-name.+?</tr>", html)
             for tr in trs:
                 # Extract from the A node all the needed information
@@ -53,9 +58,7 @@ class torrentdownload:
                         "magnet:?xt=urn:btih:{}&dn=&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.ipv6tracker.ru%3A80%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=https%3A%2F%2Ftracker.fastdownload.xyz%3A443%2Fannounce&tr=https%3A%2F%2Fopentracker.xyz%3A443%2Fannounce&tr=http%3A%2F%2Fopen.trackerlist.xyz%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.birkenwald.de%3A6969%2Fannounce&tr=https%3A%2F%2Ft.quic.ws%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.parrotsec.org%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.supertracker.net%3A1337%2Fannounce&tr=http%3A%2F%2Fgwp2-v19.rinet.ru%3A80%2Fannounce&tr=udp%3A%2F%2Fbigfoot1942.sektori.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fcarapax.net%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.akado-ural.ru%3A80%2Fannounce&tr=udp%3A%2F%2Fretracker.maxnet.ua%3A80%2Fannounce&tr=udp%3A%2F%2Fbt.dy20188.com%3A80%2Fannounce&tr=http%3A%2F%2F0d.kebhana.mx%3A443%2Fannounce&tr=http%3A%2F%2Ftracker.files.fm%3A6969%2Fannounce&tr=http%3A%2F%2Fretracker.joxnet.ru%3A80%2Fannounce&tr=http%3A%2F%2Ftracker.moxing.party%3A6969%2Fannounce".format(
                             url_titles.group(1).split("/")[0]
                         ),
-                        url_titles.group(2)
-                        .replace('<span class="na">', "")
-                        .replace("</span>", ""),
+                        url_titles.group(2).replace('<span class="na">', "").replace("</span>", ""),
                         url_titles.group(3).replace(",", ""),
                         url_titles.group(5).replace(",", ""),
                         url_titles.group(6).replace(",", ""),
@@ -64,10 +67,10 @@ class torrentdownload:
                     torrents.append(torrent_data)
             return torrents
 
-    def download_torrent(self, download_url):
+    def download_torrent(self, download_url: str):
         print(download_url + " " + download_url)
 
-    def search(self, what, cat="all"):
+    def search(self, what: str, cat: str = "all"):
         what = what.replace("%20", "+")
         parser = self.HTMLParser(self.url)
         for currPage in range(1, self.max_pages):

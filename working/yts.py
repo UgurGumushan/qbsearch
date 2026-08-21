@@ -1,26 +1,31 @@
 # VERSION: 1.9
+"""
+YTS (https://yts.bz) search engine. Queries the YTS JSON API; quality, codec,
+rating and genre tags embedded in the search text (e.g. "movie 1080p x265")
+are parsed out of the query and sent as API parameters instead.
+"""
 
 from __future__ import annotations
 
 import dataclasses
 import json
 import re
-from typing import ClassVar
+from typing import Callable, ClassVar, TypeVar
 from urllib.parse import unquote, urlencode
 
 from helpers import retrieve_url
-from novaprinter import prettyPrinter
-
+from novaprinter import SearchResults, prettyPrinter
 
 # https://stackoverflow.com/a/78110564
-def filter_unexpected_fields(cls):
-    original_init = cls.__init__
+_Cls = TypeVar("_Cls", bound=type)
 
-    def new_init(self, *args, **kwargs):
+
+def filter_unexpected_fields(cls: _Cls) -> _Cls:
+    original_init: Callable[..., None] = cls.__init__
+
+    def new_init(self: object, *args: object, **kwargs: object) -> None:
         expected_fields = {field.name for field in dataclasses.fields(cls)}
-        cleaned_kwargs = {
-            key: value for key, value in kwargs.items() if key in expected_fields
-        }
+        cleaned_kwargs = {key: value for key, value in kwargs.items() if key in expected_fields}
         original_init(self, *args, **cleaned_kwargs)
 
     cls.__init__ = new_init
@@ -62,7 +67,7 @@ class yts_movie:
     date_uploaded_unix: int | None = None
 
     def __post_init__(self):
-        self.torrents = self.torrents and [yts_torrent(**torrent) for torrent in self.torrents]
+        self.torrents = self.torrents and [yts_torrent(**torrent) for torrent in self.torrents]  # pyright: ignore[reportCallIssue]
 
 
 @filter_unexpected_fields
@@ -74,7 +79,7 @@ class yts_data:
     movies: list[yts_movie] | None = None
 
     def __post_init__(self):
-        self.movies = self.movies and [yts_movie(**movie) for movie in self.movies]
+        self.movies = self.movies and [yts_movie(**movie) for movie in self.movies]  # pyright: ignore[reportCallIssue]
 
 
 @filter_unexpected_fields
@@ -85,7 +90,7 @@ class yts_response:
     data: yts_data
 
     def __post_init__(self):
-        self.data = yts_data(**self.data)
+        self.data = yts_data(**self.data)  # pyright: ignore[reportCallIssue]
 
 
 class yts:
@@ -102,7 +107,7 @@ class yts:
     url = "https://yts.bz/"
     api_url = "https://movies-api.accel.li/api/v2/list_movies.json?"
     name = "YTS"
-    supported_categories: ClassVar[dict[str, str]]  = {"all": "0", "movies": "1"}
+    supported_categories: ClassVar[dict[str, str]] = {"all": "0", "movies": "1"}
 
     # DO NOT CHANGE the name and parameters of this function
     # This function will be the one called by nova2.py
@@ -118,7 +123,7 @@ class yts:
         search_url = self.api_url
 
         what = unquote(what)
-        search_params = {}
+        search_params: dict[str, str] = {}
 
         # quality tagging
         quality_rstring = r"(?:quality=)?((?:2160|1440|1080|720|480|240)p|3D)"
@@ -176,32 +181,25 @@ class yts:
             return
 
         if api_result.status != "ok":
-            print(
-                f"Error querying YTS API: {api_result.status}: {api_result.status_message}"
-            )
+            print(f"Error querying YTS API: {api_result.status}: {api_result.status_message}")
             return
         if not api_result.data or not api_result.data.movies:
             return
 
-        self.process_movies(api_result.data.movies, search_params)
-        for page_no in range(
-            1, api_result.data.movie_count // api_result.data.limit + 1
-        ):
+        self.process_movies(api_result.data.movies or [], search_params)
+        for page_no in range(1, api_result.data.movie_count // api_result.data.limit + 1):
             try:
                 api_result = yts_response(
                     **json.loads(retrieve_url(search_url + f"&page={page_no}"))
                 )
-                self.process_movies(api_result.data.movies, search_params)
+                self.process_movies(api_result.data.movies or [], search_params)
             except Exception as e:
                 print(f"Error parsing YTS response: {e}")
                 return
 
-    def process_movies(self, movies: list[yts_movie], search_params: dict[str, str]):
-        if not movies:
-            return
-
-        for movie in movies:
-            for torrent in movie.torrents:
+    def process_movies(self, movies: list[yts_movie] | None, search_params: dict[str, str]) -> None:
+        for movie in movies or []:
+            for torrent in movie.torrents or []:
                 if (
                     "search_codec" in search_params
                     and torrent.video_codec != search_params["search_codec"]
@@ -210,14 +208,15 @@ class yts:
                     and torrent.quality != search_params["search_resolution"]
                 ):
                     continue
-                formatTorrent = {
+                formatTorrent: SearchResults = {
                     "link": torrent.url,
                     "name": f"{movie.title_long or movie.title} {torrent.quality and f'[{torrent.quality}]'} {torrent.video_codec and f'[{torrent.video_codec}]'} {torrent.type and f'[{torrent.type}]'} {torrent.audio_channels and f'[{torrent.audio_channels}]'} [YTS]",
-                    "size": torrent.size,
-                    "seeds": str(torrent.seeds),
-                    "leech": str(torrent.peers),
+                    "size": torrent.size if torrent.size is not None else -1,
+                    "seeds": torrent.seeds,
+                    "leech": torrent.peers,
                     "engine_url": self.url,
                     "desc_link": movie.url,
-                    "pub_date": torrent.date_uploaded_unix,
                 }
+                if torrent.date_uploaded_unix is not None:
+                    formatTorrent["pub_date"] = torrent.date_uploaded_unix
                 prettyPrinter(formatTorrent)

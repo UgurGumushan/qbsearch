@@ -1,19 +1,22 @@
 # VERSION: 1.3
-
-
+"""
+XXXClub (https://xxxclub.to) search engine. Scrapes the browse-table rows;
+for each row it fetches the detail page to extract the magnet link and the
+size, and pages are walked concurrently in threads.
+"""
 import re
 import threading
 import time
 from html.parser import HTMLParser
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from helpers import download_file, retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class xxxclubto:
     url = 'https://xxxclub.to'
-    headers: ClassVar[dict[str, str]]  = {
+    headers: dict[str, str] = {  # noqa: RUF012
         'Referer': url
     }    
     name = 'XXXClub'
@@ -39,12 +42,12 @@ class xxxclubto:
     
         UL, LI, SPAN, A = ('ul', 'li', 'span', 'a')
     
-        def __init__(self, url, headers):
+        def __init__(self, url: str, headers: dict[str, str]) -> None:
             HTMLParser.__init__(self)
             self.url = url
             self.headers = headers
             self.headers['Referer'] = url
-            self.row = {}
+            self.row: dict[str, str] = {}
             self.column = 0
             self.foundResults = False
             self.foundTable = False
@@ -57,7 +60,7 @@ class xxxclubto:
     
         def handle_starttag(self, tag, attrs):
             params = dict(attrs)
-            if 'browsetableinside' in params.get('class', ''):
+            if 'browsetableinside' in (params.get('class') or ''):
                 self.foundResults = True
                 return
             if self.foundResults and tag == self.UL:
@@ -75,8 +78,10 @@ class xxxclubto:
                     self.foundRowCatlabe = True 
                 return
             if self.insideRow and self.foundTableHeading and self.column == 1 and tag == self.A:
-                self.insideNameLink = True
                 href = params.get('href')
+                if not href:
+                    return
+                self.insideNameLink = True
                 link = f'{self.url}{href}'
                 self.row['desc_link'] = link
                 self.row['link'] = link
@@ -108,19 +113,19 @@ class xxxclubto:
                     self.foundTableHeading = True
                 else:
                     self.row['engine_url'] = self.url
-                    prettyPrinter(self.row)
+                    prettyPrinter(cast(SearchResults, cast(object, self.row)))
                     self.insideRow = False
                     self.foundRowCatlabe = False
                     self.column = 0
                     self.row = {}
                 return
 
-    def download_torrent(self, info):
+    def download_torrent(self, info: str) -> None:
         print(download_file(info))
 
-    def get_page_url(self, what, category, page):
+    def get_page_url(self, what: str, category: str, page: int) -> str:
         return f'{self.url}/torrents/search/{category}/{what}?page={page}&sort=seeders&order=asc'
-    def get_results(self, html):
+    def get_results(self, html: str) -> None:
         container_matches = re.finditer(self.container_regex, html, re.MULTILINE)
         container = [x.group() for x in container_matches]
 
@@ -132,7 +137,7 @@ class xxxclubto:
         else:
             self.has_results = False
 
-    def get_next_page(self, html):
+    def get_next_page(self, html: str) -> None:
         next_page_matches = re.finditer(self.pagination_next_regex, html, re.MULTILINE)
         next_page = [x.group() for x in next_page_matches]
 
@@ -140,7 +145,7 @@ class xxxclubto:
             self.has_next_page = False
             self.get_last_page(html)
 
-    def get_last_page(self, html):
+    def get_last_page(self, html: str) -> None:
         last_page_matches = re.finditer(self.pagination_last_page, html, re.MULTILINE)
         last_page = [x.group() for x in last_page_matches]
 
@@ -149,7 +154,7 @@ class xxxclubto:
         else:
             self.last_page = int(re.sub(r'</a>', '',re.sub(r'<a.*?>', '', last_page[0])))
 
-    def threaded_search(self, page, what, cat):
+    def threaded_search(self, page: int, what: str, cat: str) -> None:
         page_url = self.get_page_url(what, cat, page)
         self.headers['Referer'] = page_url
         retrieved_html = retrieve_url(page_url, self.headers)
@@ -160,7 +165,7 @@ class xxxclubto:
             parser.feed(retrieved_html)
             parser.close()           
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         category = self.supported_categories[cat]
         page = 1
 
