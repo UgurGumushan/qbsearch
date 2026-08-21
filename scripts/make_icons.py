@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Generate working/<stem>.ico favicons for the qBittorrent search plugins.
+"""Generate icons/<stem>.ico favicons for the qBittorrent search plugins.
 
-For every working/<stem>.py plugin this script:
+For every plugins/<stem>.py plugin this script:
   1. extracts the base URL from the plugin class `url` attribute,
   2. fetches the site favicon (https://<host>/favicon.ico, falling back to
      Google's favicon service),
   3. converts it to a square ICO (downscaled to 32x32 if larger than 32)
-     and writes it to working/<stem>.ico,
+     and writes it to icons/<stem>.ico,
   4. records the result in /tmp/icon_manifest.json.
 
 Requires Pillow (PIL) for the image conversion. If Pillow is missing, the
@@ -22,14 +22,17 @@ import io
 import json
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-if TYPE_CHECKING:
+try:
     from PIL import Image
+except ImportError:
+    Image = None  # type: ignore[assignment]
 
-WORKING = Path(__file__).resolve().parent.parent / "working"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PLUGINS = REPO_ROOT / "plugins"
+ICONS = REPO_ROOT / "icons"
 MANIFEST = Path("/tmp/icon_manifest.json")
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
@@ -50,7 +53,7 @@ RE_CONST = re.compile(
 )
 
 # Hand-picked author-repo images from the qBitt search-plugins wiki, used
-# when both the site favicon and Google's favicon service fail.
+# when the normal favicon sources fail.
 EXTRA = {
     "darklibria": "https://raw.githubusercontent.com/bugsbringer/qbit-plugins/master/darklibria.png",
     "magnetdl": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/00e876a51f2cb45ee22071c56fc7ba52dc117721/magnetdl.png",
@@ -91,12 +94,12 @@ def fetch(url: str) -> tuple[bytes | None, str | None]:
         return None, str(exc)
 
 
-def open_rgba(data: bytes) -> "Image.Image":
+def open_rgba(data: bytes) -> Image.Image:
     img = Image.open(io.BytesIO(data))
     return img.convert("RGBA")
 
 
-def save_ico(img: "Image.Image", out: Path) -> None:
+def save_ico(img: Image.Image, out: Path) -> None:
     """Square-crop/pad the image and save it as an ICO.
 
     The stored size is 32x32, or the source size when the source is already
@@ -130,24 +133,24 @@ def main() -> int:
         except Exception:
             prev = {}
 
-    plugins = sorted(WORKING.glob("*.py"))
+    plugins = sorted(PLUGINS.glob("*.py"))
     usable_pil = has_pillow()
     manifest: dict[str, dict[str, object]] = {}
 
     for path in plugins:
         stem = path.stem
-        ico_path = WORKING / f"{stem}.ico"
+        ico_path = ICONS / f"{stem}.ico"
         if (
             ico_path.exists()
             and prev.get(stem, {}).get("ok")
-            and prev.get(stem, {}).get("ico") == f"working/{stem}.ico"
+            and prev.get(stem, {}).get("ico") == f"icons/{stem}.ico"
         ):
             manifest[stem] = prev[stem]
             continue
         entry: dict[str, object] = {
             "url": None,
             "host": "",
-            "ico": f"working/{stem}.ico",
+            "ico": f"icons/{stem}.ico",
             "ok": False,
             "error": None,
             "source": None,
@@ -226,12 +229,30 @@ def main() -> int:
                     errors.append(f"duckduckgo: not an image ({exc})")
 
         if data is None:
+            horse_url = f"https://icon.horse/icon/{host}"
+            horse, err = fetch(horse_url)
+            if err is not None:
+                errors.append(f"icon.horse: {err}")
+            elif horse is None:
+                errors.append("icon.horse: empty response")
+            else:
+                try:
+                    horse_img = open_rgba(horse)
+                    if horse_img.size[0] < 4 or horse_img.size[1] < 4:
+                        errors.append("icon.horse: placeholder/blank image")
+                    else:
+                        data, source = horse, "icon.horse"
+                except Exception as exc:
+                    errors.append(f"icon.horse: not an image ({exc})")
+
+        if data is None:
             entry["error"] = "; ".join(errors) or "no favicon"
             continue
 
         img = open_rgba(data)
         try:
-            save_ico(img, WORKING / f"{stem}.ico")
+            ICONS.mkdir(parents=True, exist_ok=True)
+            save_ico(img, ICONS / f"{stem}.ico")
         except Exception as exc:
             entry["error"] = f"convert: {exc}"
             continue

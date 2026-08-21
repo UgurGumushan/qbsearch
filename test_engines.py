@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Test whether every plugin in working/ is installable by qBittorrent (v5.2.3+).
+# Test whether every plugin in plugins/ is installable by qBittorrent (v5.2.3+).
 #
 # qBittorrent's nova2.py loads each engine with:
 #     importlib.import_module("engines.<stem>")  then  getattr(module, <stem>)
@@ -15,7 +15,7 @@
 #    3. It validates each #VERSION: against qBitt's Version<2> parser (2 numeric
 #       components) to catch version-string bugs that don't block install.
 #
-# Usage:  python3 test_engines.py              (tests working/)
+# Usage:  python3 test_engines.py              (tests plugins/)
 #          python3 test_engines.py <dir>       (tests another dir)
 
 import glob
@@ -25,7 +25,7 @@ import os
 import re
 import sys
 
-WORKING = sys.argv[1] if len(sys.argv) > 1 else "working"
+PLUGIN_DIR = sys.argv[1] if len(sys.argv) > 1 else "plugins"
 
 # qBitt's nova3 dir (holds helpers.py, novaprinter.py, socks.py, nova2.py).
 QB_NOVA3 = os.path.expanduser("~/Library/Application Support/qBittorrent/nova3")
@@ -161,7 +161,7 @@ def main():
     using_real = load_qbitt_modules()
 
     ok, broken, bad_version = [], [], []
-    for path in sorted(glob.glob(os.path.join(WORKING, "*.py"))):
+    for path in sorted(glob.glob(os.path.join(PLUGIN_DIR, "*.py"))):
         stem = os.path.basename(path)[:-3]
         v = read_version(path)
         if v is None or not version_is_valid(v):

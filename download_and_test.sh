@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-WORKING="$ROOT/working"
-mkdir -p "$WORKING"
+PLUGINS="$ROOT/plugins"
+mkdir -p "$PLUGINS"
 
 # All free/public plugin raw URLs from the wiki
 URLS=(
@@ -89,7 +89,7 @@ echo "=== Downloading $(wc -l <<< "${URLS[@]}") free plugins ==="
 
 for url in "${URLS[@]}"; do
     stem=$(basename "$url" .py)
-    outfile="$WORKING/${stem}.py"
+    outfile="$PLUGINS/${stem}.py"
     
     if fetch_one "$url" "$outfile"; then
         ((OK++)) || true

@@ -6,6 +6,9 @@ all/danishbytes.cookies
 __pycache__/
 *.pyc
 .ruff_cache/
+plugins/*.log
+plugins/*.cookie
+plugins/*_temp.*
 
 # macOS
 .DS_Store

@@ -1,4 +1,4 @@
-# qBittorrent search-engine plugin collection. Each file in working/ is a
+# qBittorrent search-engine plugin collection. Each file in plugins/ is a
 # standalone nova2 engine; qBitt (Python 3) imports them directly, so no shared
 # modules exist. See test_engines.py for the installability harness.
 
@@ -41,7 +41,7 @@ extraPaths = ["typings"]
 # The engines import qBitt's modules at runtime; keep per-row import checks
 # pointed at the stubs rather than silenced.
 executionEnvironments = [
-    { root = "working", reportMissingModuleSource = "none" },
+    { root = "plugins", reportMissingModuleSource = "none" },
 ]
 
 # qBitt nova REQUIRES bare class attrs (url / name / supported_categories);
