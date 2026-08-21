@@ -19,6 +19,7 @@
 #          python3 test_engines.py <dir>       (tests another dir)
 
 import glob
+import importlib.machinery
 import importlib.util
 import os
 import re
@@ -38,7 +39,8 @@ def detect_qbitt_python():
         if not os.path.exists(path):
             continue
         try:
-            text = open(path, encoding="utf-8", errors="replace").read()
+            with open(path, encoding="utf-8", errors="replace") as f:
+                text = f.read()
         except OSError:
             continue
         # newest match wins; the log is chronological
@@ -53,24 +55,22 @@ def ensure_qbitt_python():
     """Re-exec under the same Python qBitt uses, if the current one is newer."""
     target = detect_qbitt_python()
     if target is None:
-        print("NOTE: could not detect qBitt's Python from its log; "
-              "testing under the current interpreter (%s)." % sys.version.split()[0])
+        print(f"NOTE: could not detect qBitt's Python from its log; "
+              f"testing under the current interpreter ({sys.version.split()[0]}).")
         return
     cur = (sys.version_info.major, sys.version_info.minor)
     if cur <= target:
         return  # current interpreter is old enough; PEP 604 etc. would fail here too
     # current interpreter is newer than qBitt's -- re-exec under an older one
     for candidate in ("/usr/bin/python3",
-                      "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/"
-                      "Python3.framework/Versions/%d.%d/bin/python3" % target):
+                      (f"/Applications/Xcode.app/Contents/Developer/Library/Frameworks/"
+                       f"Python3.framework/Versions/{target[0]}.{target[1]}/bin/python3")):
         if os.path.exists(candidate):
-            print("NOTE: qBitt uses Python %d.%d but this is Python %d.%d; "
-                  "re-execing under %s to match qBitt."
-                  % (target[0], target[1], cur[0], cur[1], candidate))
+            print(f"NOTE: qBitt uses Python {target[0]}.{target[1]} but this is Python "
+                  f"{cur[0]}.{cur[1]}; re-execing under {candidate} to match qBitt.")
             os.execv(candidate, [candidate] + sys.argv)
-    print("NOTE: qBitt uses Python %d.%d but no matching interpreter was found; "
-          "testing under the current interpreter (%s)."
-          % (target[0], target[1], sys.version.split()[0]))
+    print(f"NOTE: qBitt uses Python {target[0]}.{target[1]} but no matching interpreter was found; "
+          f"testing under the current interpreter ({sys.version.split()[0]}).")
 
 
 def load_qbitt_modules():
@@ -83,29 +83,35 @@ def load_qbitt_modules():
     from typing import TypedDict, Union
 
     novaprinter = types.ModuleType("novaprinter")
-    novaprinter.SearchResults = TypedDict("SearchResults", {
-        "link": str, "name": str, "size": Union[float, int, str],
-        "seeds": int, "leech": int, "engine_url": str,
-        "desc_link": str, "pub_date": int,
+    vars(novaprinter).update({
+        "SearchResults": TypedDict("SearchResults", {
+            "link": str, "name": str, "size": Union[float, int, str],
+            "seeds": int, "leech": int, "engine_url": str,
+            "desc_link": str, "pub_date": int,
+        }),
+        "anySizeToBytes": lambda s: s,
+        "prettyPrinter": lambda *a, **k: None,
     })
-    novaprinter.anySizeToBytes = lambda s: s
-    novaprinter.prettyPrinter = lambda *a, **k: None
     sys.modules["novaprinter"] = novaprinter
 
     helpers = types.ModuleType("helpers")
-    helpers.retrieve_url = lambda *a, **k: ""
-    helpers.download_file = lambda *a, **k: ""
-    helpers.enable_socks_proxy = lambda *a, **k: None
-    helpers.htmlentitydecode = lambda s: s
-    helpers._headers = {}
+    vars(helpers).update({
+        "retrieve_url": lambda *a, **k: "",
+        "download_file": lambda *a, **k: "",
+        "enable_socks_proxy": lambda *a, **k: None,
+        "htmlentitydecode": lambda s: s,
+        "_headers": {},
+    })
     sys.modules["helpers"] = helpers
 
     socks = types.ModuleType("socks")
-    socks.PROXY_TYPE_SOCKS4 = 1
-    socks.PROXY_TYPE_SOCKS5 = 2
-    socks.socksocket = object
-    socks.setdefaultproxy = lambda *a, **k: None
-    socks.set_default_proxy = lambda *a, **k: None
+    vars(socks).update({
+        "PROXY_TYPE_SOCKS4": 1,
+        "PROXY_TYPE_SOCKS5": 2,
+        "socksocket": object,
+        "setdefaultproxy": lambda *a, **k: None,
+        "set_default_proxy": lambda *a, **k: None,
+    })
     sys.modules["socks"] = socks
     return False
 
@@ -120,10 +126,11 @@ def version_is_valid(v):
 
 def read_version(path):
     """Read the #VERSION: line the way qBitt does (spaces stripped)."""
-    for line in open(path, encoding="utf-8", errors="replace"):
-        stripped = line.replace(" ", "")
-        if stripped.upper().startswith("#VERSION:"):
-            return stripped[len("#VERSION:"):].strip()
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            stripped = line.replace(" ", "")
+            if stripped.upper().startswith("#VERSION:"):
+                return stripped[len("#VERSION:"):].strip()
     return None
 
 
@@ -136,13 +143,16 @@ def check(path):
         return "cannot load module"
     mod = importlib.util.module_from_spec(spec)
     sys.modules[stem] = mod
-    spec.loader.exec_module(mod)
+    if isinstance(spec.loader, importlib.machinery.SourceFileLoader):
+        spec.loader.exec_module(mod)
+    else:
+        raise TypeError(f"unexpected loader type {type(spec.loader)!r}")
     cls = getattr(mod, stem, None)
     if cls is None:
-        return "class/filename mismatch: no class named '%s'" % stem
+        return f"class/filename mismatch: no class named '{stem}'"
     missing = [a for a in ("name", "url") if not hasattr(cls, a)]
     if missing:
-        return "missing class attrs: %s" % missing
+        return f"missing class attrs: {missing}"
     return None
 
 
@@ -159,28 +169,28 @@ def main():
         try:
             why = check(path)
         except Exception as e:
-            why = "%s: %s" % (type(e).__name__, str(e).splitlines()[-1] if str(e) else e)
+            why = f"{type(e).__name__}: {str(e).splitlines()[-1] if str(e) else e}"
         finally:
             sys.modules.pop(stem, None)
         (broken if why else ok).append((stem, why) if why else (stem, None))
 
     total = len(ok) + len(broken)
-    print("Python %s | qBitt nova3 modules: %s"
-          % (sys.version.split()[0], "real (from profile)" if using_real else "stub (fallback)"))
-    print("=== INSTALLABLE (%d/%d) ===" % (len(ok), total))
+    print(f"Python {sys.version.split()[0]} | qBitt nova3 modules: "
+          f"{'real (from profile)' if using_real else 'stub (fallback)'}")
+    print(f"=== INSTALLABLE ({len(ok)}/{total}) ===")
     print(", ".join(s for s, _ in ok))
     print()
     if broken:
-        print("=== NOT INSTALLABLE (%d) ===" % len(broken))
+        print(f"=== NOT INSTALLABLE ({len(broken)}) ===")
         for stem, why in broken:
-            print("      %-18s %s" % (stem, why))
+            print(f"      {stem:<18} {why}")
     else:
-        print("All %d plugins are installable." % total)
+        print(f"All {total} plugins are installable.")
     print()
     if bad_version:
-        print("=== INVALID #VERSION: (%d, qBitt Version<2> = 2 numeric parts) ===" % len(bad_version))
+        print(f"=== INVALID #VERSION: ({len(bad_version)}, qBitt Version<2> = 2 numeric parts) ===")
         for stem, v in bad_version:
-            print("      %-18s %r" % (stem, v))
+            print(f"      {stem:<18} {v!r}")
     else:
         print("All version strings are valid.")
     return 1 if broken else 0

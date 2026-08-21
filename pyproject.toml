@@ -5,13 +5,17 @@
 [tool.ruff]
 target-version = "py39"
 line-length = 100
+# external/ is a vendored snapshot of the upstream author repos (see
+# ATTRIBUTIONS.md); it is provenance, not maintained code.
+exclude = ["external"]
 
+[tool.ruff.lint]
 # Intentional scraper idioms the repo keeps:
-#   BLE001 broad `except Exception` keeps one engine's failure from crashing
-#             the qBitt process.
-#   DTZ*     engines use naive datetimes because the sites return local time.
+#   BLE001  broad `except Exception` keeps one engine's failure from crashing
+#           the qBitt process.
+#   DTZ*    engines use naive datetimes because the sites return local time.
 #   S110/S112  per-row int-parse swallows are deliberate tolerance.
-# B005 and TRY002 are NOT ignored — they are fixed outright (see fix playbook).
+# B005 and TRY002 are NOT ignored — they are fixed outright.
 ignore = [
     "BLE001",
     "DTZ004",
@@ -25,15 +29,42 @@ ignore = [
 
 [tool.basedpyright]
 pythonVersion = "3.9"
+exclude = ["external", ".venv"]
+venvPath = "."
+venv = ".venv"
 
-# `helpers`, `novaprinter`, `requests`, `socks` ship inside qBitt's nova3,
-# not on the host. Silence only for the plugin dir.
+# qBitt's nova3 modules (`helpers`, `novaprinter`, `socks`) and `requests`
+# (one engine) live inside qBitt's installation, not on the host. typings/
+# holds exact stubs copied from the real nova3 sources.
+extraPaths = ["typings"]
+
+# The engines import qBitt's modules at runtime; keep per-row import checks
+# pointed at the stubs rather than silenced.
 executionEnvironments = [
-    { root = "working", reportMissingImports = "none",
-      reportMissingModuleSource = "none" },
+    { root = "working", reportMissingModuleSource = "none" },
 ]
 
 # qBitt nova REQUIRES bare class attrs (url / name / supported_categories);
 # they cannot become properties or @final-decorated. These are
 # convention-mandated, not bugs — silence the annotation rule globally.
 reportUnannotatedClassAttribute = "none"
+
+# The engines are deliberately untyped legacy scrapers: their inputs flow in as
+# `Any` from qBitt's bundled urllib/bs4/HTMLParser and are forwarded to
+# prettyPrinter. Chasing per-line annotations would churn every file for no
+# runtime benefit. Silence the Any/unknown-type propagation family; the genuine
+# error-level issues (Optional access, uninitialized vars, call/attr issues)
+# stay enabled and are fixed in code.
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownMemberType = "none"
+reportUnknownLambdaType = "none"
+reportAny = "none"
+reportMissingParameterType = "none"
+reportMissingModuleSource = "none"
+reportImplicitOverride = "none"
+reportUnusedParameter = "none"
+reportImplicitStringConcatenation = "none"
+reportUntypedBaseClass = "none"
+reportExplicitAny = "none"
+reportPrivateUsage = "none"
