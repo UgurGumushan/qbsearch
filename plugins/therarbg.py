@@ -1,16 +1,17 @@
 # VERSION: 1.3
 """
-The RARBG (https://therarbg.com) search engine. Scrapes the post list and,
-for every row, fetches the torrent page once more to extract its magnet
-link; pages beyond the first are walked concurrently in threads.
+The RARBG (https://therarbg.com) search engine. Uses the site's JSON search
+endpoint and builds magnets directly from the hash returned for each result.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Sequence
 from html.parser import HTMLParser
 from typing import ClassVar
+from urllib.parse import quote
 
 from helpers import download_file
 from helpers import retrieve_url as _qbt_helper_retrieve_url
@@ -386,35 +387,75 @@ class therarbg:
         print(download_file(info))
 
     def getPageUrl(self, what: str, cat: str, page: int) -> str:
-        if cat != "All":
-            return f"{self.url}/get-posts/order:-se:category:{cat}:keywords:{what}/?page={page}"
-        else:
-            return f"{self.url}/get-posts/order:-se:keywords:{what}/?page={page}"
+        category = "" if cat == "All" else f":category:{quote(cat, safe='')}"
+        return (
+            f"{self.url}/get-posts/keywords:{quote(what, safe='%+')}{category}"
+            f":format:json/?page={page}"
+        )
 
-    def threaded_search(self, page: int, what: str, cat: str) -> bool:
-        page_url = self.getPageUrl(what, cat, page)
-        retrievedHtml = retrieve_url(page_url)
-        if not retrievedHtml:
-            return False
-        next_page_matches = re.finditer(self.next_page_regex, retrievedHtml, re.MULTILINE)
-        title_matches = re.finditer(self.title_regex, retrievedHtml, re.MULTILINE)
-        is_result_page = [x.group() for x in title_matches]
-        next_page = [x.group() for x in next_page_matches]
-        if is_result_page:
-            parser = self.MyHtmlParser(self.url)
-            parser.feed(retrievedHtml)
-            parser.close()
-        return bool(is_result_page and next_page)
+    @staticmethod
+    def _int_value(value: object, default: int = -1) -> int:
+        if not isinstance(value, (int, str, float)):
+            return default
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _result_from_json(self, post: dict[object, object]) -> SearchResults | None:
+        name = str(post.get("n") or "").strip()
+        info_hash = str(post.get("h") or "").strip()
+        if not name or not info_hash:
+            return None
+
+        post_id = str(post.get("pk") or "").strip()
+        slug = quote(re.sub(r"[ .]+", "-", name).lower(), safe="-_")
+        desc_link = (
+            f"{self.url}/post-detail/{post_id}/{slug}/"
+            if post_id
+            else self.url
+        )
+        result: SearchResults = {
+            "link": (
+                f"magnet:?xt=urn:btih:{quote(info_hash, safe='')}"
+                f"&dn={quote(name, safe='')}"
+            ),
+            "name": name,
+            "size": f"{self._int_value(post.get('s'), 0)} B",
+            "seeds": self._int_value(post.get("se")),
+            "leech": self._int_value(post.get("le")),
+            "engine_url": self.url,
+            "desc_link": desc_link,
+        }
+        added = self._int_value(post.get("a"), -1)
+        if added >= 0:
+            result["pub_date"] = added
+        return result
 
     def search(self, what: str, cat: str = "all") -> None:
         search_category = self.supported_categories[cat]
+        page_url = self.getPageUrl(what, search_category, 1)
+        for _ in range(MAX_PAGES):
+            response = retrieve_url(page_url)
+            try:
+                payload = json.loads(response)
+            except (TypeError, ValueError):
+                return
+            if not isinstance(payload, dict):
+                return
 
-        self.has_next_page = True
-        batch_size = max(1, int(MAX_WORKERS))
-        for start in range(1, MAX_PAGES + 1, batch_size):
-            pages = range(start, min(start + batch_size, MAX_PAGES + 1))
-            jobs = [(p, what, search_category) for p in pages]
-            outcomes = _qbt_run_parallel(self.threaded_search, jobs, _qbt_new_deadline())
-            if len(outcomes) != len(jobs) or not all(outcomes):
-                self.has_next_page = False
-                break
+            posts = payload.get("results")
+            if not isinstance(posts, list):
+                return
+            for post in posts:
+                if not isinstance(post, dict):
+                    continue
+                result = self._result_from_json(post)
+                if result is not None:
+                    _qbt_prettyPrinter(result)
+
+            links = payload.get("links")
+            next_url = links.get("next") if isinstance(links, dict) else None
+            if not isinstance(next_url, str) or not next_url:
+                return
+            page_url = next_url
