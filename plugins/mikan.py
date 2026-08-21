@@ -5,6 +5,7 @@ results) and maps each item's enclosure to its .torrent link.
 """
 
 import urllib.request
+from datetime import datetime
 from typing import ClassVar
 from xml.etree import ElementTree
 
@@ -294,6 +295,17 @@ class mikan:
                     size=enclosure.attrib["length"],
                     desc_link=item.findtext("link") or "",
                 )
+                torrent_metadata = item.find("{https://mikanani.me/0.1/}torrent")
+                pub_date = (
+                    torrent_metadata.findtext("{https://mikanani.me/0.1/}pubDate")
+                    if torrent_metadata is not None
+                    else None
+                )
+                if pub_date:
+                    try:
+                        row["pub_date"] = int(datetime.fromisoformat(pub_date).timestamp())
+                    except ValueError:
+                        pass
                 _qbt_prettyPrinter(row)
         except (ElementTree.ParseError, AttributeError, KeyError):
             raise EngineQueryError("parse error")

@@ -7,6 +7,7 @@ downloaded game, linking the first URI of each entry.
 
 import json
 from collections.abc import Mapping
+from datetime import datetime, timezone
 from typing import Any, ClassVar
 from urllib.parse import unquote
 
@@ -269,6 +270,15 @@ class onlinefix:
                     engine_url=self.url,
                     desc_link="-1",
                 )
+                upload_date = result.get("uploadDate")
+                if upload_date:
+                    try:
+                        timestamp = datetime.strptime(
+                            str(upload_date), "%Y-%m-%dT%H:%M:%S.%fZ"
+                        ).replace(tzinfo=timezone.utc)
+                        res["pub_date"] = int(timestamp.timestamp())
+                    except (TypeError, ValueError):
+                        pass
                 _qbt_prettyPrinter(res)
 
     def download_link(self, result: Mapping[str, Any]) -> str:

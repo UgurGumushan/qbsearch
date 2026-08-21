@@ -7,6 +7,8 @@ returns a short page.
 
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
 from enum import Enum
 from html.parser import HTMLParser
 from typing import ClassVar
@@ -273,6 +275,7 @@ class nyaapantsu:
             SEEDS = 2
             LEECH = 3
             SIZE = 4
+            DATE = 5
 
         def __init__(
             self,
@@ -337,25 +340,31 @@ class nyaapantsu:
             # get size from handle_data()
             elif "class" in params and params["class"].startswith("tr-size"):
                 self.td_type = self.DataType.SIZE
-            # we've reached the end of this result; save it and clean up.
+            # get publication date from handle_data()
             elif "class" in params and params["class"].startswith("tr-date"):
-                if self.curr is not None:
-                    self.results.append(
-                        SearchResults(
-                            link=str(self.curr.get("link", "")),
-                            name=str(self.curr.get("name", "")),
-                            size=str(self.curr.get("size", "")),
-                            seeds=int(self.curr.get("seeds", -1)),
-                            leech=int(self.curr.get("leech", -1)),
-                            engine_url=str(self.curr.get("engine_url", "")),
-                            desc_link=str(self.curr.get("desc_link", "")),
-                        )
-                    )
-                self.td_type = self.DataType.NONE
-                self.curr = None
+                self.td_type = self.DataType.DATE
             # default: current innerContent does not concern us: pass.
             else:
                 self.td_type = self.DataType.NONE
+
+        def handle_endtag(self, tag: str) -> None:
+            """Save a result after its date cell has been consumed."""
+            if tag != "tr" or self.curr is None:
+                return
+            result = SearchResults(
+                link=str(self.curr.get("link", "")),
+                name=str(self.curr.get("name", "")),
+                size=str(self.curr.get("size", "")),
+                seeds=int(self.curr.get("seeds", -1)),
+                leech=int(self.curr.get("leech", -1)),
+                engine_url=str(self.curr.get("engine_url", "")),
+                desc_link=str(self.curr.get("desc_link", "")),
+            )
+            if "pub_date" in self.curr:
+                result["pub_date"] = int(self.curr["pub_date"])
+            self.results.append(result)
+            self.td_type = self.DataType.NONE
+            self.curr = None
 
         def handle_data(self, data: str) -> None:
             """Strip textContent data for search result based on td type"""
@@ -386,6 +395,31 @@ class nyaapantsu:
             # Get size
             elif self.td_type == self.DataType.SIZE:
                 self.curr["size"] = data.strip()
+                self.td_type = self.DataType.NONE
+            # Get the publication date.  The site stores this as an absolute
+            # UTC-looking timestamp; leave relative/unknown labels alone.
+            elif self.td_type == self.DataType.DATE:
+                match = re.search(
+                    r"\d{4}[-/]\d{2}[-/]\d{2} \d{2}:\d{2}(?::\d{2})?",
+                    data,
+                )
+                if match:
+                    date_text = match.group()
+                    for date_format in (
+                        "%Y-%m-%d %H:%M:%S",
+                        "%Y-%m-%d %H:%M",
+                        "%Y/%m/%d %H:%M:%S",
+                        "%Y/%m/%d %H:%M",
+                    ):
+                        try:
+                            self.curr["pub_date"] = int(
+                                datetime.strptime(date_text, date_format)
+                                .replace(tzinfo=timezone.utc)
+                                .timestamp()
+                            )
+                            break
+                        except ValueError:
+                            pass
                 self.td_type = self.DataType.NONE
             # Default: self.td_type is unset, current textConent is not
             # interesting, do nothing.

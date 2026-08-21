@@ -282,6 +282,13 @@ class acgrip:
             self, tag: str, attrs: list[tuple[str, str | None]]
         ) -> None:
             """Dispatch opening tags to the matching helper."""
+            if tag == 'time' and self.curr is not None:
+                timestamp = dict(attrs).get('datetime')
+                try:
+                    if timestamp:
+                        self.curr['pub_date'] = int(timestamp)
+                except (TypeError, ValueError):
+                    pass
             if tag == 'a':
                 self.start_a(attrs)
             if tag == 'span':

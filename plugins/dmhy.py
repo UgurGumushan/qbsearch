@@ -7,6 +7,7 @@ rebuilt from the row date and the magnet's info hash.
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from html.parser import HTMLParser
 from typing import ClassVar, cast
 
@@ -301,6 +302,10 @@ class dmhy:
             if len(cell) < 7:
                 continue
             date = re.sub(r'\s+', ' ', cell[0]).strip().split()[0]
+            try:
+                pub_date = int(datetime.strptime(date, '%Y/%m/%d').timestamp())
+            except ValueError:
+                pub_date = -1
             name = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', cell[2])).strip()
             links = re.findall(r'href="([^"]*)"', cell[3])
             magnet = next((l for l in links if l.startswith('magnet:?')), '')
@@ -320,6 +325,7 @@ class dmhy:
                 'seeds': int(seeds) if seeds.isdigit() else -1,
                 'leech': int(leech) if leech.isdigit() else -1,
                 'link': link,
+                'pub_date': pub_date,
             }
             # Keep the date field in the returned scraper record; qBittorrent's
             # printer contract only describes the common result fields.

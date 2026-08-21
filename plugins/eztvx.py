@@ -450,6 +450,10 @@ class eztvx:
             engine_url=self.url,
             desc_link=torrent.get("episode_url", self.url),
         )
+        try:
+            result["pub_date"] = int(torrent["date_released_unix"])
+        except (KeyError, TypeError, ValueError):
+            pass
         _qbt_prettyPrinter(result)
 
     def _format_size(self, size_bytes: int | str) -> str:

@@ -4,6 +4,8 @@ The Pirate Bay (https://thepiratebay.org) search engine. Uses the
 apibay.org JSON API and builds magnets with a fixed list of public trackers.
 """
 
+from __future__ import annotations
+
 import json
 import urllib.parse
 from typing import ClassVar, TypedDict
@@ -246,6 +248,7 @@ class TpbEntry(TypedDict):
     seeders: int
     leechers: int
     info_hash: str
+    added: int | str
 
 
 class thepiratebay:
@@ -273,6 +276,10 @@ class thepiratebay:
                 "engine_url": self.url,
                 "desc_link": "https://thepiratebay.org/description.php?id={}".format(torrent["id"]),
             }
+            try:
+                data["pub_date"] = int(torrent["added"])
+            except (KeyError, TypeError, ValueError):
+                pass
             _qbt_prettyPrinter(data)
 
     def search(self, what: str, cat: str = "all"):

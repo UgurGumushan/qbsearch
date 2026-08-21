@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import re
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import ClassVar
 
@@ -369,6 +370,16 @@ class nyaa_phuong:
                 seeders = self._cell_text(tds[5])
                 leechers = self._cell_text(tds[6])
                 try:
+                    pub_date = int(
+                        datetime.strptime(
+                            self._cell_text(tds[4]), "%Y-%m-%d %H:%M"
+                        )
+                        .replace(tzinfo=timezone.utc)
+                        .timestamp()
+                    )
+                except ValueError:
+                    pub_date = -1
+                try:
                     seeds = int(seeders)
                 except ValueError:
                     seeds = -1
@@ -384,5 +395,6 @@ class nyaa_phuong:
                     "leech": leech,
                     "engine_url": self.url,
                     "desc_link": self.url + ref,
+                    "pub_date": pub_date,
                 }
                 _qbt_prettyPrinter(res)

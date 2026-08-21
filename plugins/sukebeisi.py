@@ -248,6 +248,7 @@ class SukebeiRow(TypedDict, total=False):
     leech: int
     engine_url: str
     desc_link: str
+    pub_date: int
 
 
 class sukebeisi:
@@ -295,6 +296,13 @@ class sukebeisi:
             self, tag: str, attrs: list[tuple[str, str | None]]
         ) -> None:
             """Tell the parser what to do with which tags"""
+            if tag == 'td' and self.td_counter == 2 and self.curr is not None:
+                timestamp = dict(attrs).get('data-timestamp')
+                try:
+                    if timestamp:
+                        self.curr['pub_date'] = int(timestamp)
+                except (TypeError, ValueError):
+                    pass
             if tag == 'a':
                 self.start_a(attrs)
 

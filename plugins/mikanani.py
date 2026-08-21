@@ -5,6 +5,7 @@ each row links its detail page and its .torrent file.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from html.parser import HTMLParser
 from typing import ClassVar, TypedDict, cast
 
@@ -252,6 +253,7 @@ class MikananiRow(TypedDict, total=False):
     leech: int
     engine_url: str
     desc_link: str
+    pub_date: int
 
 
 class mikanani:
@@ -367,6 +369,14 @@ class mikanani:
                 # Catch the size
                 elif self.td_counter == 1:
                     self.curr['size'] = data.strip()
+                # Catch the publication date
+                elif self.td_counter == 2:
+                    try:
+                        self.curr['pub_date'] = int(
+                            datetime.strptime(data.strip(), '%Y/%m/%d %H:%M').timestamp()
+                        )
+                    except ValueError:
+                        pass
                 # The rest is not supported by prettyPrinter
                 else:
                     pass

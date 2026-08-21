@@ -7,6 +7,7 @@ in the last page, batched five pages at a time.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from re import compile as re_compile
 
@@ -311,7 +312,7 @@ class tokyotoshokan:
                     self.name_found = False
             elif tag == "span":
                 self.stat_name = None
-            elif self.current_item and tag == "tr" and len(self.current_item) == 7:
+            elif self.current_item and tag == "tr" and len(self.current_item) >= 7:
                 raw = self.current_item
                 res: SearchResults = {
                     "link": raw["link"],
@@ -322,6 +323,8 @@ class tokyotoshokan:
                     "engine_url": raw["engine_url"],
                     "desc_link": raw["desc_link"],
                 }
+                if "pub_date" in raw:
+                    res["pub_date"] = int(raw["pub_date"])
                 _qbt_prettyPrinter(res)
                 self.current_item = None
                 self.size_found = False
@@ -340,6 +343,19 @@ class tokyotoshokan:
                 if result:
                     self.current_item["size"] = result.group(1)
                     self.size_found = False
+                date_match = re_compile(
+                    r"Date:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\s+UTC"
+                ).search(data)
+                if date_match:
+                    self.current_item["pub_date"] = str(
+                        int(
+                            datetime.strptime(
+                                date_match.group(1), "%Y-%m-%d %H:%M"
+                            )
+                            .replace(tzinfo=timezone.utc)
+                            .timestamp()
+                        )
+                    )
             elif self.stat_name:
                 self.current_item[self.stat_name] = data
 

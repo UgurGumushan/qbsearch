@@ -7,6 +7,7 @@ inside the stats div) and paginates at 20 results per page.
 
 import math
 import re
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import ClassVar
 
@@ -328,6 +329,25 @@ class solidtorrents:
                         self.row["seeds"] = data
                     if self.column == 4:
                         self.row["leech"] = data
+                    if self.column == 5:
+                        try:
+                            month, day, year = data.replace(',', '').lower().split()
+                            months = (
+                                'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+                                'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+                            )
+                            self.row["pub_date"] = str(
+                                int(
+                                    datetime(
+                                        int(year),
+                                        months.index(month) + 1,
+                                        int(day),
+                                        tzinfo=timezone.utc,
+                                    ).timestamp()
+                                )
+                            )
+                        except (ValueError, IndexError):
+                            self.row["pub_date"] = "-1"
                 return
 
         def handle_endtag(self, tag):
@@ -347,17 +367,18 @@ class solidtorrents:
             if tag == self.LI and self.insideSearchResult:
                 self.row["engine_url"] = self.url
                 print(self.row)
-                _qbt_prettyPrinter(
-                    SearchResults(
-                        link=self.row["link"],
-                        name=self.row["name"],
-                        size=self.row["size"],
-                        seeds=int(self.row["seeds"]),
-                        leech=int(self.row["leech"]),
-                        engine_url=self.row["engine_url"],
-                        desc_link=self.row["desc_link"],
-                    )
+                result = SearchResults(
+                    link=self.row["link"],
+                    name=self.row["name"],
+                    size=self.row["size"],
+                    seeds=int(self.row["seeds"]),
+                    leech=int(self.row["leech"]),
+                    engine_url=self.row["engine_url"],
+                    desc_link=self.row["desc_link"],
                 )
+                if self.row.get("pub_date", "-1") != "-1":
+                    result["pub_date"] = int(self.row["pub_date"])
+                _qbt_prettyPrinter(result)
                 self.insideSearchResult = False
                 self.column = 0
                 return

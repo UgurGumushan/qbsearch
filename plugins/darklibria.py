@@ -317,7 +317,8 @@ class darklibria:
             'seeds': int(seeds.text),
             'leech': int(leech.text),
             'engine_url': self.url,
-            'desc_link': url
+            'desc_link': url,
+            'pub_date': self.get_pub_date(date_time),
         })
         self.torrents_count += 1
 
@@ -345,6 +346,13 @@ class darklibria:
         utc_dt_string = m.group()
         utc = datetime.strptime(utc_dt_string, '%Y-%m-%d %H:%M:%S')
         return str(utc2local(utc))
+
+    def get_pub_date(self, date_time: Tag) -> int:
+        m = self.dt_regex.search(date_time.text)
+        if m is None:
+            return -1
+        utc = datetime.strptime(m.group(), '%Y-%m-%d %H:%M:%S')
+        return int(utc.replace(tzinfo=timezone.utc).timestamp())
 
     def get_size(self, size_data: Tag) -> str:
         size, unit = size_data.text.split()

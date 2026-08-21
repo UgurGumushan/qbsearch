@@ -268,6 +268,10 @@ class animetosho:
                 "leech": result["leechers"],
                 "desc_link": result["link"],
             }
+            try:
+                current_result["pub_date"] = int(result["timestamp"])
+            except (KeyError, TypeError, ValueError):
+                pass
 
             _qbt_prettyPrinter(current_result)
 
