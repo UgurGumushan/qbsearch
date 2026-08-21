@@ -1,0 +1,3 @@
+# Versions are pinned so local hooks and CI enforce the same diagnostics.
+basedpyright==1.39.10
+ruff==0.16.3

@@ -1,50 +1,84 @@
 # qBittorrent search plugins
 
-The standalone qBittorrent Python engines are in [`plugins/`](plugins/). Their
-optional icon sidecars are kept separately in [`icons/`](icons/) using the same
-filename stem, for example `plugins/acgrip.py` and `icons/acgrip.ico`.
+Standalone qBittorrent search engines for Python 3.9+ and qBittorrent's nova3
+search-plugin system. Every file in [`plugins/`](plugins/) can be installed on
+its own; the repository does not require a shared runtime module.
 
-## macOS installation
+## Install in under a minute
 
-Quit qBittorrent, then run:
+Choose one of these paths:
+
+- **One plugin:** download a `.py` file from the [plugin catalog](PLUGINS.md),
+  then install it from qBittorrent's Search plugins dialog or drag it into the
+  dialog. The optional matching icon is in [`icons/`](icons/).
+- **Everything:** download the latest archive from
+  [GitHub Releases](https://github.com/UgurGumushan/qbsearch/releases/latest),
+  unzip it, quit qBittorrent, and run the installer for your platform.
+- **From a clone:** run `./install_plugins.sh` on macOS or Linux, or
+  `./install_plugins.ps1` in PowerShell on Windows.
+
+The installer copies engines, matching icons, and support JSON files. It keeps
+an existing support file so local qBittorrent settings are not overwritten.
+Use `--dry-run` to preview changes and `--plugin yts` to install only one
+engine. qBittorrent should be closed before installation and relaunched after.
+See [`INSTALL.md`](INSTALL.md) for destination paths and troubleshooting.
+
+## Browse the plugins
+
+[`PLUGINS.md`](PLUGINS.md) is generated from
+[`catalog/plugins.json`](catalog/plugins.json) and lists each engine's
+category, repository status, site, installable file, and safe default
+live-test query. A status describes repository support; it is not a guarantee
+that a remote site is online at the moment you search.
+
+Adult-content engines are labeled `adult`. Review the catalog before installing
+engines on shared or managed qBittorrent systems.
+
+## Test the live services
+
+The default test command makes real HTTP requests to every configured remote
+site, using each plugin's catalog query and a thread pool sized to the machine:
 
 ```sh
-./scripts/install_macos.sh
+./test_all_plugins.sh
 ```
 
-The installer copies the plugins, matching icons, and plugin support JSON files
-into qBittorrent's `nova3/engines` directory. Launch qBittorrent afterward so
-the Search Plugins window reloads the files and icons. Existing `rutor.json`
-settings are preserved.
-
-The qBittorrent drag-and-drop dialog installs only the selected `.py` file, so
-using the installer is the reliable way to install the repository's bundled
-icons as well.
-
-Every plugin currently has a matching icon sidecar. When a site does not expose
-a usable favicon, the icon generator creates a small fallback badge from the
-site name so qBittorrent still has an icon to display.
-
-## Testing
-
-Run the complete live smoke suite from a terminal; it searches every plugin's
-configured remote service in parallel and reports each plugin's result count:
+Useful variants:
 
 ```sh
+./test_all_plugins.sh --plugin yts
+./test_all_plugins.sh --content-category anime
 ./test_all_plugins.sh --query ubuntu
+./test_all_plugins.sh --require-results
 ```
 
-The live suite uses one isolated subprocess per plugin, a thread pool sized to
-the machine's logical CPU count, a 120-second per-plugin deadline, and the
-local deterministic safety tests. Empty result sets are allowed by default and
-remain visible in the per-plugin output; `--require-results` makes them fail.
-`--install-only` performs the original offline import/metadata check without
-contacting remote services.
+Live tests run each plugin in an isolated subprocess, report individual
+pass/fail status, and allow an empty result set by default because a site may
+be reachable but have no matching records. `--require-results` makes empty
+results fail. Use `--install-only` for an offline import and metadata check;
+the deterministic safety suite is run automatically unless `--skip-safety` is
+specified.
 
-## Development checks
+Do not use sensitive queries in live tests. The query is sent to the remote
+service exactly as a normal qBittorrent search would send it.
+
+## Maintainer checks
 
 ```sh
-ruff check plugins
-basedpyright plugins
-python3 test_engines.py plugins
+make dev-setup
+make check
+make test-live
+make release VERSION=1.0.0
 ```
+
+`make dev-setup` installs the pinned Ruff and BasedPyright versions and enables
+the automatic pre-commit hook. `make check` is deterministic and does not
+contact remote sites. Contributor workflow, catalog updates, release packaging,
+and CI behavior are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Attribution
+
+This collection incorporates engines from multiple upstream projects. See
+[`ATTRIBUTIONS.md`](ATTRIBUTIONS.md) and [`LICENSE.md`](LICENSE.md) for
+provenance and per-engine licensing. Source and license fields in the catalog
+should be completed or corrected when an engine is changed.

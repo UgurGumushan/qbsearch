@@ -1,0 +1,31 @@
+name: Release plugins
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install release checkers
+        run: python -m pip install --disable-pip-version-check --requirement requirements-dev.txt
+      - name: Verify repository
+        run: make check
+      - name: Build release archive
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: python scripts/build_release.py --version "${RELEASE_VERSION#v}" --output "working/qbsearch-${RELEASE_VERSION#v}.zip"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" "working/qbsearch-${RELEASE_TAG#v}.zip" --generate-notes

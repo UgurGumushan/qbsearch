@@ -15,7 +15,7 @@ import time
 import urllib.parse
 from typing import ClassVar, TypedDict
 
-from helpers import retrieve_url as _qbt_helper_retrieve_url  # noqa: F401
+from helpers import retrieve_url as _qbt_helper_retrieve_url
 from novaprinter import SearchResults, prettyPrinter
 
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
@@ -178,7 +178,7 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
     return _QBTEmptyResponse(url)
 
 
-_qbt_retrieve_url = globals().get("_qbt_helper_retrieve_url")
+_qbt_retrieve_url = _qbt_helper_retrieve_url
 
 
 def retrieve_url(*args, **kwargs) -> str:

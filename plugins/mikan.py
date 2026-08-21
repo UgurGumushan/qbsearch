@@ -11,6 +11,7 @@ from xml.etree import ElementTree
 from helpers import _headers as headers
 from novaprinter import SearchResults, prettyPrinter
 
+_qbt_helper_retrieve_url = None
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
 # This block is rendered into each standalone engine.  Keep it stdlib-only.
 try:
@@ -171,7 +172,7 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
     return _QBTEmptyResponse(url)
 
 
-_qbt_retrieve_url = globals().get("_qbt_helper_retrieve_url")
+_qbt_retrieve_url = _qbt_helper_retrieve_url
 
 
 def retrieve_url(*args, **kwargs) -> str:

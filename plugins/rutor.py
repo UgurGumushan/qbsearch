@@ -25,6 +25,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, unquote, urlparse
 from urllib.request import ProxyHandler, build_opener
 
+_qbt_helper_retrieve_url = None
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
 # This block is rendered into each standalone engine.  Keep it stdlib-only.
 try:
@@ -185,7 +186,7 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
     return _QBTEmptyResponse(url)
 
 
-_qbt_retrieve_url = globals().get("_qbt_helper_retrieve_url")
+_qbt_retrieve_url = _qbt_helper_retrieve_url
 
 
 def retrieve_url(*args, **kwargs) -> str:
@@ -483,7 +484,7 @@ class Rutor:
                 if not proxy_str.lower().startswith("socks"):
                     continue
                 url = urlparse(proxy_str)
-                socks.set_default_proxy(  # type: ignore[attr-defined]
+                socks.set_default_proxy(
                     socks.PROXY_TYPE_SOCKS5,
                     url.hostname,
                     url.port,

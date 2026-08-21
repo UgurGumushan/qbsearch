@@ -12,3 +12,4 @@ plugins/*_temp.*
 
 # macOS
 .DS_Store
+/external

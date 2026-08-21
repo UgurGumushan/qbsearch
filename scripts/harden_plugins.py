@@ -181,7 +181,7 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
     return _QBTEmptyResponse(url)
 
 
-_qbt_retrieve_url = globals().get("_qbt_helper_retrieve_url")
+_qbt_retrieve_url = _qbt_helper_retrieve_url
 
 
 def retrieve_url(*args, **kwargs) -> str:
@@ -279,24 +279,28 @@ def _alias_retrieve_imports(source: str) -> str:
                 line,
                 count=1,
             )
-        if "_qbt_helper_retrieve_url" in line and "# noqa" not in line:
-            line += "  # noqa: F401"
+        if "retrieve_url as _qbt_helper_retrieve_url" in line:
+            line = line.replace("  # noqa: F401", "")
         lines.append(line)
     return "\n".join(lines) + ("\n" if source.endswith("\n") else "")
 
 
 def _insert_after_imports(source: str) -> str:
     tree = ast.parse(source)
-    import_ends = [
-        node.end_lineno
-        for node in tree.body
-        if isinstance(node, (ast.Import, ast.ImportFrom))
-    ]
+    import_ends: list[int] = []
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)) and node.end_lineno is not None:
+            import_ends.append(node.end_lineno)
     # A plugin without top-level imports is not currently present, but keep
     # the fallback safe for future additions.
     line_no = max(import_ends, default=0)
     lines = source.splitlines()
-    lines[line_no:line_no] = ["", *SAFETY_PREAMBLE.splitlines(), ""]
+    helper_fallback = (
+        []
+        if "retrieve_url as _qbt_helper_retrieve_url" in source
+        else ["_qbt_helper_retrieve_url = None"]
+    )
+    lines[line_no:line_no] = ["", *helper_fallback, *SAFETY_PREAMBLE.splitlines(), ""]
     return "\n".join(lines) + "\n"
 
 
@@ -340,7 +344,7 @@ def audit_plugin(path: Path) -> list[str]:
         if isinstance(node, ast.Call):
             name = _call_name(node)
             if name in {"urlopen", "_qbt_urlopen"} and not any(
-                isinstance(keyword, ast.keyword) and keyword.arg == "timeout"
+                keyword.arg == "timeout"
                 for keyword in node.keywords
             ):
                 errors.append(f"line {node.lineno}: urlopen without timeout")
@@ -367,11 +371,14 @@ def audit_plugin(path: Path) -> list[str]:
                         parent
                         for parent in ast.walk(tree)
                         if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        and parent.end_lineno is not None
                         and parent.lineno <= node.lineno <= parent.end_lineno
                     ),
                     None,
                 )
-                function_source = ast.get_source_segment(source, function) if function else ""
+                function_source = (
+                    (ast.get_source_segment(source, function) or "") if function else ""
+                )
                 if "MAX_PAGES" not in function_source:
                     errors.append(f"line {node.lineno}: pagination loop lacks MAX_PAGES")
     return sorted(set(errors))

@@ -22,13 +22,46 @@ import io
 import json
 import re
 from pathlib import Path
+from typing import Any, Protocol, cast
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+
+class _PillowImage(Protocol):
+    size: tuple[int, int]
+
+    def convert(self, mode: str) -> _PillowImage: ...
+
+    def paste(self, image: _PillowImage, box: tuple[int, int]) -> None: ...
+
+    def resize(self, size: tuple[int, int], resample: object) -> _PillowImage: ...
+
+    def save(self, output: object, format: str | None = None, **kwargs: Any) -> None: ...
+
+
+class _PillowResampling(Protocol):
+    LANCZOS: object
+
+
+class _PillowModule(Protocol):
+    Resampling: _PillowResampling
+
+    def open(self, data: object) -> _PillowImage: ...
+
+    def new(
+        self,
+        mode: str,
+        size: tuple[int, int],
+        color: tuple[int, int, int, int],
+    ) -> _PillowImage: ...
+
+
 try:
-    from PIL import Image
+    from PIL import Image as _loaded_pillow
 except ImportError:
-    Image = None  # type: ignore[assignment]
+    _loaded_pillow = None
+
+_pillow_module: _PillowModule | None = cast(_PillowModule | None, _loaded_pillow)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGINS = REPO_ROOT / "plugins"
@@ -94,12 +127,18 @@ def fetch(url: str) -> tuple[bytes | None, str | None]:
         return None, str(exc)
 
 
-def open_rgba(data: bytes) -> Image.Image:
-    img = Image.open(io.BytesIO(data))
+def _require_pillow() -> _PillowModule:
+    if _pillow_module is None:
+        raise RuntimeError("Pillow is required to convert downloaded icons")
+    return _pillow_module
+
+
+def open_rgba(data: bytes) -> _PillowImage:
+    img = _require_pillow().open(io.BytesIO(data))
     return img.convert("RGBA")
 
 
-def save_ico(img: Image.Image, out: Path) -> None:
+def save_ico(img: _PillowImage, out: Path) -> None:
     """Square-crop/pad the image and save it as an ICO.
 
     The stored size is 32x32, or the source size when the source is already
@@ -107,21 +146,17 @@ def save_ico(img: Image.Image, out: Path) -> None:
     """
     w, h = img.size
     side = max(w, h)
-    canvas = Image.new(mode="RGBA", size=(side, side), color=(0, 0, 0, 0))
+    pillow = _require_pillow()
+    canvas = pillow.new(mode="RGBA", size=(side, side), color=(0, 0, 0, 0))
     canvas.paste(img, ((side - w) // 2, (side - h) // 2))
     target = min(MAX_SIZE, side)
     if target < canvas.size[0]:
-        canvas = canvas.resize((target, target), Image.Resampling.LANCZOS)
+        canvas = canvas.resize((target, target), pillow.Resampling.LANCZOS)
     canvas.save(out, format="ICO", sizes=[(target, target)])
 
 
 def has_pillow() -> bool:
-    try:
-        import PIL.Image  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
+    return _pillow_module is not None
 
 
 def main() -> int:

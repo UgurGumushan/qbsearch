@@ -22,73 +22,10 @@ ENGINE_TEST = ROOT / "test_engines.py"
 LIVE_TEST = ROOT / "scripts" / "test_live_plugin.py"
 SAFETY_TEST = ROOT / "scripts" / "test_safety.py"
 
-# A single query is a poor smoke test for heterogeneous indexes.  These are
-# conservative, read-only queries chosen to match each site's subject area.
-# --query overrides the profile for every plugin.
-DEFAULT_LIVE_QUERIES = {
-    "academictorrents": "machine learning",
-    "acgrip": "one piece",
-    "ali213": "minecraft",
-    "anidex": "one piece",
-    "animetosho": "one piece",
-    "apachetorrent": "inception",
-    "audiobookbay": "the hobbit",
-    "bitsearch": "inception",
-    "bt4gprx": "ubuntu",
-    "btdig": "ubuntu",
-    "calidadtorrent": "inception",
-    "cloudtorrents": "ubuntu",
-    "cpasbien": "inception",
-    "darklibria": "the hobbit",
-    "divxtotal": "inception",
-    "dmhy": "one piece",
-    "dodi_repacks": "elden ring",
-    "dontorrent": "inception",
-    "elitetorrent": "inception",
-    "esmeraldatorrent": "inception",
-    # EZTV's current API supports IMDb ids; its keyword parameter is ignored.
-    "eztvx": "tt0903747",
-    "fitgirl_repacks": "elden ring",
-    "glotorrents": "inception",
-    "goggames": "minecraft",
-    "kickasstorrents": "inception",
-    "magnetdl": "ubuntu",
-    "maxitorrent": "inception",
-    "mejortorrent": "inception",
-    "mikan": "one piece",
-    "mikanani": "one piece",
-    "mypornclub": "test",
-    "naranjatorrent": "inception",
-    "nekobt": "one piece",
-    "nyaa_phuong": "one piece",
-    "nyaapantsu": "one piece",
-    "nyaasi": "one piece",
-    "onlinefix": "minecraft",
-    "pirateiro": "inception",
-    "redetorrent": "inception",
-    "rockbox": "ubuntu",
-    "rutor": "inception",
-    "sktorrent": "inception",
-    "smallgames": "minecraft",
-    "snowfl": "inception",
-    "solidtorrents": "ubuntu",
-    "subsplease": "one piece",
-    "sukebeisi": "one piece",
-    "thepiratebay": "inception",
-    "therarbg": "inception",
-    "tokyotoshokan": "one piece",
-    "tomadivx": "inception",
-    "torrent9": "inception",
-    "torrentdownload": "inception",
-    "torrentdownloads": "inception",
-    "torrentgalaxy": "inception",
-    "traht": "inception",
-    "uniondht": "ubuntu",
-    "xxxclubto": "test",
-    "yggtracker": "ubuntu",
-    "yourbittorrent": "inception",
-    "yts": "inception",
-}
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
+
+from scripts.plugin_catalog import CATALOG_PATH, catalog_entries, load_catalog, validate_catalog
 
 
 @dataclass(frozen=True)
@@ -201,6 +138,17 @@ def parse_args() -> argparse.Namespace:
         help="qBittorrent category sent to every live plugin (default: all)",
     )
     parser.add_argument(
+        "--content-category",
+        default="all",
+        help="only test catalog entries in this content category (default: all)",
+    )
+    parser.add_argument(
+        "--plugin",
+        action="append",
+        dest="plugin_ids",
+        help="only test this plugin id; may be repeated",
+    )
+    parser.add_argument(
         "--allow-empty",
         action="store_true",
         help="accept live tests that complete with zero parsed results (default)",
@@ -219,9 +167,38 @@ def main() -> int:
         print("ERROR: --timeout must be greater than zero.", file=sys.stderr)
         return 2
 
-    plugins = sorted(PLUGIN_DIR.glob("*.py"))
+    try:
+        catalog = load_catalog()
+    except ValueError as error:
+        print("ERROR: " + str(error), file=sys.stderr)
+        return 2
+    catalog_errors = validate_catalog(catalog)
+    if catalog_errors:
+        print("ERROR: catalog validation failed:", file=sys.stderr)
+        for error in catalog_errors:
+            print("  " + error, file=sys.stderr)
+        print("  Catalog: " + str(CATALOG_PATH), file=sys.stderr)
+        return 2
+
+    entries = {
+        str(entry["id"]): entry
+        for entry in catalog_entries(catalog)
+        if args.content_category == "all" or entry["category"] == args.content_category
+    }
+    if args.plugin_ids:
+        requested = set(args.plugin_ids)
+        unknown = sorted(requested - set(entries))
+        if unknown:
+            print("ERROR: unknown or filtered plugin id(s): " + ", ".join(unknown), file=sys.stderr)
+            return 2
+        entries = {plugin_id: entry for plugin_id, entry in entries.items() if plugin_id in requested}
+
+    plugins = sorted(
+        (PLUGIN_DIR / (plugin_id + ".py") for plugin_id in entries),
+        key=lambda path: path.name,
+    )
     if not plugins:
-        print(f"ERROR: no plugins found in {PLUGIN_DIR}", file=sys.stderr)
+        print("ERROR: no catalog plugins selected", file=sys.stderr)
         return 2
 
     workers = logical_cpu_count()
@@ -230,7 +207,10 @@ def main() -> int:
     print(f"Per-plugin timeout: {args.timeout:g}s")
     if not args.install_only:
         query_mode = "override: " + repr(args.query) if args.query else "per-plugin defaults"
-        print(f"Live queries: {query_mode} | category: {args.category!r}")
+        print(
+            f"Live queries: {query_mode} | content category: {args.content_category!r} "
+            f"| qBittorrent category: {args.category!r}"
+        )
         result_policy = "required" if args.require_results else "empty results allowed"
         print(f"Live result policy: {result_policy}")
 
@@ -244,7 +224,7 @@ def main() -> int:
                 path,
                 args.timeout,
                 not args.install_only,
-                args.query or DEFAULT_LIVE_QUERIES.get(path.stem, "ubuntu"),
+                args.query or str(entries[path.stem]["default_query"]),
                 args.category,
                 allow_empty,
             ): path

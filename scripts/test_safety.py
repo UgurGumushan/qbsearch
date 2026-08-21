@@ -3,11 +3,21 @@
 
 from __future__ import annotations
 
+import importlib.util
 import threading
 import time
+from contextlib import AbstractContextManager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import import_module
-from typing import ClassVar
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any, Callable, ClassVar, TypedDict, cast
+
+
+class _HelperNamespace(TypedDict):
+    _qbt_safe_urlopen: Callable[[str], AbstractContextManager[Any]]
+    retrieve_url: Callable[[str], str]
+    _qbt_run_parallel: Callable[[Callable[[str], str], list[tuple[str]], float], list[str]]
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -34,7 +44,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         try:
             self.wfile.write(body)
-        except BrokenPipeError:
+        except (BrokenPipeError, ConnectionResetError):
             pass
 
     def log_message(self, format: str, *args: object) -> None:
@@ -49,13 +59,33 @@ def _load_helpers():
         calls.append(1)
         return "" if len(calls) < 3 else "ok"
 
-    namespace = {
-        "_qbt_helper_retrieve_url": helper,
-        "prettyPrinter": lambda result: None,
-    }
-    exec(module.SAFETY_PREAMBLE, namespace)  # noqa: S102
-    namespace.update(HTTP_TIMEOUT=0.05, MAX_ATTEMPTS=3, RETRY_DELAY=0.01)
-    return namespace, calls
+    with TemporaryDirectory() as directory:
+        preamble_path = Path(directory) / "generated_helpers.py"
+        preamble_path.write_text(module.SAFETY_PREAMBLE, encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("_qbt_safety_test", preamble_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("could not load generated safety preamble")
+        generated_module = importlib.util.module_from_spec(spec)
+        generated_module.__dict__.update(
+            {
+                "_qbt_helper_retrieve_url": helper,
+                "prettyPrinter": lambda result: None,
+            }
+        )
+        spec.loader.exec_module(generated_module)
+        namespace: dict[str, Any] = vars(generated_module)
+    namespace.update({"HTTP_TIMEOUT": 0.05, "MAX_ATTEMPTS": 3, "RETRY_DELAY": 0.01})
+    helpers = _HelperNamespace(
+        _qbt_safe_urlopen=cast(
+            Callable[[str], AbstractContextManager[Any]], namespace["_qbt_safe_urlopen"]
+        ),
+        retrieve_url=cast(Callable[[str], str], namespace["retrieve_url"]),
+        _qbt_run_parallel=cast(
+            Callable[[Callable[[str], str], list[tuple[str]], float], list[str]],
+            namespace["_qbt_run_parallel"],
+        ),
+    )
+    return helpers, calls
 
 
 def main() -> None:
