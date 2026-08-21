@@ -8,30 +8,37 @@ import json
 import sys
 import zipfile
 from pathlib import Path
+from typing import NamedTuple, cast
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.plugin_catalog import ROOT, catalog_entries, load_catalog, validate_catalog
+from scripts.plugin_catalog import ROOT, Catalog, catalog_entries, load_catalog, validate_catalog
 
 
-def parse_args() -> argparse.Namespace:
+class Arguments(NamedTuple):
+    version: str
+    output: Path
+
+
+def parse_args() -> Arguments:
     parser = argparse.ArgumentParser(description="Build a qBittorrent plugin release ZIP.")
-    parser.add_argument(
+    _ = parser.add_argument(
         "--version",
         default="dev",
         help="release label used for the archive directory and filename (default: dev)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--output",
         type=Path,
         default=ROOT / "working" / "qbsearch-dev.zip",
         help="output ZIP path (default: working/qbsearch-dev.zip)",
     )
-    return parser.parse_args()
+    parsed = parser.parse_args()
+    return Arguments(version=cast(str, parsed.version), output=cast(Path, parsed.output))
 
 
-def archive_files(catalog: dict[str, object]) -> list[Path]:
+def archive_files(catalog: Catalog) -> list[Path]:
     entries = catalog_entries(catalog)
     files = [
         ROOT / "README.md",
@@ -56,7 +63,7 @@ def archive_files(catalog: dict[str, object]) -> list[Path]:
 
 def main() -> int:
     args = parse_args()
-    if not args.version or any(char in args.version for char in "\\/:*?\"<>|"):
+    if not args.version or any(char in args.version for char in '\\/:*?"<>|'):
         raise SystemExit("ERROR: --version contains invalid archive characters")
     catalog = load_catalog()
     errors = validate_catalog(catalog)

@@ -9,14 +9,27 @@ import shutil
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import NamedTuple, Optional, cast
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.plugin_catalog import ROOT, catalog_entries, load_catalog, validate_catalog
+from scripts.plugin_catalog import (
+    ROOT,
+    CatalogEntry,
+    catalog_entries,
+    load_catalog,
+    validate_catalog,
+)
 
 PLUGIN_DIR = ROOT / "plugins"
+
+
+class Arguments(NamedTuple):
+    plugin_ids: list[str] | None
+    destination: Path | None
+    no_icons: bool
+    dry_run: bool
 
 
 def default_destination() -> Path:
@@ -35,42 +48,48 @@ def default_destination() -> Path:
     return base / "qBittorrent" / "nova3" / "engines"
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args() -> Arguments:
     parser = argparse.ArgumentParser(
         description="Install qBittorrent search plugins from this repository."
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--plugin",
         action="append",
         dest="plugin_ids",
         help="install only this plugin id; may be repeated (default: all)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--destination",
         type=Path,
         help="qBittorrent nova3/engines directory (default: platform-specific path)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--no-icons",
         action="store_true",
         help="install .py engines without copying matching icon files",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--dry-run",
         action="store_true",
         help="show what would be installed without changing files",
     )
-    return parser.parse_args()
+    parsed = parser.parse_args()
+    return Arguments(
+        plugin_ids=cast(Optional[list[str]], parsed.plugin_ids),
+        destination=cast(Optional[Path], parsed.destination),
+        no_icons=cast(bool, parsed.no_icons),
+        dry_run=cast(bool, parsed.dry_run),
+    )
 
 
 def copy_file(source: Path, destination: Path, dry_run: bool) -> None:
     print("  " + str(source.relative_to(ROOT)) + " -> " + str(destination))
     if not dry_run:
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
+        _ = shutil.copy2(source, destination)
 
 
-def select_entries(plugin_ids: list[str] | None) -> list[dict[str, Any]]:
+def select_entries(plugin_ids: list[str] | None) -> list[CatalogEntry]:
     catalog = load_catalog()
     errors = validate_catalog(catalog)
     if errors:
@@ -88,7 +107,7 @@ def select_entries(plugin_ids: list[str] | None) -> list[dict[str, Any]]:
 
 
 def install(
-    entries: Iterable[dict[str, Any]], destination: Path, no_icons: bool, dry_run: bool
+    entries: Iterable[CatalogEntry], destination: Path, no_icons: bool, dry_run: bool
 ) -> int:
     entries = list(entries)
     print(

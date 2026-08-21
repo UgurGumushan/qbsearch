@@ -27,9 +27,9 @@ import types
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, TypedDict, Union
+from typing import NamedTuple, Protocol, TypedDict, Union, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 LIVE_TIMEOUT = 20.0
@@ -47,19 +47,47 @@ class SearchResult(TypedDict, total=False):
     pub_date: int
 
 
+class _HTTPResponse(Protocol):
+    def read(self) -> bytes: ...
+
+    def getheader(self, name: str, default: str = "") -> str | None: ...
+
+
+class _HTTPResponseContext(Protocol):
+    def __enter__(self) -> _HTTPResponse: ...
+
+    def __exit__(self, *args: object) -> bool: ...
+
+
+class _Plugin(Protocol):
+    def search(self, what: str, category: str) -> object: ...
+
+
+class _Harness(Protocol):
+    def ensure_qbitt_python(self) -> None: ...
+
+    def load_qbitt_modules(self) -> bool: ...
+
+
+class Arguments(NamedTuple):
+    plugin: Path
+    query: str
+    category: str
+    allow_empty: bool
+
+
 def _fallback_helpers() -> None:
     """Install live stdlib adapters when qBittorrent is not installed."""
     headers: dict[str, str] = {
         "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) "
-            "Gecko/20100101 Firefox/128.0"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
         )
     }
 
     def retrieve_url(
         url: str,
         custom_headers: Mapping[str, str] | None = None,
-        request_data: Any = None,
+        request_data: bytes | None = None,
         ssl_context: ssl.SSLContext | None = None,
         unescape_html_entities: bool = True,
     ) -> str:
@@ -69,14 +97,16 @@ def _fallback_helpers() -> None:
             {**headers, **(dict(custom_headers) if custom_headers else {})},
         )
         try:
-            with urllib.request.urlopen(
-                request, timeout=LIVE_TIMEOUT, context=ssl_context
+            with cast(
+                _HTTPResponseContext,
+                urllib.request.urlopen(request, timeout=LIVE_TIMEOUT, context=ssl_context),
             ) as response:
-                data = response.read()
+                data: bytes = response.read()
                 if data[:2] == b"\x1f\x8b":
-                    with io.BytesIO(data) as compressed, gzip.GzipFile(
-                        fileobj=compressed
-                    ) as decompressor:
+                    with (
+                        io.BytesIO(data) as compressed,
+                        gzip.GzipFile(fileobj=compressed) as decompressor,
+                    ):
                         data = decompressor.read()
                 charset = "utf-8"
                 content_type = response.getheader("Content-Type", "") or ""
@@ -87,6 +117,7 @@ def _fallback_helpers() -> None:
         except urllib.error.URLError as error:
             print(f"Connection error: {error}", file=sys.stderr)
             return ""
+        return ""
 
     def download_file(
         url: str,
@@ -96,48 +127,70 @@ def _fallback_helpers() -> None:
         request = urllib.request.Request(url, headers=headers)
         if referer is not None:
             request.add_header("referer", referer)
-        with urllib.request.urlopen(
-            request, timeout=LIVE_TIMEOUT, context=ssl_context
+        data: bytes = b""
+        with cast(
+            _HTTPResponseContext,
+            urllib.request.urlopen(request, timeout=LIVE_TIMEOUT, context=ssl_context),
         ) as response:
             data = response.read()
         file_descriptor, path = tempfile.mkstemp()
         with os.fdopen(file_descriptor, "wb") as output:
-            output.write(data)
+            _ = output.write(data)
         return f"{path} {url}"
 
     novaprinter = types.ModuleType("novaprinter")
-    vars(novaprinter).update({
-        "SearchResults": TypedDict("SearchResults", {
-            "link": str,
-            "name": str,
-            "size": Union[float, int, str],
-            "seeds": int,
-            "leech": int,
-            "engine_url": str,
-            "desc_link": str,
-            "pub_date": int,
-        }),
-        "anySizeToBytes": lambda value: value,
-        "prettyPrinter": lambda result: None,
-    })
+
+    def any_size_to_bytes(value: object) -> object:
+        return value
+
+    def ignore_result(_result: object) -> None:
+        return None
+
+    vars(novaprinter).update(
+        {
+            "SearchResults": TypedDict(
+                "SearchResults",
+                {
+                    "link": str,
+                    "name": str,
+                    "size": Union[float, int, str],
+                    "seeds": int,
+                    "leech": int,
+                    "engine_url": str,
+                    "desc_link": str,
+                    "pub_date": int,
+                },
+            ),
+            "anySizeToBytes": any_size_to_bytes,
+            "prettyPrinter": ignore_result,
+        }
+    )
 
     helpers = types.ModuleType("helpers")
-    vars(helpers).update({
-        "_headers": headers,
-        "retrieve_url": retrieve_url,
-        "download_file": download_file,
-        "enable_socks_proxy": lambda *args, **kwargs: None,
-        "htmlentitydecode": html.unescape,
-    })
+
+    def no_op(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    vars(helpers).update(
+        {
+            "_headers": headers,
+            "retrieve_url": retrieve_url,
+            "download_file": download_file,
+            "enable_socks_proxy": no_op,
+            "htmlentitydecode": html.unescape,
+        }
+    )
 
     socks = types.ModuleType("socks")
-    vars(socks).update({
-        "PROXY_TYPE_SOCKS4": 1,
-        "PROXY_TYPE_SOCKS5": 2,
-        "socksocket": socket.socket,
-        "setdefaultproxy": lambda *args, **kwargs: None,
-        "set_default_proxy": lambda *args, **kwargs: None,
-    })
+    vars(socks).update(
+        {
+            "PROXY_TYPE_SOCKS4": 1,
+            "PROXY_TYPE_SOCKS5": 2,
+            "socksocket": socket.socket,
+            "setdefaultproxy": no_op,
+            "set_default_proxy": no_op,
+        }
+    )
 
     sys.modules["novaprinter"] = novaprinter
     sys.modules["helpers"] = helpers
@@ -147,7 +200,7 @@ def _fallback_helpers() -> None:
 def _prepare_qbittorrent_modules() -> bool:
     """Load qBittorrent modules or install adapters that still use the network."""
     sys.path.insert(0, str(ROOT))
-    harness = importlib.import_module("test_engines")
+    harness = cast(_Harness, cast(object, importlib.import_module("test_engines")))
     harness.ensure_qbitt_python()
     using_real = harness.load_qbitt_modules()
     if not using_real:
@@ -155,7 +208,7 @@ def _prepare_qbittorrent_modules() -> bool:
     return using_real
 
 
-def _load_plugin(path: Path) -> tuple[Any, Any]:
+def _load_plugin(path: Path) -> tuple[types.ModuleType, type[_Plugin]]:
     stem = path.stem
     spec = importlib.util.spec_from_file_location(stem, path)
     if spec is None or spec.loader is None:
@@ -166,9 +219,10 @@ def _load_plugin(path: Path) -> tuple[Any, Any]:
     if not isinstance(loader, importlib.machinery.SourceFileLoader):
         raise TypeError(f"unexpected loader type {type(loader)!r}")
     loader.exec_module(module)
-    engine_class = getattr(module, stem, None)
-    if engine_class is None:
+    raw_engine_class = getattr(module, stem, None)
+    if raw_engine_class is None:
         raise AttributeError(f"class/alias '{stem}' not found")
+    engine_class = cast(type[_Plugin], raw_engine_class)
     return module, engine_class
 
 
@@ -188,9 +242,9 @@ def _install_result_capture() -> tuple[list[object], threading.Lock]:
 def _install_network_counter() -> list[int]:
     count = [0]
     lock = threading.Lock()
-    original_open = urllib.request.OpenerDirector.open
+    original_open = cast(Callable[..., object], urllib.request.OpenerDirector.open)
 
-    def counted_open(opener, *args, **kwargs):
+    def counted_open(opener: urllib.request.OpenerDirector, *args: object, **kwargs: object):
         with lock:
             count[0] += 1
         return original_open(opener, *args, **kwargs)
@@ -209,17 +263,23 @@ def _validate_results(results: list[object]) -> str | None:
     return None
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args() -> Arguments:
     parser = argparse.ArgumentParser(description="Run one qBittorrent plugin live.")
-    parser.add_argument("plugin", type=Path)
-    parser.add_argument("--query", default="ubuntu")
-    parser.add_argument("--category", default="all")
-    parser.add_argument(
+    _ = parser.add_argument("plugin", type=Path)
+    _ = parser.add_argument("--query", default="ubuntu")
+    _ = parser.add_argument("--category", default="all")
+    _ = parser.add_argument(
         "--allow-empty",
         action="store_true",
         help="allow a completed live search with zero parsed result records",
     )
-    return parser.parse_args()
+    parsed = parser.parse_args()
+    return Arguments(
+        plugin=cast(Path, parsed.plugin),
+        query=cast(str, parsed.query),
+        category=cast(str, parsed.category),
+        allow_empty=cast(bool, parsed.allow_empty),
+    )
 
 
 def main() -> int:
@@ -236,7 +296,7 @@ def main() -> int:
         captured_stdout = io.StringIO()
         encoded_query = urllib.parse.quote(args.query)
         with contextlib.redirect_stdout(captured_stdout):
-            engine.search(encoded_query, args.category)
+            _ = engine.search(encoded_query, args.category)
         result_error = _validate_results(results)
         if result_error:
             raise ValueError(result_error)
@@ -245,18 +305,18 @@ def main() -> int:
         if not results and not args.allow_empty:
             raise RuntimeError(
                 "live search completed but produced no result records "
-                "(use --allow-empty to accept this)"
+                + "(use --allow-empty to accept this)"
             )
         module_mode = "qBittorrent modules" if using_real else "stdlib live adapters"
         print(
             f"LIVE PASS {path.stem} [{args.query!r}]: {len(results)} results, "
-            f"{request_count[0]} HTTP requests, {module_mode}"
+            + f"{request_count[0]} HTTP requests, {module_mode}"
         )
         return 0
     except BaseException as error:
         print(
             f"LIVE FAIL {path.stem} [{args.query!r}]: {type(error).__name__}: {error}; "
-            f"{len(results)} results, {request_count[0]} HTTP requests",
+            + f"{len(results)} results, {request_count[0]} HTTP requests",
             file=sys.stderr,
         )
         traceback.print_exc(file=sys.stderr)

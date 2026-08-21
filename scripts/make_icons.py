@@ -22,7 +22,7 @@ import io
 import json
 import re
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Optional, Protocol, cast
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -36,7 +36,17 @@ class _PillowImage(Protocol):
 
     def resize(self, size: tuple[int, int], resample: object) -> _PillowImage: ...
 
-    def save(self, output: object, format: str | None = None, **kwargs: Any) -> None: ...
+    def save(self, output: object, format: str | None = None, **kwargs: object) -> None: ...
+
+
+class _HTTPResponse(Protocol):
+    def read(self) -> bytes: ...
+
+
+class _HTTPResponseContext(Protocol):
+    def __enter__(self) -> _HTTPResponse: ...
+
+    def __exit__(self, *args: object) -> bool: ...
 
 
 class _PillowResampling(Protocol):
@@ -61,7 +71,7 @@ try:
 except ImportError:
     _loaded_pillow = None
 
-_pillow_module: _PillowModule | None = cast(_PillowModule | None, _loaded_pillow)
+_pillow_module: _PillowModule | None = cast(Optional[_PillowModule], _loaded_pillow)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGINS = REPO_ROOT / "plugins"
@@ -118,7 +128,8 @@ def fetch(url: str) -> tuple[bytes | None, str | None]:
     """GET `url` with a normal browser User-Agent. Returns (data, error)."""
     try:
         req = Request(url, headers={"User-Agent": USER_AGENT})
-        with urlopen(req, timeout=TIMEOUT) as resp:
+        data: bytes = b""
+        with cast(_HTTPResponseContext, urlopen(req, timeout=TIMEOUT)) as resp:
             data = resp.read()
         if data:
             return data, None
@@ -164,7 +175,10 @@ def main() -> int:
     prev: dict[str, dict[str, object]] = {}
     if MANIFEST.exists():
         try:
-            prev = json.loads(MANIFEST.read_text(encoding="utf-8"))
+            prev = cast(
+                dict[str, dict[str, object]],
+                cast(object, json.loads(MANIFEST.read_text(encoding="utf-8"))),
+            )
         except Exception:
             prev = {}
 
@@ -294,7 +308,7 @@ def main() -> int:
         entry["ok"] = True
         entry["source"] = source
 
-    MANIFEST.write_text(
+    _ = MANIFEST.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )

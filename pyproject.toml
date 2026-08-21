@@ -41,34 +41,3 @@ extraPaths = ["typings"]
 executionEnvironments = [
     { root = "plugins", reportMissingModuleSource = "none" },
 ]
-
-# qBitt nova REQUIRES bare class attrs (url / name / supported_categories);
-# they cannot become properties or @final-decorated. These are
-# convention-mandated, not bugs — silence the annotation rule globally.
-reportUnannotatedClassAttribute = "none"
-
-# The engines are deliberately untyped legacy scrapers: their inputs flow in as
-# `Any` from qBitt's bundled urllib/bs4/HTMLParser and are forwarded to
-# prettyPrinter. Chasing per-line annotations would churn every file for no
-# runtime benefit. Silence the Any/unknown-type propagation family; the genuine
-# error-level issues (Optional access, uninitialized vars, call/attr issues)
-# stay enabled and are fixed in code.
-reportUnknownVariableType = "none"
-reportUnknownParameterType = "none"
-reportUnknownMemberType = "none"
-reportUnknownLambdaType = "none"
-reportUnknownArgumentType = "none"
-reportAny = "none"
-reportMissingParameterType = "none"
-reportMissingModuleSource = "none"
-reportImplicitOverride = "none"
-reportUnusedParameter = "none"
-reportImplicitStringConcatenation = "none"
-reportUntypedBaseClass = "none"
-reportExplicitAny = "none"
-reportPrivateUsage = "none"
-# The generated standalone safety adapter intentionally exposes dynamic
-# qBittorrent helper hooks and helper functions that only some engines use.
-reportUnusedImport = "none"
-reportUnusedFunction = "none"
-reportUnusedCallResult = "none"

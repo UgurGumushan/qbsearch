@@ -20,10 +20,10 @@ from dataclasses import dataclass, field
 from html import unescape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, ClassVar
+from typing import ClassVar, Protocol, Union, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, unquote, urlparse
-from urllib.request import ProxyHandler, build_opener
+from urllib.request import OpenerDirector, ProxyHandler, build_opener
 
 _qbt_helper_retrieve_url = None
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
@@ -32,10 +32,17 @@ try:
     import socket as _qbt_socket
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
+    from collections.abc import Iterable as _QBTIterable
+    from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
     from concurrent.futures import TimeoutError as _qbt_FuturesTimeoutError
     from concurrent.futures import as_completed as _qbt_as_completed
     from threading import Lock as _qbt_Lock
+    from types import TracebackType as _QBTTracebackType
+    from typing import Callable as _QBTCallable
+    from typing import Protocol as _QBTProtocol
+    from typing import TypeVar as _QBTTypeVar
+    from typing import cast as _qbt_cast
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
@@ -50,29 +57,68 @@ MAX_DETAILS = 100
 
 _qbt_socket.setdefaulttimeout(HTTP_TIMEOUT)
 _QBT_RETRYABLE_HTTP_STATUS = frozenset((408, 425, 429, 500, 502, 503, 504))
-_qbt_search_deadline = None
+_qbt_search_deadline: float | None = None
+_QBTJobResult = _QBTTypeVar("_QBTJobResult")
+
+
+class _QBTResponse(_QBTProtocol):
+    status: int | None
+
+    def close(self) -> None: ...
+
+    def read(self, *args: object, **kwargs: object) -> bytes: ...
+
+    def getcode(self) -> int: ...
+
+    def geturl(self) -> str: ...
+
+    def getheader(self, name: str, default: object = None) -> object: ...
+
+    def info(self) -> _QBTResponse: ...
+
+    def get(self, name: str, default: object = None) -> object: ...
+
+
+class _QBTResponseContext(_QBTResponse, _QBTProtocol):
+    def __enter__(self) -> _QBTResponse: ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: _QBTTracebackType | None,
+    ) -> bool: ...
+
+
+_qbt_urlopen_typed = _qbt_cast(_QBTCallable[..., _QBTResponseContext], _qbt_urlopen)
 
 
 class _QBTEmptyResponse:
     """Response-shaped empty value used when a request is exhausted."""
 
-    status = 200
-    code = 200
+    status: int | None = 200
+    code: int = 200
+    _url: str
 
     def __init__(self, url: object = "") -> None:
         self._url = str(getattr(url, "full_url", url))
 
-    def __enter__(self):
-        return self
+    def __enter__(self) -> _QBTResponse:
+        return _qbt_cast(_QBTResponse, _qbt_cast(object, self))
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        _exc_type: type[BaseException] | None,
+        _exc_value: BaseException | None,
+        _traceback: _QBTTracebackType | None,
+    ) -> bool:
         self.close()
         return False
 
     def close(self) -> None:
         return None
 
-    def read(self, *args, **kwargs) -> bytes:
+    def read(self, *_args: object, **_kwargs: object) -> bytes:
         return b""
 
     def getcode(self) -> int:
@@ -81,14 +127,18 @@ class _QBTEmptyResponse:
     def geturl(self) -> str:
         return self._url
 
-    def getheader(self, name: str, default: object = None):
+    def getheader(self, _name: str, default: object = None) -> object:
         return default
 
-    def info(self):
-        return self
+    def info(self) -> _QBTResponse:
+        return _qbt_cast(_QBTResponse, _qbt_cast(object, self))
 
-    def get(self, name: str, default: object = None):
+    def get(self, _name: str, default: object = None) -> object:
         return default
+
+
+def _qbt_empty_response(url: object) -> _QBTResponseContext:
+    return _qbt_cast(_QBTResponseContext, _qbt_cast(object, _QBTEmptyResponse(url)))
 
 
 class _QBTTransientHTTPError(Exception):
@@ -99,13 +149,13 @@ def _qbt_sleep(attempt: int) -> None:
     _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
 
 
-def _qbt_retry_call(operation) -> str:
+def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
     """Run a helper request a bounded number of times and return empty data."""
     for attempt in range(max(1, int(MAX_ATTEMPTS))):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
             return ""
         try:
-            result = operation()
+            result: object = operation()
             if isinstance(result, str) and result:
                 return result
             if result not in (None, "", b""):
@@ -128,32 +178,37 @@ def _qbt_retry_call(operation) -> str:
     return ""
 
 
-def _qbt_safe_urlopen(url, data=None, *, context=None):
+def _qbt_safe_urlopen(
+    url: object,
+    data: object | None = None,
+    *,
+    context: object | None = None,
+) -> _QBTResponseContext:
     """Open a URL with explicit timeout/retry policy and an empty fallback."""
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         remaining = _qbt_get_deadline() - _qbt_time.monotonic()
         if remaining <= 0:
-            return _QBTEmptyResponse(url)
-        response = None
+            return _qbt_empty_response(url)
+        response: _QBTResponseContext | None = None
         try:
             request_timeout = min(float(HTTP_TIMEOUT), remaining)
             if context is None:
-                response = _qbt_urlopen(url, data=data, timeout=request_timeout)
+                response = _qbt_urlopen_typed(url, data=data, timeout=request_timeout)
             else:
-                response = _qbt_urlopen(
+                response = _qbt_urlopen_typed(
                     url, data=data, timeout=request_timeout, context=context
                 )
-            status = getattr(response, "status", None)
+            status = response.status
             if status is None:
                 status = response.getcode()
             if status in _QBT_RETRYABLE_HTTP_STATUS:
                 response.close()
                 response = None
                 raise _QBTTransientHTTPError(status)
-            if status is not None and status >= 400:
+            if status >= 400:
                 response.close()
-                return _QBTEmptyResponse(url)
+                return _qbt_empty_response(url)
             return response
         except _qbt_urllib_error.HTTPError as error:
             if error.code not in _QBT_RETRYABLE_HTTP_STATUS:
@@ -161,7 +216,7 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
                     error.close()
                 except Exception:
                     pass
-                return _QBTEmptyResponse(url)
+                return _qbt_empty_response(url)
             try:
                 error.close()
             except Exception:
@@ -180,16 +235,16 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
                     pass
             # A malformed request is not useful to retry, but it must not
             # abort the qBittorrent search process.
-            return _QBTEmptyResponse(url)
+            return _qbt_empty_response(url)
         if attempt + 1 < attempts:
             _qbt_sleep(attempt)
-    return _QBTEmptyResponse(url)
+    return _qbt_empty_response(url)
 
 
-_qbt_retrieve_url = _qbt_helper_retrieve_url
+_qbt_retrieve_url = _qbt_cast(_QBTCallable[..., object], _qbt_helper_retrieve_url)
 
 
-def retrieve_url(*args, **kwargs) -> str:
+def retrieve_url(*args: object, **kwargs: object) -> str:
     """Drop-in wrapper for qBittorrent's helper with bounded retries."""
     helper = _qbt_retrieve_url
     if not callable(helper):
@@ -200,13 +255,18 @@ def retrieve_url(*args, **kwargs) -> str:
 _qbt_output_lock = _qbt_Lock()
 
 
-def _qbt_prettyPrinter(result) -> None:
+def _qbt_prettyPrinter(result: object) -> None:
     """Serialize result records emitted by parallel workers."""
     with _qbt_output_lock:
-        prettyPrinter(result)
+        printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
+        printer(result)
 
 
-def _qbt_run_parallel(worker, jobs, deadline=None):
+def _qbt_run_parallel(
+    worker: _QBTCallable[..., _QBTJobResult],
+    jobs: _QBTIterable[object],
+    deadline: float | None = None,
+) -> list[_QBTJobResult]:
     """Run bounded worker jobs, preserving completed work after failures."""
     jobs = list(jobs)
     if not jobs:
@@ -214,13 +274,13 @@ def _qbt_run_parallel(worker, jobs, deadline=None):
     if deadline is None:
         deadline = _qbt_get_deadline()
     executor = _QBTThreadPoolExecutor(max_workers=MAX_WORKERS)
-    futures = []
+    futures: list[_QBTFuture[_QBTJobResult]] = []
     for job in jobs:
         if isinstance(job, tuple):
             futures.append(executor.submit(worker, *job))
         else:
             futures.append(executor.submit(worker, job))
-    results = []
+    results: list[_QBTJobResult] = []
     try:
         remaining = max(0.0, deadline - _qbt_time.monotonic())
         for future in _qbt_as_completed(futures, timeout=remaining):
@@ -231,12 +291,12 @@ def _qbt_run_parallel(worker, jobs, deadline=None):
                 pass
     except _qbt_FuturesTimeoutError:
         for future in futures:
-            future.cancel()
+            _ = future.cancel()
     finally:
         try:
-            executor.shutdown(wait=False, cancel_futures=True)
+            _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:  # pragma: no cover - compatibility with old qBitt Python
-            executor.shutdown(wait=False)
+            _ = executor.shutdown(wait=False)
     return results
 
 
@@ -251,8 +311,84 @@ def _qbt_get_deadline() -> float:
     return _qbt_search_deadline
 
 
+# These hooks are available to standalone engines even when a particular
+# engine does not call every optional adapter directly.
+__all__ = [
+    "_qbt_new_deadline",
+    "_qbt_prettyPrinter",
+    "_qbt_run_parallel",
+    "_qbt_safe_urlopen",
+    "retrieve_url",
+]
+
+
 # END GENERATED QBITT SAFETY PREAMBLE
 
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+
+class _RutorResponse(Protocol):
+    def geturl(self) -> str: ...
+
+    def read(self) -> bytes: ...
+
+
+class _RutorResponseContext(Protocol):
+    def __enter__(self) -> _RutorResponse: ...
+
+    def __exit__(self, *args: object) -> bool: ...
+
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
+
+_qbt_helper_retrieve_url = None
 
 try:
     import socks
@@ -266,15 +402,13 @@ FILE = Path(__file__)
 BASEDIR = FILE.parent.absolute()
 
 FILENAME = FILE.stem
-FILE_J, FILE_C, FILE_L = [
-    BASEDIR / (FILENAME + fl) for fl in (".json", ".cookie", ".log")
-]
+FILE_J, FILE_C, FILE_L = [BASEDIR / (FILENAME + fl) for fl in (".json", ".cookie", ".log")]
 
 RE_TORRENTS = re.compile(
     r'(?:gai|tum)"><td>(?P<pub_date>.+?)</td.+?href="(?P<mag_link>magnet:'
-    r'.+?)".+?href="/(?P<desc_link>torrent/(?P<tor_id>\d+).+?)">(?P<name>.+?)'
-    r'</a.+?right">(?P<size>[.\d]+?&nbsp;\w+?)</td.+?<span.+?(?P<seeds>\d+?)'
-    r"</span>.+?<span.+?(?P<leech>\d+?)</span>",
+    + r'.+?)".+?href="/(?P<desc_link>torrent/(?P<tor_id>\d+).+?)">(?P<name>.+?)'
+    + r'</a.+?right">(?P<size>[.\d]+?&nbsp;\w+?)</td.+?<span.+?(?P<seeds>\d+?)'
+    + r"</span>.+?<span.+?(?P<leech>\d+?)</span>",
     re.DOTALL,
 )
 RE_RESULTS = re.compile(r"</b>\sРезультатов\sпоиска\s(\d{1,4})\s", re.DOTALL)
@@ -307,10 +441,12 @@ ICON = (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 _fh = logging.FileHandler(FILE_L, mode="w")
-_fh.setFormatter(logging.Formatter(
-    fmt="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
-    datefmt="%m-%d %H:%M",
-))
+_fh.setFormatter(
+    logging.Formatter(
+        fmt="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+        datefmt="%m-%d %H:%M",
+    )
+)
 logger.addHandler(_fh)
 logger.propagate = False
 
@@ -336,9 +472,7 @@ def date_normalize(date_str: str) -> int:
         "Дек",
     )
     date_str = next(
-        date_str.replace(m, f"{i:02d}")
-        for i, m in enumerate(months, 1)
-        if m in date_str
+        date_str.replace(m, f"{i:02d}") for i, m in enumerate(months, 1) if m in date_str
     )
     return int(time.mktime(time.strptime(date_str, "%d %m %y")))
 
@@ -353,16 +487,19 @@ class Config:
     magnet: bool = False
     proxy: bool = False
     # dynamic_proxy: bool = True
-    proxies: dict[str, str] = field(
-        default_factory=lambda: {"http": "", "https": ""}
-    )
-    ua: str = (
-        "Mozilla/5.0 (X11; Linux i686; rv:38.0) Gecko/20100101 Firefox/38.0 "
-    )
+    proxies: dict[str, str] = field(default_factory=lambda: {"http": "", "https": ""})
+    ua: str = "Mozilla/5.0 (X11; Linux i686; rv:38.0) Gecko/20100101 Firefox/38.0 "
 
     def __post_init__(self) -> None:
         try:
-            if not self._validate_json(json.loads(FILE_J.read_text())):
+            config_value: object = cast(object, json.loads(FILE_J.read_text()))
+            if not isinstance(config_value, dict):
+                raise TypeError("Incorrect json scheme.")
+            config = cast(
+                dict[str, Union[str, bool, dict[str, str]]],
+                cast(object, config_value),
+            )
+            if not self._validate_json(config):
                 raise ValueError("Incorrect json scheme.")
         except Exception as e:
             logger.error(e)
@@ -372,41 +509,41 @@ class Config:
     def to_str(self) -> str:
         return json.dumps(self.to_dict(), indent=4, sort_keys=False)
 
-    def to_dict(self) -> dict[str, Any]:
-        return {self._to_camel(k): v for k, v in self.__dict__.items()}
+    def to_dict(self) -> dict[str, object]:
+        values = cast(dict[str, object], cast(object, vars(self)))
+        return {self._to_camel(k): v for k, v in values.items()}
 
-    def _validate_json(
-        self, obj: dict[str, str | bool | dict[str, str]]
-    ) -> bool:
+    def _validate_json(self, obj: dict[str, str | bool | dict[str, str]]) -> bool:
         is_valid = True
-        for k, v in self.__dict__.items():
+        values = cast(dict[str, object], cast(object, vars(self)))
+        for k, v in values.items():
             _val = obj.get(self._to_camel(k))
             if _val is None or not isinstance(_val, type(v)):
                 is_valid = False
                 continue
             if isinstance(_val, dict):
-                for dk, dv in v.items():
-                    if not isinstance(_val.get(dk), type(dv)):
-                        _val[dk] = dv
+                nested_value = cast(dict[str, object], v)
+                nested_config = cast(dict[str, object], _val)
+                for dk, dv in nested_value.items():
+                    if not isinstance(nested_config.get(dk), type(dv)):
+                        nested_config[dk] = dv
                         is_valid = False
             setattr(self, k, _val)
         return is_valid
 
     @staticmethod
     def _to_camel(s: str) -> str:
-        return "".join(
-            x.title() if i else x for i, x in enumerate(s.split("_"))
-        )
+        return "".join(x.title() if i else x for i, x in enumerate(s.split("_")))
 
 
 config = Config()
 
 
 class Rutor:
-    name = "Rutor"
-    url = "https://rutor.info/"
-    url_dl = url.replace("//", "//d.") + "download/"
-    supported_categories: ClassVar[dict[str, int]]  = {
+    name: str = "Rutor"
+    url: str = "https://rutor.info/"
+    url_dl: str = url.replace("//", "//d.") + "download/"
+    supported_categories: ClassVar[dict[str, int]] = {
         "all": 0,
         "movies": 1,
         "tv": 6,
@@ -419,7 +556,7 @@ class Rutor:
     }
 
     # establish connection
-    session = build_opener()
+    session: OpenerDirector = build_opener()
 
     def search(self, what: str, cat: str = "all") -> None:
         self._catch_errors(self._search, what, cat)
@@ -428,7 +565,8 @@ class Rutor:
         self._catch_errors(self._download_torrent, url)
 
     def searching(self, query: str, first: bool = False) -> int:
-        page, torrents_found = self._request(query).decode(), -1
+        page: str = self._request(query).decode()
+        torrents_found: int = -1
         if first:
             # firstly, we check if there is a result
             match = RE_RESULTS.search(page)
@@ -457,9 +595,7 @@ class Rutor:
                     "leech": int(tor.group("leech")),
                     "engine_url": self.url,
                     "desc_link": self.url + tor.group("desc_link"),
-                    "pub_date": date_normalize(
-                        unescape(tor.group("pub_date"))
-                    ),
+                    "pub_date": date_normalize(unescape(tor.group("pub_date"))),
                 }
             )
 
@@ -510,12 +646,13 @@ class Rutor:
         )
 
         # make first request (maybe it enough)
-        t0, total = time.time(), self.searching(query, True)
+        t0: float = time.time()
+        total: int = self.searching(query, True)
         # do async requests
         if total > PAGES:
             query = query.replace("h/0", "h/{}")
             qrs = [query.format(x) for x in rng(total)][:MAX_PAGES]
-            _qbt_run_parallel(self.searching, [(qr,) for qr in qrs], _qbt_new_deadline())
+            _ = _qbt_run_parallel(self.searching, [(qr,) for qr in qrs], _qbt_new_deadline())
 
         logger.debug(f"--- {time.time() - t0} seconds ---")
         logger.info(f"Found torrents: {total}")
@@ -541,36 +678,28 @@ class Rutor:
         attempts = 1 if repeated else max(1, int(MAX_ATTEMPTS))
         for attempt in range(attempts):
             try:
-                with self.session.open(url, data, HTTP_TIMEOUT) as r:
+                with cast(_RutorResponseContext, self.session.open(url, data, HTTP_TIMEOUT)) as r:
                     # check if the response is from the correct domain
                     if r.geturl().startswith((self.url, self.url_dl)):
                         return r.read()
                     raise EngineError(f"{url} is blocked. Try another proxy.")
 
             except HTTPError as err:
-                raise EngineError(
-                    f"Request to {url} failed with status: {err.code}"
-                ) from err
+                raise EngineError(f"Request to {url} failed with status: {err.code}") from err
             except (URLError, TimeoutError) as err:
                 reason = getattr(err, "reason", None)
                 if isinstance(reason, str) and reason == "no host given":
                     raise EngineError("Proxy is bad, try another!") from err
 
-                is_timeout = isinstance(err, TimeoutError) or isinstance(
-                    reason, TimeoutError
-                )
+                is_timeout = isinstance(err, TimeoutError) or isinstance(reason, TimeoutError)
                 if attempt + 1 < attempts:
                     logger.debug("Request failed; repeating bounded attempt %s", attempt + 2)
                     _qbt_sleep(attempt)
                     continue
 
                 if is_timeout:
-                    raise EngineError(
-                        f"{url} is not responding (timed out)."
-                    ) from err
-                raise EngineError(
-                    f"{url} is not response! Maybe it is blocked."
-                ) from err
+                    raise EngineError(f"{url} is not responding (timed out).") from err
+                raise EngineError(f"{url} is not response! Maybe it is blocked.") from err
 
         raise EngineError(f"{url} is not response! Maybe it is blocked.")
 

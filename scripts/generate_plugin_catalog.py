@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import NamedTuple, cast
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -14,6 +15,7 @@ from scripts.plugin_catalog import (
     CATALOG_PATH,
     DOCS_PATH,
     bootstrap_catalog,
+    catalog_entries,
     load_catalog,
     refresh_catalog,
     render_plugin_docs,
@@ -22,36 +24,51 @@ from scripts.plugin_catalog import (
 )
 
 
-def parse_args() -> argparse.Namespace:
+class Arguments(NamedTuple):
+    bootstrap: bool
+    write: bool
+    docs: bool
+    refresh: bool
+    check: bool
+
+
+def parse_args() -> Arguments:
     parser = argparse.ArgumentParser(
         description="Validate or generate catalog/plugins.json and PLUGINS.md."
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--bootstrap",
         action="store_true",
         help="create a catalog from the existing plugins and live-query profile",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--write",
         action="store_true",
         help="write the catalog when used with --bootstrap",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--docs",
         action="store_true",
         help="write the generated PLUGINS.md index",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--refresh",
         action="store_true",
         help="fill catalog license fields from LICENSE.md without overwriting edits",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--check",
         action="store_true",
         help="validate the catalog and generated index without changing files",
     )
-    return parser.parse_args()
+    parsed = parser.parse_args()
+    return Arguments(
+        bootstrap=cast(bool, parsed.bootstrap),
+        write=cast(bool, parsed.write),
+        docs=cast(bool, parsed.docs),
+        refresh=cast(bool, parsed.refresh),
+        check=cast(bool, parsed.check),
+    )
 
 
 def main() -> int:
@@ -93,7 +110,7 @@ def main() -> int:
         return 1
 
     if args.docs:
-        DOCS_PATH.write_text(render_plugin_docs(catalog), encoding="utf-8")
+        _ = DOCS_PATH.write_text(render_plugin_docs(catalog), encoding="utf-8")
         print("Wrote " + str(DOCS_PATH.relative_to(DOCS_PATH.parents[0])))
     elif args.check:
         expected = render_plugin_docs(catalog)
@@ -101,7 +118,7 @@ def main() -> int:
             print("ERROR: PLUGINS.md is out of date; run with --docs", file=sys.stderr)
             return 1
 
-    print("Catalog valid: " + str(len(catalog["plugins"])) + " plugins.")
+    print("Catalog valid: " + str(len(catalog_entries(catalog))) + " plugins.")
     return 0
 
 

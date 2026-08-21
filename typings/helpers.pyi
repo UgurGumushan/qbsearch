@@ -1,6 +1,5 @@
 from collections.abc import Mapping
 from ssl import SSLContext
-from typing import Any
 
 _headers: dict[str, str]
 
@@ -9,7 +8,7 @@ def htmlentitydecode(s: str) -> str: ...
 def retrieve_url(
     url: str,
     custom_headers: Mapping[str, str] = ...,
-    request_data: Any | None = None,
+    request_data: object | None = None,
     ssl_context: SSLContext | None = None,
     unescape_html_entities: bool = True,
 ) -> str: ...

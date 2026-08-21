@@ -15,6 +15,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple, Optional, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_DIR = ROOT / "plugins"
@@ -35,6 +36,18 @@ class TestResult:
     elapsed: float
     output: str
     detail: str = ""
+
+
+class Arguments(NamedTuple):
+    timeout: float
+    skip_safety: bool
+    install_only: bool
+    query: str | None
+    category: str
+    content_category: str
+    plugin_ids: list[str] | None
+    allow_empty: bool
+    require_results: bool
 
 
 def logical_cpu_count() -> int:
@@ -67,9 +80,7 @@ def run_command(command: list[str], timeout: float | None = None) -> tuple[bool,
 
 
 def _live_detail(output: str) -> str:
-    return next(
-        (line for line in output.splitlines() if line.startswith("LIVE ")), ""
-    )
+    return next((line for line in output.splitlines() if line.startswith("LIVE ")), "")
 
 
 def run_plugin(
@@ -107,58 +118,69 @@ def print_failure_details(result: TestResult) -> None:
     print(result.output)
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args() -> Arguments:
     parser = argparse.ArgumentParser(
         description="Test all standalone qBittorrent plugins in parallel."
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--timeout",
         type=float,
         default=120.0,
         help="maximum seconds allowed for each isolated test process (default: 120)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--skip-safety",
         action="store_true",
         help="skip the local fake-server safety helper suite",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--install-only",
         action="store_true",
         help="only validate imports and metadata; do not contact remote services",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--query",
         default=None,
         help="override the per-plugin live query profile for every plugin",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--category",
         default="all",
         help="qBittorrent category sent to every live plugin (default: all)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--content-category",
         default="all",
         help="only test catalog entries in this content category (default: all)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--plugin",
         action="append",
         dest="plugin_ids",
         help="only test this plugin id; may be repeated",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--allow-empty",
         action="store_true",
         help="accept live tests that complete with zero parsed results (default)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--require-results",
         action="store_true",
         help="fail live tests that complete without parsed result records",
     )
-    return parser.parse_args()
+    parsed = parser.parse_args()
+    return Arguments(
+        timeout=cast(float, parsed.timeout),
+        skip_safety=cast(bool, parsed.skip_safety),
+        install_only=cast(bool, parsed.install_only),
+        query=cast(Optional[str], parsed.query),
+        category=cast(str, parsed.category),
+        content_category=cast(str, parsed.content_category),
+        plugin_ids=cast(Optional[list[str]], parsed.plugin_ids),
+        allow_empty=cast(bool, parsed.allow_empty),
+        require_results=cast(bool, parsed.require_results),
+    )
 
 
 def main() -> int:
@@ -191,7 +213,9 @@ def main() -> int:
         if unknown:
             print("ERROR: unknown or filtered plugin id(s): " + ", ".join(unknown), file=sys.stderr)
             return 2
-        entries = {plugin_id: entry for plugin_id, entry in entries.items() if plugin_id in requested}
+        entries = {
+            plugin_id: entry for plugin_id, entry in entries.items() if plugin_id in requested
+        }
 
     plugins = sorted(
         (PLUGIN_DIR / (plugin_id + ".py") for plugin_id in entries),
@@ -209,7 +233,7 @@ def main() -> int:
         query_mode = "override: " + repr(args.query) if args.query else "per-plugin defaults"
         print(
             f"Live queries: {query_mode} | content category: {args.content_category!r} "
-            f"| qBittorrent category: {args.category!r}"
+            + f"| qBittorrent category: {args.category!r}"
         )
         result_policy = "required" if args.require_results else "empty results allowed"
         print(f"Live result policy: {result_policy}")
@@ -248,8 +272,10 @@ def main() -> int:
 
     results.sort(key=lambda result: result.name)
     failed_plugins = [result for result in results if not result.passed]
-    print(f"\nPlugin result: {len(plugins) - len(failed_plugins)} passed, "
-          f"{len(failed_plugins)} failed.")
+    print(
+        f"\nPlugin result: {len(plugins) - len(failed_plugins)} passed, "
+        + f"{len(failed_plugins)} failed."
+    )
     for result in failed_plugins:
         print_failure_details(result)
 

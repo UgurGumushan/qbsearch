@@ -6,17 +6,39 @@ from __future__ import annotations
 import importlib.util
 import threading
 import time
-from contextlib import AbstractContextManager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, ClassVar, TypedDict, cast
+from typing import TYPE_CHECKING, Callable, ClassVar, Protocol, TypedDict, cast
+
+if TYPE_CHECKING:
+    from typing_extensions import override
+else:
+
+    def override(function: Callable[..., object]) -> Callable[..., object]:
+        return function
+
+
+class _Response(Protocol):
+    def read(self) -> bytes: ...
+
+
+class _ResponseContext(Protocol):
+    def __enter__(self) -> _Response: ...
+
+    def __exit__(self, *args: object) -> bool: ...
+
+
+class _Checker(Protocol):
+    PLUGIN_DIR: Path
+
+    def audit_plugin(self, path: Path) -> list[str]: ...
 
 
 class _HelperNamespace(TypedDict):
-    _qbt_safe_urlopen: Callable[[str], AbstractContextManager[Any]]
+    _qbt_safe_urlopen: Callable[[str], _ResponseContext]
     retrieve_url: Callable[[str], str]
     _qbt_run_parallel: Callable[[Callable[[str], str], list[tuple[str]], float], list[str]]
 
@@ -44,43 +66,50 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         try:
-            self.wfile.write(body)
+            _ = self.wfile.write(body)
         except (BrokenPipeError, ConnectionResetError):
             pass
 
+    @override
     def log_message(self, format: str, *args: object) -> None:
         return None
 
 
-def _load_helpers():
+def _load_helpers() -> tuple[_HelperNamespace, list[int]]:
     module = import_module("harden_plugins")
+    safety_preamble = cast(str, module.SAFETY_PREAMBLE)
     calls: list[int] = []
 
-    def helper(*args: object, **kwargs: object) -> str:
+    def helper(*_args: object, **_kwargs: object) -> str:
         calls.append(1)
         return "" if len(calls) < 3 else "ok"
 
     with TemporaryDirectory() as directory:
         preamble_path = Path(directory) / "generated_helpers.py"
-        preamble_path.write_text(module.SAFETY_PREAMBLE, encoding="utf-8")
+        _ = preamble_path.write_text(
+            "from __future__ import annotations\n\n" + safety_preamble,
+            encoding="utf-8",
+        )
         loader = SourceFileLoader("_qbt_safety_test", str(preamble_path))
         spec = importlib.util.spec_from_loader(loader.name, loader)
         if spec is None or spec.loader is None:
             raise RuntimeError("could not load generated safety preamble")
         generated_module = importlib.util.module_from_spec(spec)
+
+        def ignore_result(_result: object) -> None:
+            return None
+
         generated_module.__dict__.update(
             {
                 "_qbt_helper_retrieve_url": helper,
-                "prettyPrinter": lambda result: None,
+                "prettyPrinter": ignore_result,
             }
         )
         loader.exec_module(generated_module)
-        namespace: dict[str, Any] = vars(generated_module)
+        namespace = cast(dict[str, object], vars(generated_module))
     namespace.update({"HTTP_TIMEOUT": 0.05, "MAX_ATTEMPTS": 3, "RETRY_DELAY": 0.01})
     helpers = _HelperNamespace(
-        _qbt_safe_urlopen=cast(
-            Callable[[str], AbstractContextManager[Any]], namespace["_qbt_safe_urlopen"]
-        ),
+        _qbt_safe_urlopen=cast(Callable[[str], _ResponseContext], namespace["_qbt_safe_urlopen"]),
         retrieve_url=cast(Callable[[str], str], namespace["retrieve_url"]),
         _qbt_run_parallel=cast(
             Callable[[Callable[[str], str], list[tuple[str]], float], list[str]],
@@ -91,7 +120,7 @@ def _load_helpers():
 
 
 def main() -> None:
-    checker = import_module("harden_plugins")
+    checker = cast(_Checker, cast(object, import_module("harden_plugins")))
     plugin_paths = sorted(checker.PLUGIN_DIR.glob("*.py"))
     assert len(plugin_paths) == 61
     for plugin_path in plugin_paths:

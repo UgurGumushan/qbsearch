@@ -14,7 +14,7 @@ import re
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import TypedDict, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_DIR = ROOT / "plugins"
@@ -35,6 +35,26 @@ VALID_CATEGORIES = {
     "tv",
 }
 VALID_STATUSES = {"active", "intermittent", "unavailable", "requires-account", "retired"}
+
+
+class CatalogEntry(TypedDict):
+    id: str
+    name: str
+    site_url: str
+    category: str
+    default_query: str
+    status: str
+    icon: str
+    requires_auth: bool
+    source_url: str | None
+    license: str | None
+    notes: str
+
+
+class Catalog(TypedDict, total=False):
+    schema_version: int
+    plugins: list[CatalogEntry]
+
 
 # Used only when bootstrapping a new catalog entry.  The generated JSON is the
 # source of truth and can be edited when a site changes its classification.
@@ -91,7 +111,11 @@ def _assignment_value(node: ast.AST, name: str) -> ast.AST | None:
         isinstance(target, ast.Name) and target.id == name for target in node.targets
     ):
         return node.value
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == name:
+    if (
+        isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == name
+    ):
         return node.value
     return None
 
@@ -162,11 +186,13 @@ def _legacy_queries() -> dict[str, str]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
             continue
-        if not any(isinstance(target, ast.Name) and target.id == "DEFAULT_LIVE_QUERIES" for target in node.targets):
+        if not any(
+            isinstance(target, ast.Name) and target.id == "DEFAULT_LIVE_QUERIES"
+            for target in node.targets
+        ):
             continue
-        value = ast.literal_eval(node.value)
-        if isinstance(value, dict):
-            return {str(key): str(query) for key, query in value.items()}
+        value = cast(dict[object, object], cast(object, ast.literal_eval(node.value)))
+        return {str(key): str(query) for key, query in value.items()}
     return {}
 
 
@@ -174,22 +200,23 @@ def _license_map() -> dict[str, str]:
     license_file = ROOT / "LICENSE.md"
     if not license_file.is_file():
         return {}
-    pattern = re.compile(
+    pattern: re.Pattern[str] = re.compile(
         r"^\| \[([A-Za-z0-9_]+)\.py\]\(plugins/[^)]+\) \| ([^|]+) \|$", re.MULTILINE
     )
-    return {
-        stem: license_name.strip()
-        for stem, license_name in pattern.findall(license_file.read_text(encoding="utf-8"))
-    }
+    matches = cast(
+        list[tuple[str, str]],
+        pattern.findall(license_file.read_text(encoding="utf-8")),
+    )
+    return {stem: license_name.strip() for stem, license_name in matches}
 
 
-def bootstrap_catalog() -> dict[str, Any]:
+def bootstrap_catalog() -> Catalog:
     queries = _legacy_queries()
     licenses = _license_map()
-    entries: list[dict[str, Any]] = []
+    entries: list[CatalogEntry] = []
     for path in discover_plugins():
         metadata = inspect_plugin(path)
-        entry: dict[str, Any] = {
+        entry: CatalogEntry = {
             "id": path.stem,
             "name": metadata["name"],
             "site_url": metadata["site_url"],
@@ -206,7 +233,7 @@ def bootstrap_catalog() -> dict[str, Any]:
     return {"schema_version": 1, "plugins": entries}
 
 
-def refresh_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
+def refresh_catalog(catalog: Catalog) -> Catalog:
     """Fill metadata that is already documented elsewhere without overwriting edits."""
     licenses = _license_map()
     for entry in catalog_entries(catalog):
@@ -216,36 +243,37 @@ def refresh_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
     return catalog
 
 
-def load_catalog(path: Path = CATALOG_PATH) -> dict[str, Any]:
+def load_catalog(path: Path = CATALOG_PATH) -> Catalog:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value: object = cast(object, json.loads(path.read_text(encoding="utf-8")))
     except FileNotFoundError as error:
         raise ValueError("catalog is missing: " + str(path)) from error
     except json.JSONDecodeError as error:
         raise ValueError("catalog is not valid JSON: " + str(error)) from error
     if not isinstance(value, dict):
         raise TypeError("catalog root must be an object")
-    return value
+    return cast(Catalog, cast(object, value))
 
 
-def write_catalog(catalog: dict[str, Any], path: Path = CATALOG_PATH) -> None:
+def write_catalog(catalog: Catalog, path: Path = CATALOG_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    _ = path.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def catalog_entries(catalog: dict[str, Any]) -> list[dict[str, Any]]:
+def catalog_entries(catalog: Catalog) -> list[CatalogEntry]:
     entries = catalog.get("plugins")
     if not isinstance(entries, list):
         raise TypeError("catalog.plugins must be an array")
-    typed_entries: list[dict[str, Any]] = []
-    for entry in entries:
+    raw_entries = cast(list[object], cast(object, entries))
+    typed_entries: list[CatalogEntry] = []
+    for entry in raw_entries:
         if not isinstance(entry, dict):
             raise TypeError("every catalog.plugins entry must be an object")
-        typed_entries.append(entry)
+        typed_entries.append(cast(CatalogEntry, cast(object, entry)))
     return typed_entries
 
 
-def validate_catalog(catalog: dict[str, Any]) -> list[str]:
+def validate_catalog(catalog: Catalog) -> list[str]:
     errors: list[str] = []
     if catalog.get("schema_version") != 1:
         errors.append("schema_version must be 1")
@@ -257,7 +285,8 @@ def validate_catalog(catalog: dict[str, Any]) -> list[str]:
     seen: set[str] = set()
     paths = {path.stem: path for path in discover_plugins()}
     for entry in entries:
-        stem = entry.get("id")
+        raw_entry = cast(dict[str, object], cast(object, entry))
+        stem = raw_entry.get("id")
         if not isinstance(stem, str) or not stem:
             errors.append("plugin entry has an invalid id")
             continue
@@ -265,24 +294,27 @@ def validate_catalog(catalog: dict[str, Any]) -> list[str]:
             errors.append("duplicate catalog id: " + stem)
         seen.add(stem)
         required = ("name", "site_url", "category", "default_query", "status", "icon")
-        missing = [field for field in required if field not in entry]
+        missing = [field for field in required if field not in raw_entry]
         if missing:
             errors.append(stem + " is missing: " + ", ".join(missing))
             continue
         if stem not in paths:
             errors.append(stem + " is in the catalog but not in plugins/")
             continue
-        if entry["category"] not in VALID_CATEGORIES:
-            errors.append(stem + " has invalid category: " + repr(entry["category"]))
-        if entry["status"] not in VALID_STATUSES:
-            errors.append(stem + " has invalid status: " + repr(entry["status"]))
-        if not isinstance(entry["default_query"], str) or not entry["default_query"].strip():
+        if raw_entry["category"] not in VALID_CATEGORIES:
+            errors.append(stem + " has invalid category: " + repr(raw_entry["category"]))
+        if raw_entry["status"] not in VALID_STATUSES:
+            errors.append(stem + " has invalid status: " + repr(raw_entry["status"]))
+        if (
+            not isinstance(raw_entry["default_query"], str)
+            or not raw_entry["default_query"].strip()
+        ):
             errors.append(stem + " must have a non-empty default_query")
-        if entry["icon"] != "icons/" + stem + ".ico":
+        if raw_entry["icon"] != "icons/" + stem + ".ico":
             errors.append(stem + " icon must be icons/" + stem + ".ico")
-        if not isinstance(entry.get("requires_auth", False), bool):
+        if not isinstance(raw_entry.get("requires_auth", False), bool):
             errors.append(stem + " requires_auth must be boolean")
-        icon = ROOT / str(entry["icon"])
+        icon = ROOT / str(raw_entry["icon"])
         if not icon.is_file():
             errors.append(stem + " is missing icon: " + str(icon.relative_to(ROOT)))
         try:
@@ -290,9 +322,9 @@ def validate_catalog(catalog: dict[str, Any]) -> list[str]:
         except (OSError, SyntaxError, ValueError) as error:
             errors.append(stem + " metadata cannot be inspected: " + str(error))
         else:
-            if entry["name"] != source_metadata["name"]:
+            if raw_entry["name"] != source_metadata["name"]:
                 errors.append(stem + " catalog name does not match plugin class")
-            if entry["site_url"] != source_metadata["site_url"]:
+            if raw_entry["site_url"] != source_metadata["site_url"]:
                 errors.append(stem + " catalog site_url does not match plugin class")
 
     missing = sorted(set(paths) - seen)
@@ -301,7 +333,7 @@ def validate_catalog(catalog: dict[str, Any]) -> list[str]:
     return errors
 
 
-def render_plugin_docs(catalog: dict[str, Any]) -> str:
+def render_plugin_docs(catalog: Catalog) -> str:
     entries = catalog_entries(catalog)
     category_counts = Counter(str(entry["category"]) for entry in entries)
     status_counts = Counter(str(entry["status"]) for entry in entries)
@@ -310,8 +342,7 @@ def render_plugin_docs(catalog: dict[str, Any]) -> str:
         for category in sorted(category_counts)
     )
     statuses = ", ".join(
-        status + " (" + str(status_counts[status]) + ")"
-        for status in sorted(status_counts)
+        status + " (" + str(status_counts[status]) + ")" for status in sorted(status_counts)
     )
     lines = [
         "# Plugin catalog",
@@ -328,7 +359,9 @@ def render_plugin_docs(catalog: dict[str, Any]) -> str:
         "| Plugin | Category | Status | License | Site | Default live query | Install |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for entry in sorted(entries, key=lambda item: (str(item["category"]), str(item["name"]).lower())):
+    for entry in sorted(
+        entries, key=lambda item: (str(item["category"]), str(item["name"]).lower())
+    ):
         name = str(entry["name"]).replace("|", "\\|")
         site_url = str(entry["site_url"])
         site = "[site](" + site_url + ")" if site_url else "—"
@@ -337,7 +370,11 @@ def render_plugin_docs(catalog: dict[str, Any]) -> str:
         if entry.get("notes"):
             query += " (" + str(entry["notes"]).replace("|", "\\|") + ")"
         lines.append(
-            "| [" + name + "](plugins/" + str(entry["id"]) + ".py) | "
+            "| ["
+            + name
+            + "](plugins/"
+            + str(entry["id"])
+            + ".py) | "
             + str(entry["category"])
             + " | "
             + str(entry["status"])

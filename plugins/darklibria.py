@@ -1,23 +1,25 @@
-#VERSION: 0.13
+# VERSION: 0.13
 """dark-libria.it engine: Russian torrent site focused on anime.
 
 Search result pages and then each series page are fetched in parallel;
 magnets are taken from the Russian-language download buttons.
 """
+
 from __future__ import annotations
 
-SITE_URL = 'https://darklibria.it/'
+SITE_URL = "https://darklibria.it/"
 
 
 import logging
 import os
-from collections.abc import Iterator, Mapping, Sequence
+import re
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from math import ceil
 from re import compile as re_compile
 from time import mktime
-from typing import ClassVar
+from typing import ClassVar, Optional, cast
 from urllib import parse
 
 from helpers import retrieve_url as _qbt_helper_retrieve_url
@@ -29,13 +31,29 @@ try:
     import socket as _qbt_socket
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
+    from collections.abc import Iterable as _QBTIterable
+    from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
     from concurrent.futures import TimeoutError as _qbt_FuturesTimeoutError
     from concurrent.futures import as_completed as _qbt_as_completed
     from threading import Lock as _qbt_Lock
+    from types import TracebackType as _QBTTracebackType
+    from typing import TYPE_CHECKING
+    from typing import Callable as _QBTCallable
+    from typing import Protocol as _QBTProtocol
+    from typing import TypeVar as _QBTTypeVar
+    from typing import cast as _qbt_cast
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
+
+if TYPE_CHECKING:
+    from typing_extensions import override
+else:
+
+    def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        return function
+
 
 HTTP_TIMEOUT = 20.0
 MAX_ATTEMPTS = 3
@@ -47,29 +65,68 @@ MAX_DETAILS = 100
 
 _qbt_socket.setdefaulttimeout(HTTP_TIMEOUT)
 _QBT_RETRYABLE_HTTP_STATUS = frozenset((408, 425, 429, 500, 502, 503, 504))
-_qbt_search_deadline = None
+_qbt_search_deadline: float | None = None
+_QBTJobResult = _QBTTypeVar("_QBTJobResult")
+
+
+class _QBTResponse(_QBTProtocol):
+    status: int | None
+
+    def close(self) -> None: ...
+
+    def read(self, *args: object, **kwargs: object) -> bytes: ...
+
+    def getcode(self) -> int: ...
+
+    def geturl(self) -> str: ...
+
+    def getheader(self, name: str, default: object = None) -> object: ...
+
+    def info(self) -> _QBTResponse: ...
+
+    def get(self, name: str, default: object = None) -> object: ...
+
+
+class _QBTResponseContext(_QBTResponse, _QBTProtocol):
+    def __enter__(self) -> _QBTResponse: ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: _QBTTracebackType | None,
+    ) -> bool: ...
+
+
+_qbt_urlopen_typed = _qbt_cast(_QBTCallable[..., _QBTResponseContext], _qbt_urlopen)
 
 
 class _QBTEmptyResponse:
     """Response-shaped empty value used when a request is exhausted."""
 
-    status = 200
-    code = 200
+    status: int | None = 200
+    code: int = 200
+    _url: str
 
     def __init__(self, url: object = "") -> None:
         self._url = str(getattr(url, "full_url", url))
 
-    def __enter__(self):
-        return self
+    def __enter__(self) -> _QBTResponse:
+        return _qbt_cast(_QBTResponse, _qbt_cast(object, self))
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        _exc_type: type[BaseException] | None,
+        _exc_value: BaseException | None,
+        _traceback: _QBTTracebackType | None,
+    ) -> bool:
         self.close()
         return False
 
     def close(self) -> None:
         return None
 
-    def read(self, *args, **kwargs) -> bytes:
+    def read(self, *_args: object, **_kwargs: object) -> bytes:
         return b""
 
     def getcode(self) -> int:
@@ -78,14 +135,18 @@ class _QBTEmptyResponse:
     def geturl(self) -> str:
         return self._url
 
-    def getheader(self, name: str, default: object = None):
+    def getheader(self, _name: str, default: object = None) -> object:
         return default
 
-    def info(self):
-        return self
+    def info(self) -> _QBTResponse:
+        return _qbt_cast(_QBTResponse, _qbt_cast(object, self))
 
-    def get(self, name: str, default: object = None):
+    def get(self, _name: str, default: object = None) -> object:
         return default
+
+
+def _qbt_empty_response(url: object) -> _QBTResponseContext:
+    return _qbt_cast(_QBTResponseContext, _qbt_cast(object, _QBTEmptyResponse(url)))
 
 
 class _QBTTransientHTTPError(Exception):
@@ -96,13 +157,13 @@ def _qbt_sleep(attempt: int) -> None:
     _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
 
 
-def _qbt_retry_call(operation) -> str:
+def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
     """Run a helper request a bounded number of times and return empty data."""
     for attempt in range(max(1, int(MAX_ATTEMPTS))):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
             return ""
         try:
-            result = operation()
+            result: object = operation()
             if isinstance(result, str) and result:
                 return result
             if result not in (None, "", b""):
@@ -125,32 +186,37 @@ def _qbt_retry_call(operation) -> str:
     return ""
 
 
-def _qbt_safe_urlopen(url, data=None, *, context=None):
+def _qbt_safe_urlopen(
+    url: object,
+    data: object | None = None,
+    *,
+    context: object | None = None,
+) -> _QBTResponseContext:
     """Open a URL with explicit timeout/retry policy and an empty fallback."""
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         remaining = _qbt_get_deadline() - _qbt_time.monotonic()
         if remaining <= 0:
-            return _QBTEmptyResponse(url)
-        response = None
+            return _qbt_empty_response(url)
+        response: _QBTResponseContext | None = None
         try:
             request_timeout = min(float(HTTP_TIMEOUT), remaining)
             if context is None:
-                response = _qbt_urlopen(url, data=data, timeout=request_timeout)
+                response = _qbt_urlopen_typed(url, data=data, timeout=request_timeout)
             else:
-                response = _qbt_urlopen(
+                response = _qbt_urlopen_typed(
                     url, data=data, timeout=request_timeout, context=context
                 )
-            status = getattr(response, "status", None)
+            status = response.status
             if status is None:
                 status = response.getcode()
             if status in _QBT_RETRYABLE_HTTP_STATUS:
                 response.close()
                 response = None
                 raise _QBTTransientHTTPError(status)
-            if status is not None and status >= 400:
+            if status >= 400:
                 response.close()
-                return _QBTEmptyResponse(url)
+                return _qbt_empty_response(url)
             return response
         except _qbt_urllib_error.HTTPError as error:
             if error.code not in _QBT_RETRYABLE_HTTP_STATUS:
@@ -158,7 +224,7 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
                     error.close()
                 except Exception:
                     pass
-                return _QBTEmptyResponse(url)
+                return _qbt_empty_response(url)
             try:
                 error.close()
             except Exception:
@@ -177,16 +243,16 @@ def _qbt_safe_urlopen(url, data=None, *, context=None):
                     pass
             # A malformed request is not useful to retry, but it must not
             # abort the qBittorrent search process.
-            return _QBTEmptyResponse(url)
+            return _qbt_empty_response(url)
         if attempt + 1 < attempts:
             _qbt_sleep(attempt)
-    return _QBTEmptyResponse(url)
+    return _qbt_empty_response(url)
 
 
-_qbt_retrieve_url = _qbt_helper_retrieve_url
+_qbt_retrieve_url = _qbt_cast(_QBTCallable[..., object], _qbt_helper_retrieve_url)
 
 
-def retrieve_url(*args, **kwargs) -> str:
+def retrieve_url(*args: object, **kwargs: object) -> str:
     """Drop-in wrapper for qBittorrent's helper with bounded retries."""
     helper = _qbt_retrieve_url
     if not callable(helper):
@@ -197,13 +263,18 @@ def retrieve_url(*args, **kwargs) -> str:
 _qbt_output_lock = _qbt_Lock()
 
 
-def _qbt_prettyPrinter(result) -> None:
+def _qbt_prettyPrinter(result: object) -> None:
     """Serialize result records emitted by parallel workers."""
     with _qbt_output_lock:
-        prettyPrinter(result)
+        printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
+        printer(result)
 
 
-def _qbt_run_parallel(worker, jobs, deadline=None):
+def _qbt_run_parallel(
+    worker: _QBTCallable[..., _QBTJobResult],
+    jobs: _QBTIterable[object],
+    deadline: float | None = None,
+) -> list[_QBTJobResult]:
     """Run bounded worker jobs, preserving completed work after failures."""
     jobs = list(jobs)
     if not jobs:
@@ -211,13 +282,13 @@ def _qbt_run_parallel(worker, jobs, deadline=None):
     if deadline is None:
         deadline = _qbt_get_deadline()
     executor = _QBTThreadPoolExecutor(max_workers=MAX_WORKERS)
-    futures = []
+    futures: list[_QBTFuture[_QBTJobResult]] = []
     for job in jobs:
         if isinstance(job, tuple):
             futures.append(executor.submit(worker, *job))
         else:
             futures.append(executor.submit(worker, job))
-    results = []
+    results: list[_QBTJobResult] = []
     try:
         remaining = max(0.0, deadline - _qbt_time.monotonic())
         for future in _qbt_as_completed(futures, timeout=remaining):
@@ -228,12 +299,12 @@ def _qbt_run_parallel(worker, jobs, deadline=None):
                 pass
     except _qbt_FuturesTimeoutError:
         for future in futures:
-            future.cancel()
+            _ = future.cancel()
     finally:
         try:
-            executor.shutdown(wait=False, cancel_futures=True)
+            _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:  # pragma: no cover - compatibility with old qBitt Python
-            executor.shutdown(wait=False)
+            _ = executor.shutdown(wait=False)
     return results
 
 
@@ -248,28 +319,45 @@ def _qbt_get_deadline() -> float:
     return _qbt_search_deadline
 
 
+# These hooks are available to standalone engines even when a particular
+# engine does not call every optional adapter directly.
+__all__ = [
+    "_qbt_new_deadline",
+    "_qbt_prettyPrinter",
+    "_qbt_run_parallel",
+    "_qbt_safe_urlopen",
+    "retrieve_url",
+]
+
+
 # END GENERATED QBITT SAFETY PREAMBLE
 
 
-LOG_FORMAT = '[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s - %(message)s'
-LOG_DT_FORMAT = '%d-%b-%y %H:%M:%S'
+LOG_FORMAT = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s - %(message)s"
+LOG_DT_FORMAT = "%d-%b-%y %H:%M:%S"
 
 
 class darklibria:
-    url = SITE_URL
-    name = 'dark-libria'
-    supported_categories: ClassVar[dict[str, str]]  = {'all': '0'}
+    url: str = SITE_URL
+    name: str = "dark-libria"
+    supported_categories: ClassVar[dict[str, str]] = {"all": "0"}
 
-    units_dict: ClassVar[dict[str, str]] = {"Тб": "TB", "Гб": "GB", "Мб": "MB", "Кб": "KB", "б": "B"}
-    page_search_url_pattern = SITE_URL + 'search?page={page}&find={what}'
-    dt_regex = re_compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}')
+    units_dict: ClassVar[dict[str, str]] = {
+        "Тб": "TB",
+        "Гб": "GB",
+        "Мб": "MB",
+        "Кб": "KB",
+        "б": "B",
+    }
+    page_search_url_pattern: str = SITE_URL + "search?page={page}&find={what}"
+    dt_regex: re.Pattern[str] = re_compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
 
     def __init__(self, output: bool = True) -> None:
-        self.output = output
-        self.torrents_count = 0
-        self.pages_count = 0
+        self.output: bool = output
+        self.torrents_count: int = 0
+        self.pages_count: int = 0
 
-    def search(self, what: str, cat: str = 'all') -> None:
+    def search(self, what: str, _cat: str = "all") -> None:
         self.torrents_count = 0
         what = parse.quote(parse.unquote(what))
         logger.info(parse.unquote(what))
@@ -277,8 +365,10 @@ class darklibria:
         if first_page is not None:
             self.set_search_data(first_page)
         pages = range(2, min(self.pages_count, MAX_PAGES) + 1)
-        _qbt_run_parallel(self.handle_page, [(what, page) for page in pages], _qbt_new_deadline())
-        logger.info('%s torrents', self.torrents_count)
+        _ = _qbt_run_parallel(
+            self.handle_page, [(what, page) for page in pages], _qbt_new_deadline()
+        )
+        logger.info("%s torrents", self.torrents_count)
 
     def handle_page(self, what: str, page: int) -> Parser | None:
         url = self.page_search_url_pattern.format(page=page, what=what)
@@ -286,16 +376,16 @@ class darklibria:
         if not data:
             return
         parser = Parser(data)
-        serials = parser.find_all('tbody', {'style': 'vertical-align: center'})
-        jobs = []
+        serials = parser.find_all("tbody", {"style": "vertical-align: center"})
+        jobs: list[tuple[str]] = []
         for serial in serials[:MAX_DETAILS]:
             link_tag = serial.a
             if link_tag is None:
                 continue
-            href = link_tag['href']
+            href = link_tag["href"]
             if href is not None:
                 jobs.append((href,))
-        _qbt_run_parallel(self.handle_serial, jobs, _qbt_new_deadline())
+        _ = _qbt_run_parallel(self.handle_serial, jobs, _qbt_new_deadline())
         return parser
 
     def handle_serial(self, url: str) -> None:
@@ -303,75 +393,79 @@ class darklibria:
         if not data:
             return
         parser = Parser(data)
-        name_el = parser.find(attrs={'id': 'russian_name'})
-        name = name_el.text if name_el is not None else ''
-        for torrent_row in parser.find_all('tr', {'class': 'torrent'}):
+        name_el = parser.find(attrs={"id": "russian_name"})
+        name = name_el.text if name_el is not None else ""
+        for torrent_row in parser.find_all("tr", {"class": "torrent"}):
             self.handle_torrent_row(torrent_row, name, url)
 
     def handle_torrent_row(self, torrent_row: Tag, name: str, url: str) -> None:
         type, quality, size_data, date_time, download, seeds, leech, *_ = torrent_row.children
-        self.pretty_printer({
-            'link': self.get_link(download),
-            'name': self.get_name(name, quality, type, date_time),
-            'size': self.get_size(size_data),
-            'seeds': int(seeds.text),
-            'leech': int(leech.text),
-            'engine_url': self.url,
-            'desc_link': url,
-            'pub_date': self.get_pub_date(date_time),
-        })
+        self.pretty_printer(
+            {
+                "link": self.get_link(download),
+                "name": self.get_name(name, quality, type, date_time),
+                "size": self.get_size(size_data),
+                "seeds": int(seeds.text),
+                "leech": int(leech.text),
+                "engine_url": self.url,
+                "desc_link": url,
+                "pub_date": self.get_pub_date(date_time),
+            }
+        )
         self.torrents_count += 1
 
     def get_link(self, download: Tag) -> str:
-        magnet = download.find(attrs={'title': 'Magnet-ссылка'})
+        magnet = download.find(attrs={"title": "Magnet-ссылка"})
         if magnet is not None:
-            href = magnet['href']
+            href = magnet["href"]
             if href:
                 return href
 
-        torrent = download.find(attrs={'title': 'Скачать торрент'})
+        torrent = download.find(attrs={"title": "Скачать торрент"})
         if torrent is not None:
-            href = torrent['href']
+            href = torrent["href"]
             if href:
                 return href
-        return ''
-            
+        return ""
+
     def get_name(self, name: str, quality: Tag, type: Tag, date_time: Tag) -> str:
-        return f'[{self.get_date(date_time)}] {name} [{type.text}] {quality.text}'
+        return f"[{self.get_date(date_time)}] {name} [{type.text}] {quality.text}"
 
     def get_date(self, date_time: Tag) -> str:
         m = self.dt_regex.search(date_time.text)
         if m is None:
             return str(date_time.text)
         utc_dt_string = m.group()
-        utc = datetime.strptime(utc_dt_string, '%Y-%m-%d %H:%M:%S')
+        utc = datetime.strptime(utc_dt_string, "%Y-%m-%d %H:%M:%S")
         return str(utc2local(utc))
 
     def get_pub_date(self, date_time: Tag) -> int:
         m = self.dt_regex.search(date_time.text)
         if m is None:
             return -1
-        utc = datetime.strptime(m.group(), '%Y-%m-%d %H:%M:%S')
+        utc = datetime.strptime(m.group(), "%Y-%m-%d %H:%M:%S")
         return int(utc.replace(tzinfo=timezone.utc).timestamp())
 
     def get_size(self, size_data: Tag) -> str:
         size, unit = size_data.text.split()
-        return size + ' ' + self.units_dict[unit]
+        return size + " " + self.units_dict[unit]
 
     def request_get(self, url: str) -> str | None:
         try:
             return retrieve_url(url)
         except Exception as exp:
             logger.error(exp)
-            self.pretty_printer({
-                'link': 'Error',
-                'name': 'Connection failed',
-                'size': "0",
-                'seeds': -1,
-                'leech': -1,
-                'engine_url': self.url,
-                'desc_link': self.url
-            })
+            self.pretty_printer(
+                {
+                    "link": "Error",
+                    "name": "Connection failed",
+                    "size": "0",
+                    "seeds": -1,
+                    "leech": -1,
+                    "engine_url": self.url,
+                    "desc_link": self.url,
+                }
+            )
 
     def pretty_printer(self, dictionary: SearchResults) -> None:
         logger.debug(str(dictionary))
@@ -379,18 +473,18 @@ class darklibria:
             _qbt_prettyPrinter(dictionary)
 
     def set_search_data(self, parser: Parser) -> None:
-        results = parser.find('span', {'class': 'text text-light mt-0'})
+        results = parser.find("span", {"class": "text text-light mt-0"})
         if results:
             parts = results.text.split()
             items_count = int(parts[4])
-            items_on_page = int(parts[2].split('-')[1])
+            items_on_page = int(parts[2].split("-")[1])
             self.pages_count = ceil(items_count / items_on_page)
 
-            logger.info('%s animes', items_count)
+            logger.info("%s animes", items_count)
         else:
             self.pages_count = 0
 
-        logger.info('%s pages', self.pages_count)
+        logger.info("%s pages", self.pages_count)
 
 
 # Minimal BeautifulSoup-like DOM so the engine stays dependency-free.
@@ -403,9 +497,9 @@ class Tag:
         attrs: Sequence[tuple[str, str | None]] = (),
         is_self_closing: bool | None = None,
     ) -> None:
-        self.type = tag
-        self.is_self_closing = is_self_closing
-        self._attrs = tuple(attrs)
+        self.type: str | None = tag
+        self.is_self_closing: bool | None = is_self_closing
+        self._attrs: tuple[tuple[str, str | None], ...] = tuple(attrs)
         self._content: tuple[Tag | str, ...] = ()
 
     @property
@@ -416,13 +510,17 @@ class Tag:
     @property
     def text(self) -> str:
         """returns str of all contained text"""
-        return ''.join(c if isinstance(c, str) else c.text for c in self._content)
+        return "".join(c if isinstance(c, str) else c.text for c in self._content)
 
-    def _add_content(self, obj: object) -> None:
+    def add_content(self, obj: object) -> None:
         if isinstance(obj, (Tag, str)):
             self._content += (obj,)
         else:
-            raise TypeError(f'Argument must be str or {self.__class__}, not {obj.__class__}')
+            raise TypeError(f"Argument must be str or {self.__class__}, not {obj.__class__}")
+
+    @property
+    def content(self) -> tuple[Tag | str, ...]:
+        return self._content
 
     def find(
         self,
@@ -452,8 +550,9 @@ class Tag:
         # filter by Tag.type
         if tag_type is not None:
             if isinstance(tag_type, Tag):
-                tag_type, attrs = tag_type.type, (
-                    attrs if attrs else tag_type.attrs)
+                tag_object = tag_type
+                tag_type = tag_object.type
+                attrs = attrs if attrs else tag_object.attrs
 
             results = filter(lambda t: t.type == tag_type, results)
 
@@ -494,17 +593,16 @@ class Tag:
             return self.find(tag=attr)
         raise AttributeError(attr)
 
+    @override
     def __repr__(self) -> str:
-        attrs = ' '.join(str(k) if v is None else f'{k}="{v}"'
-                         for k, v in self._attrs)
-        starttag = f'{self.type} {attrs}' if attrs else self.type
+        attrs = " ".join(str(k) if v is None else f'{k}="{v}"' for k, v in self._attrs)
+        starttag = f"{self.type} {attrs}" if attrs else self.type
 
         if self.is_self_closing:
-            return f'<{starttag}>\n'
+            return f"<{starttag}>\n"
         else:
-            nested = '\n' * bool(next(self.children, None)) + \
-                ''.join(map(str, self._content))
-            return f'<{starttag}>{nested}</{self.type}>\n'
+            nested = "\n" * bool(next(self.children, None)) + "".join(map(str, self._content))
+            return f"<{starttag}>{nested}</{self.type}>\n"
 
 
 class Parser(HTMLParser):
@@ -513,15 +611,15 @@ class Parser(HTMLParser):
     def __init__(self, html_code: str, *args: object, **kwargs: object) -> None:
         super().__init__(*args, **kwargs)
 
-        self._root = Tag('_root')
-        self._path: list[object] = [self._root]
+        self._root: Tag = Tag("_root")
+        self._path: list[Tag | str] = [self._root]
 
-        self.feed(''.join(map(str.strip, html_code.splitlines())))
+        self.feed("".join(map(str.strip, html_code.splitlines())))
         self.handle_endtag(str(self._root.type))
         self.close()
 
-        self.find = self._root.find
-        self.find_all = self._root.find_all
+        self.find: Callable[..., Tag | None] = self._root.find
+        self.find_all: Callable[..., list[Tag]] = self._root.find_all
 
     @property
     def attrs(self) -> dict[str, str | None]:
@@ -531,30 +629,35 @@ class Parser(HTMLParser):
     def text(self) -> str:
         return self._root.text
 
+    @override
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._path.append(Tag(tag=tag, attrs=attrs))
 
+    @override
     def handle_endtag(self, tag: str) -> None:
         for pos, node in tuple(enumerate(self._path))[::-1]:
             if isinstance(node, Tag) and node.type == tag and node.is_self_closing is None:
                 node.is_self_closing = False
 
-                for obj in self._path[pos + 1:]:
+                for obj in self._path[pos + 1 :]:
                     if isinstance(obj, Tag) and obj.is_self_closing is None:
                         obj.is_self_closing = True
 
-                    node._add_content(obj)
+                    node.add_content(obj)
 
-                self._path = self._path[:pos + 1]
+                self._path = self._path[: pos + 1]
 
                 break
 
+    @override
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._path.append(Tag(tag=tag, attrs=attrs, is_self_closing=True))
 
+    @override
     def handle_decl(self, decl: str) -> None:
-        self._path.append(Tag(tag='!'+decl, is_self_closing=True))
+        self._path.append(Tag(tag="!" + decl, is_self_closing=True))
 
+    @override
     def handle_data(self, data: str) -> None:
         self._path.append(data)
 
@@ -563,32 +666,36 @@ class Parser(HTMLParser):
 
     def __getattr__(self, attr: str) -> Tag | None:
         if not attr.startswith("__"):
-            return getattr(self._root, attr)
+            return cast(Optional[Tag], getattr(self._root, attr))
         raise AttributeError(attr)
 
+    @override
     def __repr__(self) -> str:
-        return ''.join(str(c) for c in self._root._content)
+        return "".join(str(c) for c in self._root.content)
 
 
 def utc2local(utc: datetime) -> datetime:
     epoch = mktime(utc.timetuple())
-    offset = datetime.fromtimestamp(epoch) - datetime.fromtimestamp(epoch, timezone.utc).replace(tzinfo=None)
+    offset = datetime.fromtimestamp(epoch) - datetime.fromtimestamp(epoch, timezone.utc).replace(
+        tzinfo=None
+    )
     return utc + offset
 
 
-is_main = __name__ == '__main__'
+is_main = __name__ == "__main__"
 STORAGE = os.path.abspath(os.path.dirname(__file__))
 if is_main:
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=LOG_DT_FORMAT)
 else:
     logging.basicConfig(
-        filename=os.path.join(STORAGE, 'darklibria.log'),
+        filename=os.path.join(STORAGE, "darklibria.log"),
         level=logging.WARNING,
         format=LOG_FORMAT,
         datefmt=LOG_DT_FORMAT,
     )
-logger = logging.getLogger('darklibria')
+logger = logging.getLogger("darklibria")
 
 if is_main:
     import sys
+
     darklibria(output=False).search(sys.argv[-1])
