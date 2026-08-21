@@ -9,6 +9,7 @@ import time
 from contextlib import AbstractContextManager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import import_module
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Callable, ClassVar, TypedDict, cast
@@ -62,7 +63,8 @@ def _load_helpers():
     with TemporaryDirectory() as directory:
         preamble_path = Path(directory) / "generated_helpers.py"
         preamble_path.write_text(module.SAFETY_PREAMBLE, encoding="utf-8")
-        spec = importlib.util.spec_from_file_location("_qbt_safety_test", preamble_path)
+        loader = SourceFileLoader("_qbt_safety_test", str(preamble_path))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
         if spec is None or spec.loader is None:
             raise RuntimeError("could not load generated safety preamble")
         generated_module = importlib.util.module_from_spec(spec)
@@ -72,7 +74,7 @@ def _load_helpers():
                 "prettyPrinter": lambda result: None,
             }
         )
-        spec.loader.exec_module(generated_module)
+        loader.exec_module(generated_module)
         namespace: dict[str, Any] = vars(generated_module)
     namespace.update({"HTTP_TIMEOUT": 0.05, "MAX_ATTEMPTS": 3, "RETRY_DELAY": 0.01})
     helpers = _HelperNamespace(

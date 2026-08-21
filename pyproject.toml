@@ -30,8 +30,6 @@ ignore = [
 [tool.basedpyright]
 pythonVersion = "3.9"
 exclude = ["external", ".venv"]
-venvPath = "."
-venv = ".venv"
 
 # qBitt's nova3 modules (`helpers`, `novaprinter`, `socks`) and `requests`
 # (one engine) live inside qBitt's installation, not on the host. typings/
