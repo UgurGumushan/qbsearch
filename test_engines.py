@@ -16,7 +16,8 @@
 #       components) to catch version-string bugs that don't block install.
 #
 # Usage:  python3 test_engines.py              (tests plugins/)
-#          python3 test_engines.py <dir>       (tests another dir)
+#          python3 test_engines.py <dir>       (tests another directory)
+#          python3 test_engines.py <plugin.py>  (tests one plugin)
 
 import glob
 import importlib.machinery
@@ -156,12 +157,19 @@ def check(path):
     return None
 
 
+def plugin_paths():
+    """Return either the requested single plugin or all plugins in a directory."""
+    if os.path.isfile(PLUGIN_DIR):
+        return [PLUGIN_DIR]
+    return sorted(glob.glob(os.path.join(PLUGIN_DIR, "*.py")))
+
+
 def main():
     ensure_qbitt_python()
     using_real = load_qbitt_modules()
 
     ok, broken, bad_version = [], [], []
-    for path in sorted(glob.glob(os.path.join(PLUGIN_DIR, "*.py"))):
+    for path in plugin_paths():
         stem = os.path.basename(path)[:-3]
         v = read_version(path)
         if v is None or not version_is_valid(v):
@@ -193,7 +201,7 @@ def main():
             print(f"      {stem:<18} {v!r}")
     else:
         print("All version strings are valid.")
-    return 1 if broken else 0
+    return 1 if broken or bad_version else 0
 
 
 if __name__ == "__main__":

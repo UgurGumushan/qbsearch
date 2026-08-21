@@ -1,17 +1,27 @@
-# VERSION: 1.2
+#!/usr/bin/env python3
+"""Generate and audit the standalone qBittorrent plugin safety preamble.
+
+The engines are copied into qBittorrent one file at a time, so the runtime
+helpers in this file are deliberately rendered into every plugin rather than
+imported from a repository module.  Use ``--write`` after changing the
+template; ``--check`` is suitable for CI and never edits a plugin.
 """
-UnionDHT (http://uniondht.org) search engine. DHT tracker front-end: scrapes
-the tracker page in batches of 50 and emits parsed rows after each bounded
-search.  Output is serialized by the generated safety preamble.
-"""
 
-from html.parser import HTMLParser
-from typing import ClassVar
+from __future__ import annotations
 
-from helpers import retrieve_url as _qbt_helper_retrieve_url  # noqa: F401
-from novaprinter import prettyPrinter
+import argparse
+import ast
+import re
+import sys
+from pathlib import Path
 
-# BEGIN GENERATED QBITT SAFETY PREAMBLE
+ROOT = Path(__file__).resolve().parents[1]
+PLUGIN_DIR = ROOT / "plugins"
+START_MARKER = "# BEGIN GENERATED QBITT SAFETY PREAMBLE"
+END_MARKER = "# END GENERATED QBITT SAFETY PREAMBLE"
+
+
+SAFETY_PREAMBLE = r'''# BEGIN GENERATED QBITT SAFETY PREAMBLE
 # This block is rendered into each standalone engine.  Keep it stdlib-only.
 try:
     import socket as _qbt_socket
@@ -236,144 +246,159 @@ def _qbt_get_deadline() -> float:
     return _qbt_search_deadline
 
 
-# END GENERATED QBITT SAFETY PREAMBLE
+# END GENERATED QBITT SAFETY PREAMBLE'''
 
 
-TorrentInfo = dict[str, str]
+def _remove_preamble(source: str) -> str:
+    start = source.find(START_MARKER)
+    if start < 0:
+        return source
+    end = source.find(END_MARKER, start)
+    if end < 0:
+        raise ValueError("generated preamble start marker has no end marker")
+    end += len(END_MARKER)
+    return source[:start].rstrip() + "\n\n" + source[end:].lstrip()
 
 
-class uniondht:
-    name = 'UnionDHT'
-    url = 'http://uniondht.org'
-    supported_categories: ClassVar[dict[str, str]]  = {'all': ''}
-
-    class UnionDHTParser(HTMLParser):
-        def __init__(self, url):
-            super().__init__()
-            self.engine_url = url
-            self.torrent_info = self.default_torrent_info()
-            self.results: list[TorrentInfo] = []
-            self.total_results = 0
-            self.find_total_results = True
-            self.find_torrent = False
-            self.find_desc_link = False
-            self.find_name = False
-            self.find_link = False
-            self.find_seeds = False
-            self.find_leech_class = False
-            self.find_leech = False
-            self.parse_total_results = False
-            self.parse_name = False
-            self.parse_size = False
-            self.parse_seeds = False
-            self.parse_leech = False
-            self.print_result = False
-
-        def default_torrent_info(self) -> TorrentInfo:
-            return {'link': '', 'name': '', 'size': '-1', 'seeds': '-1', 'leech': '-1', 'engine_url': self.engine_url, 'desc_link': ''}
-
-        def handle_starttag(self, tag, attrs):
-            if self.find_total_results:
-                if tag == 'p':
-                    attributes = dict(attrs)
-                    if 'class' in attributes and attributes['class'] == 'floatR':
-                        self.find_total_results = False
-                        self.parse_total_results = True
-            elif self.find_torrent:
-                if tag == 'tr':
-                    attributes = dict(attrs)
-                    if 'id' in attributes and (attributes['id'] or '').startswith('tor'):
-                        self.find_torrent = False
-                        self.find_desc_link = True
-            elif self.find_desc_link:
-                if tag == 'a':
-                    attributes = dict(attrs)
-                    if 'href' in attributes and (attributes['href'] or '').startswith('/topic'):
-                        self.torrent_info['desc_link'] = self.engine_url + attributes['href']
-                        self.find_desc_link = False
-                        self.find_name = True
-            elif self.find_name:
-                if tag == 'b':
-                    self.find_name = False
-                    self.parse_name = True
-            elif self.find_link:
-                if tag == 'wbr':
-                    self.find_link = False
-                    self.parse_name = True
-                elif tag == 'a':
-                    attributes = dict(attrs)
-                    if 'href' in attributes and (attributes['href'] or '').startswith('/dl.'):
-                        self.torrent_info['link'] = self.engine_url + attributes['href']
-                        self.find_link = False
-                        self.parse_size = True
-            elif self.find_seeds:
-                if tag == 'td':
-                    attributes = dict(attrs)
-                    if 'class' in attributes and (attributes['class'] or '').find('seed') != -1:
-                        self.find_seeds = False
-                        self.parse_seeds = True
-            elif self.find_leech_class:
-                if tag == 'td':
-                    attributes = dict(attrs)
-                    if 'class' in attributes and (attributes['class'] or '').find('leech') != -1:
-                        self.find_leech_class = False
-                        self.find_leech = True
-            elif self.find_leech and tag == 'b':
-                self.find_leech = False
-                self.parse_leech = True
-
-        def handle_data(self, data):
-            if self.parse_total_results:
-                total_results = data.split(':')[1].split('(')[0].strip()
-                self.total_results = int(total_results)
-                self.parse_total_results = False
-                self.find_torrent = True
-            elif self.parse_name:
-                self.torrent_info['name'] += data.strip()
-                self.parse_name = False
-                self.find_link = True
-            elif self.parse_size:
-                self.torrent_info['size'] = data.replace('\xa0', '').strip()
-                self.parse_size = False
-                self.find_seeds = True
-            elif self.parse_seeds:
-                self.torrent_info['seeds'] = data.strip()
-                self.parse_seeds = False
-                self.find_leech_class = True
-            elif self.parse_leech:
-                self.torrent_info['leech'] = data.strip()
-                self.parse_leech = False
-                self.print_result = True
-
-        def handle_endtag(self, tag):
-            if self.print_result:
-                self.results.append(self.torrent_info.copy())
-                self.torrent_info = self.default_torrent_info()
-                self.print_result = False
-                self.find_torrent = True
-
-    def search(self, what, cat='all'):
-        parser = self.UnionDHTParser(self.url)
-        for page_number in range(1, MAX_PAGES + 1):
-            torrent_count = (page_number - 1) * 50
-            search_url = f'{self.url}/tracker.php?nm={what}&start={torrent_count}'
-            try:
-                retrieved_page = retrieve_url(search_url)
-                if not retrieved_page:
-                    break
-                before = len(parser.results)
-                parser.feed(retrieved_page)
-            except Exception:
-                break
-            if len(parser.results) == before:
-                break
-            if parser.total_results and torrent_count + 50 >= parser.total_results:
-                break
-        parser.close()
-        for result in parser.results:
-            _qbt_prettyPrinter(result)
+def _alias_retrieve_imports(source: str) -> str:
+    lines = []
+    for line in source.splitlines():
+        if "retrieve_url as _qbt_retrieve_url" in line:
+            line = line.replace(
+                "retrieve_url as _qbt_retrieve_url",
+                "retrieve_url as _qbt_helper_retrieve_url",
+            )
+        elif (
+            line.startswith("from helpers import ")
+            and "retrieve_url" in line
+            and "retrieve_url as _qbt_helper_retrieve_url" not in line
+        ):
+            line = re.sub(
+                r"\bretrieve_url\b",
+                "retrieve_url as _qbt_helper_retrieve_url",
+                line,
+                count=1,
+            )
+        if "_qbt_helper_retrieve_url" in line and "# noqa" not in line:
+            line += "  # noqa: F401"
+        lines.append(line)
+    return "\n".join(lines) + ("\n" if source.endswith("\n") else "")
 
 
-if __name__ == '__main__':
-    engine = uniondht()
-    engine.search('ubuntu')
+def _insert_after_imports(source: str) -> str:
+    tree = ast.parse(source)
+    import_ends = [
+        node.end_lineno
+        for node in tree.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+    ]
+    # A plugin without top-level imports is not currently present, but keep
+    # the fallback safe for future additions.
+    line_no = max(import_ends, default=0)
+    lines = source.splitlines()
+    lines[line_no:line_no] = ["", *SAFETY_PREAMBLE.splitlines(), ""]
+    return "\n".join(lines) + "\n"
+
+
+def render_plugin(source: str) -> str:
+    source = _remove_preamble(source)
+    source = _alias_retrieve_imports(source)
+    source = _insert_after_imports(source)
+    # All result writes go through the generated lock, including engines that
+    # are later changed from raw threads to the shared bounded runner.
+    before, marker, after = source.partition(END_MARKER)
+    if not marker:
+        raise ValueError("preamble insertion failed")
+    after = re.sub(r"(?:_qbt_)*prettyPrinter\(", "_qbt_prettyPrinter(", after)
+    return before + marker + after
+
+
+def _call_name(call: ast.Call) -> str:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return ""
+
+
+def audit_plugin(path: Path) -> list[str]:
+    source = path.read_text(encoding="utf-8")
+    errors = []
+    if START_MARKER not in source or END_MARKER not in source:
+        errors.append("missing generated safety preamble")
+    for constant in ("HTTP_TIMEOUT", "MAX_ATTEMPTS", "RETRY_DELAY", "MAX_WORKERS"):
+        if not re.search(rf"^\s*{constant}\s*=", source, re.MULTILINE):
+            errors.append(f"missing {constant}")
+    try:
+        tree = ast.parse(source, filename=str(path))
+    except SyntaxError as error:
+        return errors + [f"syntax error: {error}"]
+
+    preamble_end = source.find(END_MARKER)
+    preamble_line = source[:preamble_end].count("\n") + 1
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = _call_name(node)
+            if name in {"urlopen", "_qbt_urlopen"} and not any(
+                isinstance(keyword, ast.keyword) and keyword.arg == "timeout"
+                for keyword in node.keywords
+            ):
+                errors.append(f"line {node.lineno}: urlopen without timeout")
+            if (
+                (name == "Thread" or name.endswith("ThreadPoolExecutor"))
+                and node.lineno > preamble_line
+            ):
+                if name == "Thread":
+                    errors.append(f"line {node.lineno}: raw thread creation")
+                elif not any(k.arg == "max_workers" for k in node.keywords):
+                    errors.append(f"line {node.lineno}: executor without max_workers")
+        if (
+            isinstance(node, ast.While)
+            and node.lineno > preamble_line
+            and isinstance(node.test, ast.Constant)
+            and node.test.value is True
+        ):
+            errors.append(f"line {node.lineno}: unbounded while True")
+        if isinstance(node, ast.While) and node.lineno > preamble_line:
+            test_names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
+            if test_names.intersection({"page", "pages", "lastPage", "total_results"}):
+                function = next(
+                    (
+                        parent
+                        for parent in ast.walk(tree)
+                        if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        and parent.lineno <= node.lineno <= parent.end_lineno
+                    ),
+                    None,
+                )
+                function_source = ast.get_source_segment(source, function) if function else ""
+                if "MAX_PAGES" not in function_source:
+                    errors.append(f"line {node.lineno}: pagination loop lacks MAX_PAGES")
+    return sorted(set(errors))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--write", action="store_true", help="render the preamble into plugins")
+    parser.add_argument("--check", action="store_true", help="audit plugins without editing")
+    args = parser.parse_args()
+    if not args.write and not args.check:
+        parser.error("choose --write or --check")
+
+    failures = []
+    for path in sorted(PLUGIN_DIR.glob("*.py")):
+        if args.write:
+            rendered = render_plugin(path.read_text(encoding="utf-8"))
+            path.write_text(rendered, encoding="utf-8")
+        failures.extend((path.name, error) for error in audit_plugin(path))
+
+    if failures:
+        for name, error in failures:
+            print(f"{name}: {error}")
+        return 1
+    print(f"Audited {len(list(PLUGIN_DIR.glob('*.py')))} plugins successfully.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
