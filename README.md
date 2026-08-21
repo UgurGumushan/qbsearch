@@ -76,6 +76,10 @@ the automatic pre-commit hook. `make check` is deterministic and does not
 contact remote sites. Contributor workflow, catalog updates, release packaging,
 and CI behavior are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Screenshot
+
+![](screenshot.png)
+
 ## Attribution
 
 This collection incorporates engines from multiple upstream projects. See
