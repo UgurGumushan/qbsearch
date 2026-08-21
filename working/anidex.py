@@ -1,20 +1,19 @@
 # VERSION: 0.02
+"""AniDex engine: anime, games, music and other niche category search.
 
+All additional result pages are fetched concurrently in threads (offset
+pagination) and results are magnet links.
+"""
+from __future__ import annotations
 
 import re
 import threading
 import time
+from html.parser import HTMLParser
 from typing import ClassVar
 
-try:
-    # Python 3
-    from html.parser import HTMLParser
-except ImportError:
-    # Python 2
-    from HTMLParser import HTMLParser
-
 from helpers import retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class anidex:
@@ -37,9 +36,20 @@ class anidex:
         getSize = False
         getSeed = False
         getLeech = False
-        this_result: ClassVar[dict[object, object]] = {}
+        def __init__(self) -> None:
+            super().__init__()
+            self.this_result: SearchResults = {
+                'link': '',
+                'name': '',
+                'size': '',
+                'seeds': -1,
+                'leech': -1,
+                'engine_url': self.url,
+            }
 
-        def handle_starttag(self, tag, attrs):
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
             if tag == self.TR and self.inRow is False:
                 self.inRow = True
             if tag == self.TH and self.inRow is True:
@@ -54,38 +64,42 @@ class anidex:
                     self.getLeech = True
             if self.inRow and tag == self.A:
                 my_attrs = dict(attrs)
-                if my_attrs.get('href').startswith('magnet'):
-                    self.this_result['link'] = my_attrs.get('href')
+                href = my_attrs.get('href')
+                if href is not None and href.startswith('magnet'):
+                    self.this_result['link'] = href
                 if my_attrs.get('class') == 'torrent':
-                    self.this_result['desc_link'] = self.url + my_attrs.get('href')
+                    self.this_result['desc_link'] = self.url + (href or '')
             if self.inRow and tag == self.SPAN:
                 my_attrs = dict(attrs)
-                if my_attrs.get('class') == 'span-1440':
-                    self.this_result['name'] = my_attrs.get('title')
+                title = my_attrs.get('title')
+                if my_attrs.get('class') == 'span-1440' and title is not None:
+                    self.this_result['name'] = title
 
-        def handle_endtag(self, tag):
+        def handle_endtag(self, tag: str) -> None:
             if self.inRow is True and tag == self.TR:
                 self.inRow = False
                 self.this_result['engine_url'] = self.url
                 prettyPrinter(self.this_result)
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
             if self.inRow and self.getSize:
                 self.this_result['size'] = data.strip().replace(',', '')
                 self.getSize = False
             if self.inRow and self.getSeed:
-                self.this_result['seeds'] = data.strip().replace(',', '')
+                seed_value = data.strip().replace(',', '')
+                self.this_result['seeds'] = int(seed_value) if seed_value.isdigit() else -1
                 self.getSeed = False
             if self.inRow and self.getLeech:
-                self.this_result['leech'] = data.strip().replace(',', '')
+                leech_value = data.strip().replace(',', '')
+                self.this_result['leech'] = int(leech_value) if leech_value.isdigit() else -1
                 self.getLeech = False
 
-    def do_search(self, url):
+    def do_search(self, url: str) -> None:
         webpage = retrieve_url(url)
         adexParser = self.anidexParser()
         adexParser.feed(webpage)
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         query = str(what).replace(' ', '+')
         search_url = self.url + \
             '?s=seeders&o=desc&' + \
@@ -99,7 +113,7 @@ class anidex:
         adexParser = self.anidexParser()
         adexParser.feed(webpage)
 
-        threads = []
+        threads: list[threading.Thread] = []
         for offset in range(50, total_results, 50):
             this_url = search_url + '&offset=' + str(offset)
             t = threading.Thread(args=(this_url,), target=self.do_search)

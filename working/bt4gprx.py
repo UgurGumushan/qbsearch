@@ -1,4 +1,11 @@
 # VERSION: 2.0
+"""bt4gprx engine: movies, TV, music, books and software torrents.
+
+Download links are redirects through a third-party domain, so the engine
+follows each one and rebuilds a magnet from the torrent hash plus a public
+tracker list.
+"""
+from __future__ import annotations
 
 import json
 import re
@@ -7,7 +14,7 @@ from typing import ClassVar
 from urllib.parse import urljoin
 
 from helpers import retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class bt4gprx:
@@ -16,7 +23,7 @@ class bt4gprx:
     supported_categories: ClassVar[dict[str, str]]  = {'all': '', 'movies': 'movie/', 'tv': 'movie/', 'music': 'audio/', 'books': 'doc/', 'software': 'app/'}
 
     def __init__(self):
-        self.trackerlist = []
+        self.trackerlist: list[str] = []
 
     class MyHTMLParser(HTMLParser):
         def __init__(self):
@@ -25,15 +32,17 @@ class bt4gprx:
             self.is_in_entry = False
             self.b_value = ""
             self.container_row_count = 0
-            self.temp_result = {}
-            self.results = []
+            self.temp_result: dict[str, str] = {}
+            self.results: list[dict[str, str]] = []
 
-        def feed(self, feed: str) -> None:
+        def parse(self, feed: str) -> list[dict[str, str]]:
             super().feed(feed)
             return self.results
 
-        def handle_starttag(self, tag, attrs):
-            attr_dict = {x[0]:x[1] for x in attrs}
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
+            attr_dict = {key: value for key, value in attrs if value is not None}
             if tag == "div":
                 if not self.is_in_container and attr_dict.get("class", "") == "container":
                     self.is_in_container = True
@@ -42,15 +51,15 @@ class bt4gprx:
                     self.is_in_entry = True
                     self.temp_result.update(attr_dict)
             elif tag == "b" and self.is_in_entry:
-                classname = attr_dict.get("class", "")                
-                idname = attr_dict.get("id", "")
+                classname = attr_dict.get("class") or ""
+                idname = attr_dict.get("id") or ""
                 self.b_value = "filesize" if "cpill" in classname else idname
 
-        def handle_endtag(self, tag):        
+        def handle_endtag(self, tag: str) -> None:
             if tag == "div":
                 self.is_in_entry = False
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
             if self.b_value != "":
                 self.temp_result[self.b_value] = data
                 if self.b_value == "leechers":
@@ -58,9 +67,9 @@ class bt4gprx:
                     self.temp_result = {}
                 self.b_value = ""
 
-    def search(self, term, cat="all"):
+    def search(self, term: str, cat: str = "all") -> None:
         pagenumber = 1
-        all_results = []
+        all_results: list[dict[str, str]] = []
         while True:
             result_page = self.search_page(term, pagenumber, cat)
             if result_page:
@@ -70,15 +79,15 @@ class bt4gprx:
             pagenumber = pagenumber + 1
         self.pretty_print_results(all_results)
 
-    def search_page(self, term, pagenumber, cat):
+    def search_page(self, term: str, pagenumber: int, cat: str) -> list[dict[str, str]]:
         try:
             query = f"{self.url}{self.supported_categories[cat]}search/{term}/byseeders/{pagenumber}"
             parser = self.MyHTMLParser()
-            return parser.feed(retrieve_url(query))
+            return parser.parse(retrieve_url(query))
         except Exception:
             return []
 
-    def download_torrent(self, info):
+    def download_torrent(self, info: str) -> str | None:
         try:
             content = retrieve_url(info)
             match = re.search(r'href="//(downloadtorrentfile.com/hash/[^"]+)', content)
@@ -100,16 +109,16 @@ class bt4gprx:
         magnet = f"magnet:?xt=urn:btih:{hash_value}&dn={name_value}&tr=" + "&tr=".join(self.trackerlist)
         return magnet
 
-    def pretty_print_results(self, results):
+    def pretty_print_results(self, results: list[dict[str, str]]) -> None:
         sorted_results = sorted(results, key=lambda x: int(x['seeders']), reverse=True)
         for result in sorted_results:
             magnet_link = self.download_torrent(urljoin(self.url, result['href']))
-            temp_result = {
+            temp_result: SearchResults = {
                 'name': result['title'],
                 'size': result['filesize'],
-                'seeds': result['seeders'],
-                'leech': result['leechers'],
+                'seeds': int(result['seeders']),
+                'leech': int(result['leechers']),
                 'engine_url': self.url,
-                'link': magnet_link
+                'link': magnet_link or '',
             }
             prettyPrinter(temp_result)

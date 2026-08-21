@@ -1,5 +1,10 @@
 # VERSION: 1.0
+"""CloudTorrents engine: category-based torrent search for all content
+types.
 
+Uses the site's JSON search API with offset pagination; results are
+magnet links sorted by seed count.
+"""
 
 from __future__ import annotations
 
@@ -9,13 +14,13 @@ from typing import ClassVar
 from urllib.parse import urlencode
 
 from helpers import retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class cloudtorrents:
     url = "https://cloudtorrents.com"
     name = "CloudTorrents"
-    supported_categories: ClassVar[dict[str, object | str]]  = {
+    supported_categories: ClassVar[dict[str, str | None]] = {
         "all": None,
         "anime": "1",
         "software": "2",
@@ -26,30 +31,44 @@ class cloudtorrents:
         "tv": "8",
     }
 
-    def quote_via(self, string, safe="/", encoding=None, errors=None):
+    def quote_via(
+        self,
+        string: str | bytes,
+        safe: str | bytes = "/",
+        encoding: str = "utf-8",
+        errors: str = "strict",
+    ) -> str:
         return str(string, "utf-8") if isinstance(string, bytes) else string
 
-    def search(self, what, cat="all"):
-        query = {
-            "offset": 0,
-            "limit": 50,
+    def search(self, what: str, cat: str = "all") -> None:
+        offset = 0
+        limit = 50
+        query: dict[str, int | str] = {
+            "offset": offset,
+            "limit": limit,
             "query": what,
         }
-        if cat != "all" and cat in self.supported_categories:
-            query["torrent_type"] = self.supported_categories[cat]
-        items = []
+        torrent_type = self.supported_categories.get(cat)
+        if cat != "all" and torrent_type is not None:
+            query["torrent_type"] = torrent_type
+        items: list[SearchResults] = []
         while True:
-            url = "https://api.cloudtorrents.com/search/?" \
-                + urlencode(query, quote_via=self.quote_via)
+            url = "https://api.cloudtorrents.com/search/?" + urlencode(
+                query, quote_via=self.quote_via
+            )
             encoded = retrieve_url(url)
             decoded = json.loads(encoded)
             for result in decoded["results"]:
                 torrent = result["torrent"]
-                desc_link = self.url \
-                    + "/" + torrent["torrentType"]["name"].lower() \
-                    + "/" + str(result["id"])
+                desc_link = (
+                    self.url
+                    + "/"
+                    + torrent["torrentType"]["name"].lower()
+                    + "/"
+                    + str(result["id"])
+                )
                 pub_date = int(datetime.fromisoformat(torrent["uploadedAt"]).timestamp())
-                item = {
+                item: SearchResults = {
                     "link": torrent["torrentMagnet"],
                     "name": torrent["name"],
                     "size": torrent["size"],
@@ -62,7 +81,8 @@ class cloudtorrents:
                 items.append(item)
             if decoded["next"] is None:
                 break
-            query["offset"] += query["limit"]
+            offset += limit
+            query["offset"] = offset
         items.sort(reverse=True, key=lambda item: item["seeds"])
         for item in items:
             prettyPrinter(item)

@@ -1,22 +1,25 @@
 # VERSION: 1.1
+"""btdig engine: general torrent search on btdig.com.
 
+The site serves gzip-compressed HTML, which is decoded manually, and the
+page count is derived from the results-found banner (ten per page).
+"""
 import gzip
 import math
 import re
 import time
-import urllib.parse
 import urllib.request
 from io import BytesIO
 from typing import ClassVar
 
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class btdig:
     url = 'https://www.btdig.com'
     name = 'btdig'
     supported_categories: ClassVar[dict[str, str]]  = {'all': '0'}
-    def search(self, what, cat='all'): 
+    def search(self, what: str, cat: str = 'all') -> None:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8',
@@ -53,7 +56,7 @@ class btdig:
             response = self.get_response(urllib.request.Request(url, headers=headers))
             self.parse_page(response)
 
-    def get_response(self, req):
+    def get_response(self, req: urllib.request.Request) -> str:
         try:
             with urllib.request.urlopen(req) as response:
                 if response.info().get('Content-Encoding') == 'gzip':
@@ -63,11 +66,10 @@ class btdig:
         except Exception:
             return ""
 
-    def parse_page(self, html_content):
+    def parse_page(self, html_content: str) -> None:
         result_blocks = re.finditer(r'<div class="one_result".*?(?=<div class="one_result"|$)', html_content, re.DOTALL)
         
         for block in result_blocks:
-            result = {}
             block_content = block.group(0)
             
             magnet_match = re.search(r'<a href="(magnet:\?xt=urn:btih:[^"]+)"', block_content)
@@ -77,11 +79,13 @@ class btdig:
             desc_link_match = re.search(r'<div class="torrent_name".*?><a href="([^"]+)"', block_content, re.DOTALL) # could implement retrieving further info on torrent later
             
             if magnet_match and name_match and size_match and desc_link_match:
-                result['link'] = magnet_match.group(1)
-                result['name'] = re.sub(r'<.*?>', '', name_match.group(1)).strip()
-                result['size'] = size_match.group(1).strip().replace('&nbsp;', ' ')
-                result['desc_link'] = desc_link_match.group(1)
-                result['engine_url'] = self.url
-                result['seeds'] = '-1'
-                result['leech'] = '-1'
+                result: SearchResults = {
+                    'link': magnet_match.group(1),
+                    'name': re.sub(r'<.*?>', '', name_match.group(1)).strip(),
+                    'size': size_match.group(1).strip().replace('&nbsp;', ' '),
+                    'desc_link': desc_link_match.group(1),
+                    'engine_url': self.url,
+                    'seeds': -1,
+                    'leech': -1,
+                }
                 prettyPrinter(result)

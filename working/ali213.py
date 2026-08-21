@@ -1,5 +1,9 @@
-#VERSION: 1.1
+# VERSION: 1.1
+"""ali213 (Chinese gaming site) engine: PC game torrents, mostly uncracked.
 
+Each game needs three chained page hops through the site's mirrors to reach
+the real .torrent link, so at most games_to_parse results are followed.
+"""
 
 import re
 import threading
@@ -8,8 +12,8 @@ from typing import ClassVar
 
 from helpers import retrieve_url
 
-# qBt
-from novaprinter import prettyPrinter
+# qBittorrent module
+from novaprinter import SearchResults, prettyPrinter
 
 
 # noinspection PyPep8Naming
@@ -21,23 +25,22 @@ class ali213:
     games_to_parse = 5
     # first size (e.g. 40.7G) then game page (e.g. arksurvivalevolved.html)
     result_page_match = re.compile(
-        '<p class="downAddress"><a href="http://down.ali213.net/pcgame/(.*?)" target="_blank">.*?<em>(.{2,7})</em>')
+        '<p class="downAddress"><a href="http://down.ali213.net/pcgame/(.*?)" target="_blank">.*?<em>(.{2,7})</em>'
+    )
 
-    supported_categories: ClassVar[dict[str, bool]]  = {'all': True,
-                            'games': True,
-                            'software': True}
+    supported_categories: ClassVar[dict[str, bool]] = {"all": True, "games": True, "software": True}
 
     first_dl_site = "http://www.soft50.com/"
     final_dl_site = "http://btfile.soft5566.com/y/"
 
-    def handle_gamepage(self, size_gamepage):
-        data = retrieve_url(self.url + 'pcgame/' + size_gamepage[0])
+    def handle_gamepage(self, size_gamepage: tuple[str, str]) -> None:
+        data = retrieve_url(self.url + "pcgame/" + size_gamepage[0])
         down_url_match = re.compile('var downUrl ="/(.*?)"')
         url_key_soft50 = down_url_match.findall(data)
         if url_key_soft50:
-            data = ''
+            data = ""
             tries = 0
-            while data == '' and tries < 20:
+            while data == "" and tries < 20:
                 time.sleep(2)
                 data = retrieve_url(self.first_dl_site + url_key_soft50[0])
                 tries += 1
@@ -47,21 +50,23 @@ class ali213:
             if url_soft5566:
                 data = retrieve_url(url_soft5566[0])
                 desc_site = url_soft5566[0]
-                down_url_match = re.compile('id="btbtn" href="' + self.final_dl_site + '(.*?)" target="_blank"')
+                down_url_match = re.compile(
+                    'id="btbtn" href="' + self.final_dl_site + '(.*?)" target="_blank"'
+                )
                 url_torrent = down_url_match.findall(data)
                 if url_torrent:
-                    result = {
-                        'name': url_torrent[0],
-                        'size': size_gamepage[1],
-                        'link': self.final_dl_site + url_torrent[0],
-                        'desc_link': desc_site,
-                        'seeds': -1,
-                        'leech': -1,
-                        'engine_url': self.url
+                    result: SearchResults = {
+                        "name": url_torrent[0],
+                        "size": size_gamepage[1],
+                        "link": self.final_dl_site + url_torrent[0],
+                        "desc_link": desc_site,
+                        "seeds": -1,
+                        "leech": -1,
+                        "engine_url": self.url,
                     }
                     prettyPrinter(result)
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = "all") -> None:
 
         query = "http://down.ali213.net/search?kw=" + what + "&submit="
         data = retrieve_url(query)
@@ -71,7 +76,7 @@ class ali213:
             self.games_to_parse = min(self.games_to_parse, len(found_games))
             # handling each gamepage in parallel, to not waste time on waiting for requests
             # for 10 games this speeds up from 37s to 6s run time
-            threads = []
+            threads: list[threading.Thread] = []
             for i in range(self.games_to_parse):
                 t = threading.Thread(target=self.handle_gamepage, args=(found_games[i],))
                 threads.append(t)
@@ -82,7 +87,6 @@ class ali213:
                 t.join()
 
 
-
 if __name__ == "__main__":
     engine = ali213()
-    engine.search('ark.survival', 'games')
+    engine.search("ark.survival", "games")

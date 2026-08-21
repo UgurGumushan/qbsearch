@@ -1,39 +1,36 @@
+# VERSION: 1.0
+"""acg.rip engine: anime, manga, games and software search results.
+
+Links are torrent-file downloads; result pages are followed one page at a
+time until a short page is returned.
+"""
+from __future__ import annotations
+
+from html.parser import HTMLParser
 from typing import ClassVar
 
-# VERSION: 1.0
-
-
-try:
-    from HTMLParser import HTMLParser
-except ModuleNotFoundError:
-    from html.parser import HTMLParser
-
-# import qBT modules
-try:
-    from helpers import retrieve_url
-    from novaprinter import prettyPrinter
-except ModuleNotFoundError:
-    pass
+# qBittorrent nova3 modules
+from helpers import retrieve_url
+from novaprinter import SearchResults, prettyPrinter
 
 
 class acgrip:
-    """Class used by qBittorrent to search for torrents."""
+    """qBittorrent search engine for acg.rip."""
 
     url = 'https://acg.rip'
     name = 'acg.rip'
 
     ###########################################################################
 
-    # defines which search categories are supported by this search engine
-    # and their corresponding id. Possible categories are:
-    # 'all', 'movies', 'tv', 'music', 'games', 'anime', 'software', 'pictures',
-    # 'books'
+    # Map the qBittorrent search categories to the engine's own ids.
+    # Possible categories: 'all', 'movies', 'tv', 'music', 'games', 'anime',
+    # 'software', 'pictures', 'books'.
     supported_categories: ClassVar[dict[str, str]]  = {'all': '0_0'}
 
     class acgripParser(HTMLParser):
-        """Parses acg.rip browse page for search results and stores them."""
+        """Parse an acg.rip results page and store the parsed hits."""
 
-        def __init__(self, res, url):
+        def __init__(self, res: list[SearchResults], url: str) -> None:
             """Construct a acgrip html parser.
 
             Parameters:
@@ -50,51 +47,61 @@ class acgrip:
 
             self.engine_url = url
             self.results = res
-            self.curr = None
+            self.curr: SearchResults | None = None
             self.td_counter = -1
             self.find_title = False
             self.span_counter = -1
 
-        def handle_starttag(self, tag, attr):
-            """Tell the parser what to do with which tags."""
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
+            """Dispatch opening tags to the matching helper."""
             if tag == 'a':
-                self.start_a(attr)
+                self.start_a(attrs)
             if tag == 'span':
-                self.start_span(attr)
+                self.start_span(attrs)
 
-        def handle_endtag(self, tag):
-            """Handle the closing of table cells."""
+        def handle_endtag(self, tag: str) -> None:
+            """Handle closing table-cell tags."""
             if tag == 'td':
                 self.start_td()
 
-        def start_a(self, attr):
-            """Handle the opening of anchor tags."""
-            params = dict(attr)
-            # get torrent name
-            if 'class' not in params and not params['href'].endswith(".torrent")\
-                    and params['href'].startswith('/t/'):
-                hit = {'desc_link': self.engine_url + params['href']}
+        def start_a(self, attrs: list[tuple[str, str | None]]) -> None:
+            """Handle opening anchor tags."""
+            params = dict(attrs)
+            href = params.get('href') or ''
+            # Topic link: starts a new result row.
+            if 'class' not in params and not href.endswith(".torrent")\
+                    and href.startswith('/t/'):
+                hit: SearchResults = {
+                    'link': '',
+                    'name': '',
+                    'size': '',
+                    'seeds': -1,
+                    'leech': -1,
+                    'engine_url': self.engine_url,
+                    'desc_link': self.engine_url + href,
+                }
                 self.td_counter += 1
                 if not self.curr:
-                    hit['engine_url'] = self.engine_url
                     self.curr = hit
             elif 'href' in params and self.curr:
                 # skip unrelated links
-                if not params['href'].endswith(".torrent"):
+                if not href.endswith(".torrent"):
                     return
 
                 # check whether to use torrent files or magnet links,
                 # then search for a matching download link, and move on
-                if params['href'].endswith(".torrent"):
-                    self.curr['link'] = self.engine_url + params['href']
+                if href.endswith(".torrent"):
+                    self.curr['link'] = self.engine_url + href
 
-        def start_span(self, attr):
-            """Handle the starting of a table"""
-            params = dict(attr)
-            if 'class' in params and \
-                    params['class'] == 'title':
+        def start_span(self, attrs: list[tuple[str, str | None]]) -> None:
+            """Track which of the seeds/leech spans in a row's stats cell."""
+            params = dict(attrs)
+            class_name = params.get('class') or ''
+            if class_name == 'title':
                 self.find_title = True
-            elif 'class' in params and not params['class'].startswith('label'):
+            elif class_name and not class_name.startswith('label'):
                 if self.span_counter == -1:
                     self.span_counter += 1
                 elif self.span_counter == 2:
@@ -102,27 +109,29 @@ class acgrip:
             else:
                 pass
 
-        def start_td(self):
+        def start_td(self) -> None:
             """Handle the opening of a table cell tag."""
-            # Keep track of timers
+            # Count the row's cells until the row is complete.
             if self.td_counter >= 0:
                 self.td_counter += 1
 
             # Add the hit to the results,
             # then reset the counters for the next result
             if self.td_counter >= 4:
-                self.results.append(self.curr)
+                if self.curr is not None:
+                    self.results.append(self.curr)
                 self.curr = None
                 self.td_counter = -1
                 self.find_title = False
                 self.span_counter = -1
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
             """Extract data about the torrent."""
-            # These fields matter
+            if self.curr is None:
+                return
             if self.td_counter > -1\
                     and self.td_counter <= 4:
-                # Catch the name
+                # Row 0 carries the torrent name.
                 if self.find_title and self.td_counter == 0:
                     self.curr['name'] = data.strip()
                     self.find_title = False
@@ -153,9 +162,9 @@ class acgrip:
     # DO NOT CHANGE the name and parameters of this function
     # This function will be the one called by nova2.py
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         """
-        Retreive and parse engine search results by category and query.
+        Retrieve and parse engine search results by category and query.
 
         Parameters:
         :param what: a string with the search tokens, already escaped
@@ -164,7 +173,7 @@ class acgrip:
         """
         url = self.url
 
-        hits = []
+        hits: list[SearchResults] = []
         page = 1
         parser = self.acgripParser(hits, self.url)
         while True:
