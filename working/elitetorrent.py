@@ -1,38 +1,76 @@
 #VERSION: 1.6
+"""Elitetorrent (Spanish) engine: movie and TV series torrents.
+
+The magnet link stored on each torrent page is obfuscated with repeated
+Base64 plus ROT13 layers, which this engine reverses before printing.
+"""
+from __future__ import annotations
+
 import base64
 import codecs
 import re
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, TypedDict
 
 from helpers import download_file, retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
-MAX_DEPTH = 10
+MAX_DEPTH = 10  # Safety cap on how many Base64+ROT13 layers to peel off.
 
-def deobfuscate_magnet(obfuscated):
+
+class TorrentInfo(TypedDict):
+    title: str | None
+    link: list[str] | str | None
+    size: str
+    quality: str | None
+    language: str | None
+    date: str | int
+    seeds: str | int
+    leech: str | int
+    formatted_name: str
+
+
+def deobfuscate_magnet(obfuscated: str) -> str | None:
+    encoded = obfuscated.encode()
     try:
-        for i in range(MAX_DEPTH):
-            obfuscated = base64.b64decode(obfuscated)
-            decoded_value = codecs.decode(obfuscated.decode(encoding='utf-8'), 'rot_13')
+        for _ in range(MAX_DEPTH):
+            decoded_bytes = base64.b64decode(encoded)
+            decoded_value = codecs.decode(decoded_bytes.decode(encoding='utf-8'), 'rot_13')
             if 'magnet' in decoded_value:
                 return decoded_value
-    except Exception:return None
+            encoded = decoded_bytes
+    except Exception:
+        return None
+    return None
 
-def format_info(info):
-    info['title'] = info['title'].group(0).lstrip('<h1>Descargar').rstrip('por torrent</h1>').strip() if info['title'] is not None else None
-    info['link'] = deobfuscate_magnet(info['link'][1].lstrip('i=').rstrip('"')) if info['link'] is not None else None
-    info['size'] = info['size'].group(0).split("</b>")[1].strip() if info['size'] is not None else '0'
-    info['quality'] = info['quality'].group(0).lstrip('Calidad:</b>').strip() if info['quality'] is not None else None
-    info['language'] = info['language'].group(0).lstrip('Idioma:</b>').strip() if info['language'] is not None else None
-    info['date'] = info['date'].group(0).replace(' ', '').lstrip('Fecha:</b>') if info['date'] is not None else -1
-    info['seeds'] = info['seeds'].group(0).split(":")[-1].strip() if info['seeds'] is not None else -1
-    info['leech'] = info['leech'].group(0).split(":")[-1].strip() if info['leech'] is not None  else -1
-    
-    info['formatted_name'] = info['title']
-    info['formatted_name'] += ' [{}]'.format(info['language']) if info['language'] is not None else ''
-    info['formatted_name'] += ' {} '.format(info['quality']) if info['quality'] is not None else ''
-    info['formatted_name'] += '({})'.format(info['date']) if info['date'] is not None else ''
+
+def format_info(info: TorrentInfo) -> None:
+    links = info['link']
+    if isinstance(links, list):
+        # The site normally includes a second matching attribute; accept the
+        # first one as a safe fallback when a page contains only one.
+        encoded_link = links[1] if len(links) > 1 else links[0] if links else None
+        info['link'] = (
+            deobfuscate_magnet(encoded_link.lstrip('i=').rstrip('"'))
+            if encoded_link is not None
+            else None
+        )
+    else:
+        info['link'] = None
+
+    title = info['title'] or ''
+    if title.startswith('<h1>') and title.endswith('</h1>'):
+        title = title[4:-5]
+    if title.startswith('Descargar ') and title.endswith(' por torrent'):
+        title = title[10:-12].strip()
+
+    formatted_name = title
+    if info['language'] is not None:
+        formatted_name += ' [{}]'.format(info['language'])
+    if info['quality'] is not None:
+        formatted_name += ' {} '.format(info['quality'])
+    formatted_name += '({})'.format(info['date'])
+    info['formatted_name'] = formatted_name
 
 class elitetorrent:
     url = 'https://www.elitetorrent.com'
@@ -40,18 +78,19 @@ class elitetorrent:
     # Page has only movies and tv series. Search box has no filters
     supported_categories: ClassVar[dict[str, str]]  = {'all': '0', 'movies': 'peliculas', 'tv': 'series'}
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.pages_limit = 2     # Limit of pages, more pages increase the time it takes
 
-    def download_torrent(self, info):
-        """ Unused :( """
-        print(download_file(info))
+    def download_torrent(self, info: SearchResults) -> None:
+        """Unused: results already carry ready-to-use magnet links."""
+        print(download_file(info['link']))
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         search_url = "{}/?s={}".format(self.url, what.replace('%20', '+'))
         html = retrieve_url(search_url)
 
         # Get number of pages
+        number_pages = 0
         if "paginacion" in html:
             pages = re.findall(r'<a.*?class="pagina.*?</a>', html)
             if len(pages) > 0:
@@ -64,46 +103,63 @@ class elitetorrent:
         elif "Resultado de buscar" in html:
             number_pages = 1
         else:
-            # A little trick to avoid entering the pages loop
+            # No pagination links and no single-results banner: nothing found.
             number_pages = 0
 
         # Set number of pages depending by limit
         number_pages = min(self.pages_limit, number_pages)
 
-        links = []
+        links: list[str] = []
         
         for page in range(1, number_pages + 1):
-            # Each page's url looks like: https://www.example.com/page/[1-9]*/?s=WHAT
+            # Page urls look like: {url}/page/{n}/?s={query}
             url = "{}/page/{}/?s={}".format(self.url, page, what.replace('%20', '+'))
             html = retrieve_url(url).replace('\n','')   # Replace newline to help the regex
             # I hate regex, check if selected category is films or tv, if its 'all' get both
             pattern = rf'({self.url}/series/.*?/|{self.url}/peliculas/.*?/)' if cat == "all" \
                         else rf'{self.url}/{self.supported_categories[cat]}/.*?/'
-            # Get all ocurrencies
+            # Collect every matching result link on the page.
             items = re.findall(pattern, html)
-            for item in items:
-                if item not in links:
-                    links.append(item)
+            for result_link in items:
+                if result_link not in links:
+                    links.append(result_link)
 
         for i in links:
             # Visiting individual results to get its attributes makes it so slow
             data = retrieve_url(i).replace('\n','')
-            info = {}
-            info['title'] = re.search(r'<h1>Descargar .+ por torrent</h1>', data)
+            info: TorrentInfo = {
+                'title': None,
+                'link': [],
+                'size': '0',
+                'quality': None,
+                'language': None,
+                'date': -1,
+                'seeds': -1,
+                'leech': -1,
+                'formatted_name': '',
+            }
+            m_title = re.search(r'<h1>Descargar .+ por torrent</h1>', data)
+            info['title'] = m_title.group(0) if m_title else None
             info['link'] = re.findall(r'i=[-A-Za-z0-9+/]+\={0,3}\"', data)
-            info['size'] = re.search(r"Tama.?o:</b> [0-9\.]+[\ GM]+B", data)
-            info['quality'] = re.search(r'Calidad:</b> [0-9\.a-z\-]+', data)
-            info['language'] = re.search(r'Idioma:</b>[a-zA-Zñ\ ]+', data)
-            info['date'] = re.search(r'Fecha:</b>[\ 0-9\-]+', data)
-            info['seeds'] = re.search(r'<b>Semillas</b>:[\ 0-9]*', data)
-            info['leech'] = re.search(r'<b>Clientes</b>:[\ 0-9]*', data)
-            format_info(info)                
+            m = re.search(r"Tama.?o:</b> [0-9\.]+[\ GM]+B", data)
+            info['size'] = m.group(0).split("</b>")[1].strip() if m else '0'
+            m = re.search(r'Calidad:</b> [0-9\.a-z\-]+', data)
+            info['quality'] = m.group(0).removeprefix('Calidad:</b>').strip() if m else None
+            m = re.search(r'Idioma:</b>[a-zA-Zñ\ ]+', data)
+            info['language'] = m.group(0).removeprefix('Idioma:</b>').strip() if m else None
+            m = re.search(r'Fecha:</b>[\ 0-9\-]+', data)
+            info['date'] = m.group(0).replace(' ', '').removeprefix('Fecha:</b>') if m else -1
+            m = re.search(r'<b>Semillas</b>:[\ 0-9]*', data)
+            info['seeds'] = m.group(0).split(":")[-1].strip() if m else -1
+            m = re.search(r'<b>Clientes</b>:[\ 0-9]*', data)
+            info['leech'] = m.group(0).split(":")[-1].strip() if m else -1
 
-            if info['title'] is None or info['link'] is None:
+            format_info(info)
+            if info['title'] is None or not isinstance(info['link'], str):
                 continue    # decoding has failed, skip           
 
             pub_date = info['date']
-            if pub_date != -1:
+            if isinstance(pub_date, str):
                 # there are 2 format dates: YYYY-MM-DD or DD-MM-YYYY
                 if int(pub_date.split("-")[0]) > 1000:
                     parsed_date = datetime.strptime(pub_date, "%Y-%m-%d")
@@ -111,9 +167,11 @@ class elitetorrent:
                     parsed_date = datetime.strptime(pub_date, "%d-%m-%Y")
                 pub_date = round(datetime.timestamp(parsed_date))
 
-            item = {
-                'seeds' : int(info['seeds']) if info['seeds'] != '' else -1,
-                'leech' : int(info['leech']) if info['leech'] != '' else -1,
+            seeds = info['seeds']
+            leech = info['leech']
+            item: SearchResults = {
+                'seeds' : int(seeds) if isinstance(seeds, str) and seeds else seeds if isinstance(seeds, int) else -1,
+                'leech' : int(leech) if isinstance(leech, str) and leech else leech if isinstance(leech, int) else -1,
                 'name' : info['formatted_name'],
                 'size' : info['size'],
                 'desc_link' : i,

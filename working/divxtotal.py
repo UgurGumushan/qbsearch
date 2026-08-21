@@ -1,5 +1,10 @@
 # VERSION: 1.0
+"""DivxTotal engine: free Spanish movies, series, anime and games torrents.
 
+Every card is followed to extract its .torrent download link, and pages
+beyond the first are fetched concurrently.
+"""
+from __future__ import annotations
 
 import math
 import re
@@ -10,12 +15,12 @@ from html.parser import HTMLParser
 from typing import ClassVar
 
 from helpers import download_file, retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class divxtotal:
     url = 'https://divxtotal.wtf/'
-    headers: ClassVar[dict[str, str]]  = {
+    headers: dict[str, str] = {  # noqa: RUF012
         'Referer': url
     }
     name = 'DivxTotal'
@@ -29,19 +34,26 @@ class divxtotal:
         magnet_regex = r'href=["\'].+?\.torrent["\']'
         size_regex = r'<p.+?><b.+?>Tamaño:</b>.+?</p>'
 
-        def error(self, message):
+        def error(self, message: str) -> None:
             pass
     
         DIV, P, A, SPAN = ('div', 'p', 'a', 'span')
     
-        def __init__(self, url):
+        def __init__(self, url: str) -> None:
             HTMLParser.__init__(self)
 
             self.url = url
             self.headers = {
                 'Referer': url
             }
-            self.row = {}
+            self.row: SearchResults = {
+                'link': '',
+                'name': '',
+                'size': '',
+                'seeds': -1,
+                'leech': -1,
+                'engine_url': url,
+            }
 
             self.column = 0
 
@@ -54,9 +66,11 @@ class divxtotal:
             self.insideType = False
             self.insideBadge = False
 
-        def handle_starttag(self, tag, attrs):
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
             params = dict(attrs)
-            cssClasses = params.get('class', '')
+            cssClasses = params.get('class', '') or ''
             elementId = params.get('id', '')
 
             if tag == self.DIV and elementId == 'buscador':
@@ -81,7 +95,7 @@ class divxtotal:
 
             if self.insideResultSpan and tag == self.A:
                 self.insideLink = True
-                href = params.get('href')
+                href = params.get('href') or ''
                 link = f'{self.url}{href}'
                 self.row['desc_link'] = link
                 self.row['link'] = link
@@ -93,7 +107,7 @@ class divxtotal:
                 size = [x.group() for x in matches]
                 sizeEl = re.sub(r'<b.+?>Tamaño:</b>', '', size[0])
                 root = ET.fromstring(sizeEl)
-                self.row['size'] = root.text.replace(',', '.')
+                self.row['size'] = (root.text or '').replace(',', '.')
                 self.row['seeds'] = -1
                 self.row['leech'] = -1
                 return
@@ -106,7 +120,7 @@ class divxtotal:
                 self.insideBadge = True
                 return
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
             if self.insideLink:
                 self.row['name'] = data
                 return
@@ -119,7 +133,7 @@ class divxtotal:
                 self.row['name'] += f" [{data}]"
                 return
 
-        def handle_endtag(self, tag):
+        def handle_endtag(self, tag: str) -> None:
             if self.insideBadge and tag == self.SPAN:
                 self.insideBadge = False
                 return
@@ -140,7 +154,14 @@ class divxtotal:
                 self.row['engine_url'] = self.url
                 prettyPrinter(self.row)
                 self.column = 0
-                self.row = {}
+                self.row = {
+                    'link': '',
+                    'name': '',
+                    'size': '',
+                    'seeds': -1,
+                    'leech': -1,
+                    'engine_url': self.url,
+                }
                 self.insideResult = False
                 self.insideResultSpan = False
                 return
@@ -157,13 +178,13 @@ class divxtotal:
                 self.insideBuscadorDiv = False
                 return
 
-    def download_torrent(self, info):
+    def download_torrent(self, info: str) -> None:
         print(download_file(info))
 
-    def get_page_url(self, what, page):
+    def get_page_url(self, what: str, page: int) -> str:
         return f'{self.url}/buscar/{what}/page/{page}'
 
-    def threaded_search(self, page, what):
+    def threaded_search(self, page: int, what: str) -> None:
         page_url = self.get_page_url(what, page)
         self.headers['Referer'] = page_url
         retrieved_html = retrieve_url(page_url, self.headers)
@@ -171,13 +192,13 @@ class divxtotal:
         parser.feed(retrieved_html)
         parser.close()
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         page = 1
         retrieved_html = retrieve_url(self.get_page_url(what, page), self.headers)
         matches = re.finditer(self.results_regex, retrieved_html, re.MULTILINE)
         results_el = [x.group() for x in matches]
         root = ET.fromstring(results_el[0])
-        results = root[0].text
+        results = root[0].text or '0'
         pages = math.ceil(int(results) / 10)
 
         parser = self.MyHtmlParser(self.url)

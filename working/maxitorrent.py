@@ -1,96 +1,99 @@
 #VERSION: 1.25
+"""
+MaxiTorrent search (atomixhq.com). POSTs the query to the site's JSON result
+endpoint, then follows each torrent's redirect page to the .torrent URL,
+retrying against alternate page layouts when the redirect is absent.
+"""
+from __future__ import annotations
 
 import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import ClassVar
+from html.parser import HTMLParser
+from typing import ClassVar, cast
 
 from helpers import _headers as headers
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
-try:
-    #python3
-    from html.parser import HTMLParser
-except ImportError:
-    #python2
-    from HTMLParser import HTMLParser
 
 class maxitorrent:
     url = 'https://atomixhq.com'
     name = 'MaxiTorrent'
     size = ""
     count = 1
+    pg: int = 0
     torrent_list: ClassVar[list[str]] = []
     
     class HTMLParser1(HTMLParser):
         indicador = 0
-        def handle_starttag(self, tag, attrs):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
             if tag == 'a' and self.indicador == 1:
-                Dict = dict(attrs)
-                print("30 "+Dict["href"])
-                maxitorrent.get_torrent3(self, Dict["href"])
+                params = dict(attrs)
+                href = params.get("href")
+                if href is not None:
+                    print("30 "+href)
+                    maxitorrent.get_torrent3(href)
                 self.indicador = 0
             elif tag == "div":
-                Dict = dict(attrs)
-                if "style" in Dict and Dict["style"] == "float:left;width:100%;height:auto;text-align:center;":
+                params = dict(attrs)
+                if params.get("style") == "float:left;width:100%;height:auto;text-align:center;":
                     self.indicador = 1
 
     class HTMLParser3(HTMLParser):
         indicador = 0
-        def handle_starttag(self, tag, attrs):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
             if tag == 'a' and self.indicador == 1:
-                Dict = dict(attrs)
-                #print("44 "+Dict["href"])                
-                maxitorrent.get_torrent2(self, Dict["href"])
+                params = dict(attrs)
+                href = params.get("href")
+                if href is not None:
+                    maxitorrent.get_torrent2(href)
             elif tag == "ul":
-                Dict = dict(attrs)
-                if "class" in Dict and Dict["class"] == "buscar-list":
+                params = dict(attrs)
+                if params.get("class") == "buscar-list":
                     #print("indicador 1")
                     self.indicador = 1
 
-        def handle_endtag(self, tag):
+        def handle_endtag(self, tag: str) -> None:
             if tag == 'ul':
                 #print("end tag")
                 self.indicador = 0
 
     class HTMLParser2(HTMLParser):
         indicador = 0
-        def handle_starttag(self, tag, attrs):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
             if tag == 'a' and self.indicador == 1:
-                Dict = dict(attrs)
-                print("44 "+Dict["href"])
-                maxitorrent.get_torrent2(self, Dict["href"])
+                params = dict(attrs)
+                href = params.get("href")
+                if href is not None:
+                    print("44 "+href)
+                    maxitorrent.get_torrent2(href)
                 self.indicador = 0
             elif tag == "span":
-                Dict = dict(attrs)
-                if "class" in Dict and Dict["class"] == "color":
+                params = dict(attrs)
+                if params.get("class") == "color":
                     self.indicador = 1
 
-    def retrieve_url2(self, url):
+    @staticmethod
+    def retrieve_url2(url: str) -> bytes | str:
         req = urllib.request.Request(url, headers=headers)
         try:
-            response = urllib.request.urlopen(req)
-            dat = response.read()
-            response.close()
-            return dat
+            with urllib.request.urlopen(req) as response:
+                return response.read()
         except urllib.error.URLError:
             return ""
-        return ""
 
-    def do_post(self, full_url, what):
+    def do_post(self, full_url: str, what: str) -> bytes:
         query_args = {'s': what, 'pg': self.pg}
         encoded_args = urllib.parse.urlencode(query_args).encode('ascii')
         req = urllib.request.Request(full_url, data=encoded_args, headers=headers)
-        req2 = urllib.request.urlopen(req)
-        with req2 as response:
+        with urllib.request.urlopen(req) as response:
             the_page = response.read()
             self.pg = self.pg + 1
-            req2.close()
             return the_page
-        req2.close()
             
-    def montar_torrent(self, link):
+    @staticmethod
+    def montar_torrent(link: str) -> None:
         #print("montar_torrent")
         num = -1
         name = link
@@ -105,27 +108,29 @@ class maxitorrent:
         
         link = maxitorrent.url + link[link.find("/"):]
         
-        item = {}
-        item['seeds'] = '-1'
-        item['leech'] = '-1'
-        item['name'] = name
-        item['size'] = maxitorrent.size
-        item['link'] = link
-        item['engine_url'] = maxitorrent.url
-        item['desc_link'] = link
+        item: SearchResults = {
+            'seeds': -1,
+            'leech': -1,
+            'name': name,
+            'size': maxitorrent.size,
+            'link': link,
+            'engine_url': maxitorrent.url,
+            'desc_link': link,
+        }
 
         
         prettyPrinter(item)
         maxitorrent.count = maxitorrent.count + 1
         
-    def get_torrent_core(self, link):
+    @staticmethod
+    def get_torrent_core(link: str) -> None:
         if link not in maxitorrent.torrent_list: 
             print("ya está en lista")
             maxitorrent.torrent_list.append(link) 
         else:
             return
         
-        html_virgen = maxitorrent.retrieve_url2(self, link)
+        html_virgen = maxitorrent.retrieve_url2(link)
         html_virgen = str(html_virgen)
         
         print("112 "+link)
@@ -142,56 +147,71 @@ class maxitorrent:
             html = html[26:]
             if html != "":
                 print("NO VACIO html vacio 1")
-                maxitorrent.get_torrent3(self,html)
+                maxitorrent.get_torrent3(html)
                 return
         if html == "":
             print("html vacio 2")
             if html_virgen.find("float:left;width:100%;height:auto;text-align:center;") != -1:
                 print("Parser1")
-                parser = maxitorrent.HTMLParser1()
-                parser.feed(str(html_virgen))
+                maxitorrent.HTMLParser1().feed(str(html_virgen))
             if html_virgen.find(" style=\"color:#000;font-size:23px;\"") != -1:
                 print("Parser3")
                 #print(html_virgen)
-                parser = maxitorrent.HTMLParser3()
-                parser.feed(str(html_virgen))
+                maxitorrent.HTMLParser3().feed(str(html_virgen))
             else:
                 print("Parser2")
-                parser = maxitorrent.HTMLParser2()
-                parser.feed(str(html_virgen))
+                maxitorrent.HTMLParser2().feed(str(html_virgen))
         else:
             print("Montar torrent")
-            maxitorrent.montar_torrent(self,html)
+            maxitorrent.montar_torrent(html)
         return
     
-    def get_torrent2(self, link):
-        maxitorrent.get_torrent_core(self, link)
+    @staticmethod
+    def get_torrent2(link: str) -> None:
+        maxitorrent.get_torrent_core(link)
 
-    def get_torrent3(self, link):
-        maxitorrent.get_torrent_core(self, maxitorrent.url + link)
+    @staticmethod
+    def get_torrent3(link: str) -> None:
+        maxitorrent.get_torrent_core(maxitorrent.url + link)
     
-    def get_torrent(self, guid):
+    @staticmethod
+    def get_torrent(guid: str) -> None:
         #print(guid)
-        link = self.url + "/" +  guid
-        maxitorrent.get_torrent_core(self, link)
+        link = maxitorrent.url + "/" +  guid
+        maxitorrent.get_torrent_core(link)
     
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         self.pg = 1
         #print("search")
             
         while self.pg > 0:
             json_data = self.do_post(self.url+'/get/result/', what)
-            torrents = json.loads(json_data)['data']['torrents']
+            payload = cast(object, json.loads(json_data))
+            if not isinstance(payload, dict):
+                return
+            raw_data = payload.get('data')
+            if not isinstance(raw_data, dict):
+                return
+            raw_torrents = raw_data.get('torrents')
+            if not isinstance(raw_torrents, dict):
+                return
+            torrents = cast(dict[str, object], raw_torrents)
             #print (torrents)
             
             for v in torrents.values():
-                if v == None:
+                # The API fills trailing slots of the last page with null; a
+                # null entry is the signal to stop paginating.
+                if v is None:
                     return
-                for v2 in v.values():
-                    for k3, v3 in v2.items():
+                if not isinstance(v, dict):
+                    continue
+                for v2 in cast(dict[str, object], v).values():
+                    if not isinstance(v2, dict):
+                        continue
+                    for k3, v3 in cast(dict[str, object], v2).items():
                         if k3 == 'torrentSize':
-                            maxitorrent.size = v3
-                        if k3 == 'guid':
+                            maxitorrent.size = str(v3)
+                        elif k3 == 'guid' and isinstance(v3, str):
                             self.get_torrent(v3)
                             
                             

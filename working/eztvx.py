@@ -1,32 +1,35 @@
-#VERSION: 3.20
+# VERSION: 3.20
+"""
+EZTVX series and movie search. Queries the ezvx.to JSON API by IMDb id when
+OMDB resolves the title, otherwise by keyword, paginating 100 items per page.
+"""
+
+from __future__ import annotations
 
 import json
 import re
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from helpers import download_file, retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class eztvx:
-    url = 'https://eztvx.to'
-    name = 'EZTVX'
-    supported_categories: ClassVar[dict[str, str]]  = {
-        'all': 'all',
-        'tv': 'tv'
-    }
+    url = "https://eztvx.to"
+    name = "EZTVX"
+    supported_categories: ClassVar[dict[str, str]] = {"all": "all", "tv": "tv"}
 
-    OMDB_API_KEY = 'YOUR_OMDB_API_KEY'  # Get a free key at https://www.omdbapi.com/apikey.aspx
+    OMDB_API_KEY = "YOUR_OMDB_API_KEY"  # Get a free key at https://www.omdbapi.com/apikey.aspx
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def download_torrent(self, info):
+    def download_torrent(self, info: str) -> None:
         print(download_file(info))
 
-    def search(self, what, cat='all'):
-        keywords = what.replace('%20', ' ').replace('.', ' ').replace('-', ' ')
-        keywords = re.sub(r'\s+', ' ', keywords).strip()
+    def search(self, what: str, cat: str = "all") -> None:
+        keywords = what.replace("%20", " ").replace(".", " ").replace("-", " ")
+        keywords = re.sub(r"\s+", " ", keywords).strip()
 
         season, episode = self._parse_season_episode(keywords)
         title = self._clean_title(keywords)
@@ -37,18 +40,21 @@ class eztvx:
         else:
             self._search_by_keywords(title, season=season, episode=episode)
 
-    def _parse_season_episode(self, keywords):
+    def _parse_season_episode(self, keywords: str) -> tuple[int | None, int | None]:
         pattern = re.compile(
-            r'\b(?:'
-            r's(\d{1,2})e(\d{1,2})'
-            r'|s(\d{1,2})'
-            r'|e(\d{1,2})'
-            r'|(\d{1,2})x(\d{1,2})'
-            r'|season\s*(\d{1,2})\s*episode\s*(\d{1,2})'
-            r'|season\s*(\d{1,2})'
-            r')\b', re.IGNORECASE
+            r"\b(?:"
+            r"s(\d{1,2})e(\d{1,2})"
+            r"|s(\d{1,2})"
+            r"|e(\d{1,2})"
+            r"|(\d{1,2})x(\d{1,2})"
+            r"|season\s*(\d{1,2})\s*episode\s*(\d{1,2})"
+            r"|season\s*(\d{1,2})"
+            r")\b",
+            re.IGNORECASE,
         )
-        season, episode = None, None
+        # Matches S01E02, S01, E02, 1x02, "season 1 episode 2", "season 1"
+        season: int | None = None
+        episode: int | None = None
         match = pattern.search(keywords)
         if match:
             g = match.groups()
@@ -66,41 +72,45 @@ class eztvx:
                 season = int(g[8])
         return season, episode
 
-    def _clean_title(self, keywords):
+    def _clean_title(self, keywords: str) -> str:
         episode_pattern = re.compile(
-            r'\b(?:'
-            r's(\d{1,2})e(\d{1,2})'
-            r'|s(\d{1,2})'
-            r'|e(\d{1,2})'
-            r'|(\d{1,2})x(\d{1,2})'
-            r'|season\s*(\d{1,2})\s*episode\s*(\d{1,2})'
-            r'|season\s*(\d{1,2})'
-            r')\b', re.IGNORECASE
+            r"\b(?:"
+            r"s(\d{1,2})e(\d{1,2})"
+            r"|s(\d{1,2})"
+            r"|e(\d{1,2})"
+            r"|(\d{1,2})x(\d{1,2})"
+            r"|season\s*(\d{1,2})\s*episode\s*(\d{1,2})"
+            r"|season\s*(\d{1,2})"
+            r")\b",
+            re.IGNORECASE,
         )
         junk_pattern = re.compile(
-            r'\b(1080p|720p|480p|2160p|4k|x264|x265|hevc|avc|bluray|'
-            r'webrip|web-dl|hdtv|dvdrip|proper|repack|extended|'
-            r'theatrical|directors\.cut|remux)\b', re.IGNORECASE
+            r"\b(1080p|720p|480p|2160p|4k|x264|x265|hevc|avc|bluray|"
+            r"webrip|web-dl|hdtv|dvdrip|proper|repack|extended|"
+            r"theatrical|directors\.cut|remux)\b",
+            re.IGNORECASE,
         )
-        cleaned = episode_pattern.sub('', keywords)
-        cleaned = junk_pattern.sub('', cleaned)
-        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        cleaned = episode_pattern.sub("", keywords)
+        cleaned = junk_pattern.sub("", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
         return cleaned
 
-    def _matches_season_episode(self, title, season, episode):
+    def _matches_season_episode(self, title: str, season: int | None, episode: int | None) -> bool:
         if season is None and episode is None:
             return True
         pattern = re.compile(
-            r'\b(?:'
-            r's(\d{1,2})e(\d{1,2})'
-            r'|s(\d{1,2})'
-            r'|e(\d{1,2})'
-            r'|(\d{1,2})x(\d{1,2})'
-            r'|season\s*(\d{1,2})\s*episode\s*(\d{1,2})'
-            r'|season\s*(\d{1,2})'
-            r')\b', re.IGNORECASE
+            r"\b(?:"
+            r"s(\d{1,2})e(\d{1,2})"
+            r"|s(\d{1,2})"
+            r"|e(\d{1,2})"
+            r"|(\d{1,2})x(\d{1,2})"
+            r"|season\s*(\d{1,2})\s*episode\s*(\d{1,2})"
+            r"|season\s*(\d{1,2})"
+            r")\b",
+            re.IGNORECASE,
         )
-        s, e = None, None
+        s: int | None = None
+        e: int | None = None
         match = pattern.search(title)
         if match:
             g = match.groups()
@@ -122,55 +132,56 @@ class eztvx:
             return e == episode
         return s == season and e == episode
 
-    def _get_imdb_id(self, title):
+    def _get_imdb_id(self, title: str) -> str | None:
         if not title:
             return None
         try:
-            omdb_url = (
-                'http://www.omdbapi.com/?apikey={}&t={}&type=series'.format(
-                    self.OMDB_API_KEY,
-                    title.replace(' ', '+')
-                )
+            omdb_url = "http://www.omdbapi.com/?apikey={}&t={}&type=series".format(
+                self.OMDB_API_KEY, title.replace(" ", "+")
             )
             response = retrieve_url(omdb_url)
             data = json.loads(response)
-            if data.get('Response') == 'True':
-                return data.get('imdbID', '').replace('tt', '')
+            if data.get("Response") == "True":
+                return data.get("imdbID", "").replace("tt", "")
         except Exception:
             pass
         return None
 
-    def _search_by_imdb(self, imdb_id, season=None, episode=None):
+    def _search_by_imdb(
+        self, imdb_id: str, season: int | None = None, episode: int | None = None
+    ) -> None:
         page = 1
         while True:
-            api_url = f'{self.url}/api/get-torrents?limit=100&page={page}&imdb_id={imdb_id}'
+            api_url = f"{self.url}/api/get-torrents?limit=100&page={page}&imdb_id={imdb_id}"
             try:
                 response = retrieve_url(api_url)
                 data = json.loads(response)
             except Exception:
                 break
 
-            torrents = data.get('torrents', [])
+            torrents = data.get("torrents", [])
             if not torrents:
                 break
 
             for torrent in torrents:
-                title = torrent.get('title', '')
+                title = torrent.get("title", "")
                 if self._matches_season_episode(title, season, episode):
                     self._print_result(torrent)
 
-            total = data.get('torrents_count', 0)
+            total = data.get("torrents_count", 0)
             if page * 100 >= int(total) or len(torrents) < 100:
                 break
             page += 1
 
-    def _search_by_keywords(self, keywords, season=None, episode=None):
+    def _search_by_keywords(
+        self, keywords: str, season: int | None = None, episode: int | None = None
+    ) -> None:
         terms = [t.lower() for t in keywords.split() if t]
         page = 1
 
         while True:
-            api_url = '{}/api/get-torrents?limit=100&page={}&Keywords={}'.format(
-                self.url, page, keywords.replace(' ', '+')
+            api_url = "{}/api/get-torrents?limit=100&page={}&Keywords={}".format(
+                self.url, page, keywords.replace(" ", "+")
             )
             try:
                 response = retrieve_url(api_url)
@@ -178,47 +189,48 @@ class eztvx:
             except Exception:
                 break
 
-            torrents = data.get('torrents', [])
+            torrents = data.get("torrents", [])
             if not torrents:
                 break
 
             for torrent in torrents:
-                title = torrent.get('title', '')
+                title = torrent.get("title", "")
                 title_lower = title.lower()
-                if (all(term in title_lower for term in terms)
-                        and self._matches_season_episode(title, season, episode)):
+                if all(term in title_lower for term in terms) and self._matches_season_episode(
+                    title, season, episode
+                ):
                     self._print_result(torrent)
 
-            total = data.get('torrents_count', 0)
+            total = data.get("torrents_count", 0)
             if page * 100 >= int(total) or len(torrents) < 100:
                 break
             page += 1
 
-    def _print_result(self, torrent):
-        link = torrent.get('magnet_url') or torrent.get('torrent_url', '')
+    def _print_result(self, torrent: dict[str, Any]) -> None:
+        link = torrent.get("magnet_url") or torrent.get("torrent_url", "")
         if not link:
             return
-        result = {
-            'link':       link,
-            'name':       torrent.get('title', 'Unknown'),
-            'size':       self._format_size(torrent.get('size_bytes', -1)),
-            'seeds':      int(torrent.get('seeds', 0)),
-            'leech':      int(torrent.get('peers', 0)),
-            'engine_url': self.url,
-            'desc_link':  torrent.get('episode_url', self.url),
-        }
+        result = SearchResults(
+            link=link,
+            name=torrent.get("title", "Unknown"),
+            size=self._format_size(torrent.get("size_bytes", -1)),
+            seeds=int(torrent.get("seeds", 0)),
+            leech=int(torrent.get("peers", 0)),
+            engine_url=self.url,
+            desc_link=torrent.get("episode_url", self.url),
+        )
         prettyPrinter(result)
 
-    def _format_size(self, size_bytes):
+    def _format_size(self, size_bytes: int | str) -> str:
         try:
             size_bytes = int(size_bytes)
         except (TypeError, ValueError):
-            return '-1'
+            return "-1"
         if size_bytes < 0:
-            return '-1'
-        elif size_bytes < 1024 ** 2:
-            return f'{size_bytes / 1024:.1f} KB'
-        elif size_bytes < 1024 ** 3:
-            return f'{size_bytes / (1024 ** 2):.1f} MB'
+            return "-1"
+        elif size_bytes < 1024**2:
+            return f"{size_bytes / 1024:.1f} KB"
+        elif size_bytes < 1024**3:
+            return f"{size_bytes / (1024**2):.1f} MB"
         else:
-            return f'{size_bytes / (1024 ** 3):.2f} GB'
+            return f"{size_bytes / (1024**3):.2f} GB"

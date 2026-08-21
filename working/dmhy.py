@@ -1,13 +1,18 @@
 # VERSION: 1.00
+"""DMHY engine: Chinese anime, donghua, games and music torrents.
+
+Rows are read from the topic-list table, and the .torrent link is
+rebuilt from the row date and the magnet's info hash.
+"""
+from __future__ import annotations
 
 import re
 from html.parser import HTMLParser
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from helpers import download_file, retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
-# some other imports if necessary
 
 class dmhy:
     """
@@ -29,12 +34,14 @@ class dmhy:
     class RowParser(HTMLParser):
         def __init__(self):
             HTMLParser.__init__(self)
-            self.rows = []
+            self.rows: list[list[str]] = []
             self.in_topic_list = False
             self.depth = 0
-            self.cur = None
+            self.cur: dict[str, list[str]] | None = None
 
-        def handle_starttag(self, tag, attrs):
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
             params = dict(attrs)
             if tag == 'table' and params.get('id') == 'topic_list':
                 self.in_topic_list = True
@@ -46,11 +53,11 @@ class dmhy:
             elif tag == 'td' and self.cur is not None:
                 self.cur['cells'].append('')
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
             if self.cur is not None and self.cur['cells']:
                 self.cur['cells'][-1] += data
 
-        def handle_endtag(self, tag):
+        def handle_endtag(self, tag: str) -> None:
             if not self.in_topic_list:
                 return
             if tag == 'tr' and self.cur is not None:
@@ -60,8 +67,8 @@ class dmhy:
                 self.in_topic_list = False
 
     @classmethod
-    def analyze_torrent(cls, cells):
-        res = []
+    def analyze_torrent(cls, cells: list[list[str]]) -> list[SearchResults]:
+        res: list[SearchResults] = []
         for cell in cells:
             if len(cell) < 7:
                 continue
@@ -76,7 +83,7 @@ class dmhy:
             leech = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', cell[6])).strip()
             btih_m = re.search(r'btih:([0-9A-Fa-f]+)', magnet)
             link = f"https://dl.dmhy.org/{date}/{btih_m.group(1)}.torrent" if btih_m else magnet
-            tmp = {
+            tmp: dict[str, str | int] = {
                 'date': date,
                 'name': name,
                 'desc_link': desc_link,
@@ -86,11 +93,14 @@ class dmhy:
                 'leech': int(leech) if leech.isdigit() else -1,
                 'link': link,
             }
-            res.append(tmp)
-            prettyPrinter(tmp)
+            # Keep the date field in the returned scraper record; qBittorrent's
+            # printer contract only describes the common result fields.
+            result = cast(SearchResults, cast(object, tmp))
+            res.append(result)
+            prettyPrinter(result)
         return res
 
-    def download_torrent(self, info):
+    def download_torrent(self, info: str) -> None:
         """
         Providing this function is optional.
         It can however be interesting to provide your own torrent download
@@ -101,7 +111,7 @@ class dmhy:
 
     # DO NOT CHANGE the name and parameters of this function
     # This function will be the one called by nova2.py
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         """
         Here you can do what you want to get the result from the search engine website.
         Everytime you parse a result line, store it in a dictionary
@@ -110,7 +120,7 @@ class dmhy:
         `what` is a string with the search tokens, already escaped (e.g. "Ubuntu+Linux")
         `cat` is the name of a search category in ('all', 'anime', 'books', 'games', 'movies', 'music', 'pictures', 'software', 'tv')
         """
-        hits = []
+        hits: list[SearchResults] = []
         url = self.url
         page = 1
 

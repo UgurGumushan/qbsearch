@@ -1,18 +1,22 @@
 # VERSION: 1.2
+"""
+Kickasstorrents search against the katcr.to mirror. Follows keyword
+pagination and fetches each row's detail page to extract the magnet link.
+"""
 
 import re
 from time import sleep
 from typing import ClassVar
 
 from helpers import retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class kickasstorrents:
     url = "https://katcr.to/"
     name = "Kickasstorrents"
 
-    supported_categories: ClassVar[dict[str, str]]  = {
+    supported_categories: ClassVar[dict[str, str]] = {
         "all": "",
         "movies": "movies",
         "tv": "tv",
@@ -23,18 +27,18 @@ class kickasstorrents:
     }
 
     class HTMLParser:
-        def __init__(self, url):
+        def __init__(self, url: str) -> None:
             self.url = url
             self.noTorrents = False
 
-        def feed(self, html):
+        def feed(self, html: str) -> None:
             self.noTorrents = False
             torrents = self.__findTorrents(html)
             if len(torrents) == 0:
                 self.noTorrents = True
                 return
 
-        def __findTorrents(self, html):
+        def __findTorrents(self, html: str) -> list[str]:
             # Find all TR nodes with class odd or even
             trs = re.findall(r"<tr class=\"(?:odd|even)\"\s*>.*?</tr>", html, re.DOTALL)
             for tr in trs:
@@ -46,20 +50,21 @@ class kickasstorrents:
                 if url_titles:
                     detail_link = f"{self.url}{url_titles.group(1)}"
                     download_link = self.__retrieve_download_link(detail_link)
-                    data = {
-                        "link": download_link,
-                        "name": url_titles.group(2),
-                        "size": url_titles.group(3).replace(",", ""),
-                        "seeds": url_titles.group(4).replace(",", ""),
-                        "leech": url_titles.group(5).replace(",", ""),
-                        "engine_url": self.url,
-                        "desc_link": detail_link,
-                    }
-                    prettyPrinter(data)
+                    prettyPrinter(
+                        SearchResults(
+                            link=download_link,
+                            name=url_titles.group(2),
+                            size=url_titles.group(3).replace(",", ""),
+                            seeds=int(url_titles.group(4).replace(",", "")),
+                            leech=int(url_titles.group(5).replace(",", "")),
+                            engine_url=self.url,
+                            desc_link=detail_link,
+                        )
+                    )
                     sleep(1)
             return trs
 
-        def __retrieve_download_link(self, detail_link):
+        def __retrieve_download_link(self, detail_link: str) -> str:
             torrent_page = retrieve_url(detail_link)
             magnet_match = re.search(r"\"(magnet:.*?)\"", torrent_page)
             if magnet_match and magnet_match.groups():
@@ -67,13 +72,9 @@ class kickasstorrents:
             else:
                 return "NotFound"
 
-    def search(self, what, cat="all"):
+    def search(self, what: str, cat: str = "all") -> None:
         parser = self.HTMLParser(self.url)
-        category = (
-            ""
-            if cat == "all"
-            else f"category/{self.supported_categories[cat]}/"
-        )
+        category = "" if cat == "all" else f"category/{self.supported_categories[cat]}/"
         counter: int = 0
         while True:
             url = f"{self.url}search/{what}/{category}{counter}/"

@@ -1,20 +1,29 @@
-from typing import ClassVar
-
 # VERSION: 1.2
+"""
+MikanProject (mikanime.tv) anime search. Parses the HTML search results page;
+each row links its detail page and its .torrent file.
+"""
+from __future__ import annotations
 
+from html.parser import HTMLParser
+from typing import ClassVar, TypedDict, cast
 
-try:
-    from HTMLParser import HTMLParser
-except ModuleNotFoundError:
-    from html.parser import HTMLParser
-
-# import qBT modules
 try:
     import requests
-    from helpers import retrieve_url
-    from novaprinter import prettyPrinter
 except ModuleNotFoundError:
-    pass
+    requests = None
+from helpers import retrieve_url
+from novaprinter import SearchResults, prettyPrinter
+
+
+class MikananiRow(TypedDict, total=False):
+    link: str
+    name: str
+    size: str
+    seeds: int
+    leech: int
+    engine_url: str
+    desc_link: str
 
 
 class mikanani:
@@ -32,10 +41,10 @@ class mikanani:
     supported_categories: ClassVar[dict[str, str]]  = {'all': ''}
 
     class mikananiParser(HTMLParser):
-        """Parses acg.rip browse page for search results and stores them."""
+        """Parses a mikanime.tv search page for results and stores them."""
 
-        def __init__(self, res, url):
-            """Construct a acgrip html parser.
+        def __init__(self, res: list[SearchResults], url: str) -> None:
+            """Construct a mikanime.tv HTML parser.
 
             Parameters:
             :param list res: a list to store the results in
@@ -50,48 +59,57 @@ class mikanani:
                 HTMLParser.__init__(self)
 
             self.engine_url = url
-            self.results = res
-            self.curr = None
+            self.results: list[SearchResults] = res
+            self.curr: MikananiRow | None = None
             self.td_counter = -1
+            self.span_counter = 0
             self.find_title = False
 
-        def handle_starttag(self, tag, attr):
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
             """Tell the parser what to do with which tags."""
             if tag == 'a':
-                self.start_a(attr)
+                self.start_a(attrs)
 
-        def handle_endtag(self, tag):
+        def handle_endtag(self, tag: str) -> None:
             """Handle the closing of table cells."""
             if tag == 'td':
                 self.start_td()
 
-        def start_a(self, attr):
+        def start_a(self, attrs: list[tuple[str, str | None]]) -> None:
             """Handle the opening of anchor tags."""
-            params = dict(attr)
+            params = {key: value for key, value in attrs if value is not None}
+            css_class = params.get('class')
+            href = params.get('href')
             # get torrent name
-            if 'class' in params and params['class'].startswith('magnet')\
-                    and 'target' in params:
+            if (
+                css_class is not None
+                and css_class.startswith('magnet')
+                and 'target' in params
+                and href is not None
+            ):
                 self.find_title = True
-                hit = {'desc_link': self.engine_url + params['href']}
+                hit: MikananiRow = {'desc_link': self.engine_url + href}
                 self.td_counter += 1
-                if not self.curr:
+                if self.curr is None:
                     hit['engine_url'] = self.engine_url
                     hit['seeds'] = -1
                     hit['leech'] = -1
                     self.curr = hit
-            elif 'href' in params and self.curr:
+            elif href is not None and self.curr is not None:
                 # skip unrelated links
-                if not params['href'].endswith(".torrent"):
+                if not href.endswith(".torrent"):
                     return
 
                 # check whether to use torrent files or magnet links,
                 # then search for a matching download link, and move on
-                if params['href'].endswith(".torrent"):
-                    self.curr['link'] = self.engine_url + params['href']
+                if href.endswith(".torrent"):
+                    self.curr['link'] = self.engine_url + href
             else:
                 pass
 
-        def start_td(self):
+        def start_td(self) -> None:
             """Handle the opening of a table cell tag."""
             # Keep track of timers
             if self.td_counter >= 0:
@@ -100,14 +118,17 @@ class mikanani:
             # Add the hit to the results,
             # then reset the counters for the next result
             if self.td_counter >= 4:
-                self.results.append(self.curr)
+                if self.curr is not None:
+                    self.results.append(cast(SearchResults, cast(object, self.curr)))
                 self.curr = None
                 self.td_counter = -1
                 self.find_title = False
                 self.span_counter = -1
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
             """Extract data about the torrent."""
+            if self.curr is None:
+                return
             # These fields matter
             if self.td_counter > -1\
                     and self.td_counter <= 4:
@@ -125,7 +146,7 @@ class mikanani:
     # DO NOT CHANGE the name and parameters of this function
     # This function will be the one called by nova2.py
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         """
         Retreive and parse engine search results by category and query.
 
@@ -137,7 +158,7 @@ class mikanani:
         url = self.url
 
         # print(url)
-        hits = []
+        hits: list[SearchResults] = []
         page = 1
         parser = self.mikananiParser(hits, self.url)
         while True:
@@ -160,11 +181,11 @@ class mikanani:
         parser.close()
 
 
-def new_retrieve_url(url,s):
+def new_retrieve_url(url: str, s: object) -> str:
     """ Return the content of the url page as a string """
     user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
     headers = {'User-Agent': user_agent}
-    s = requests.Session()
+    s = requests.Session()  # pyright: ignore[reportOptionalMemberAccess]
     response = s.get(url, headers=headers)
 
     dat = response.text
