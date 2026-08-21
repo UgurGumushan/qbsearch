@@ -1,5 +1,4 @@
 # VERSION: 1.3
-# AUTHORS: LightDestory (https://github.com/LightDestory)
 
 import re
 import urllib.parse

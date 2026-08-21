@@ -1,10 +1,4 @@
 # VERSION: 1.03
-# AUTHORS: hoanns
-#  small-games.info
-#  Not all results return a torrent file.
-#  Click description button to see the game page for it.
-#  If there is a mediaget button, you can add &direct=1
-#  to its link to get the torrent file.
 
 from __future__ import annotations
 

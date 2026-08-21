@@ -1,5 +1,4 @@
 # VERSION: 1.1
-# AUTHORS: Bioux
 
 import json
 from datetime import datetime, timezone

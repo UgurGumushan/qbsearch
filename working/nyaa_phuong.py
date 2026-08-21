@@ -1,6 +1,4 @@
 #VERSION: 1.03
-#AUTHORS: Phuong Tran (phuongtm6994@gmail.com)
-# LICENSING INFORMATION
 import math
 import re
 from html.parser import HTMLParser

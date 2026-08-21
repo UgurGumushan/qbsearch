@@ -1,11 +1,4 @@
 #VERSION: 1.1
-#AUTHORS: hoanns
-# Chinese Gaming Site
-# Beware that they sometimes upload uncracked games on here.
-#
-# I have to do 3 page requests (to chinese servers) per game
-# to get to the english release name and torrent.
-# So I set the games_to_parse (see below) value to 5.
 
 
 import re

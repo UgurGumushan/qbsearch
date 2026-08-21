@@ -1,5 +1,4 @@
 # VERSION: 2.0
-# AUTHORS: kjjejones44, TuckerWarlock
 
 import json
 import re

@@ -1,5 +1,4 @@
 # VERSION: 1.4
-# AUTHORS: LightDestory (https://github.com/LightDestory) achernet (https://github.com/achernet)
 import concurrent.futures
 import re
 import sys

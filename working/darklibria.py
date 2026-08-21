@@ -1,5 +1,4 @@
 #VERSION: 0.13
-#AUTHORS: Bugsbringer (dastins193@gmail.com)
 
 
 SITE_URL = 'https://darklibria.it/'

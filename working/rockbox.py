@@ -1,5 +1,4 @@
 # VERSION: 1.2
-# AUTHORS: LightDestory (https://github.com/LightDestory)
 
 import re
 from datetime import datetime

@@ -1,5 +1,4 @@
 # VERSION: 0.4
-# AUTHORS: Cycloctane (Cycloctane@octane.top)
 
 import urllib.request
 from typing import ClassVar

@@ -1,5 +1,4 @@
 # VERSION: 1.7
-# AUTHORS: LightDestory (https://github.com/LightDestory), BurningMop (https://github.com/BurningMop)
 
 import re
 from time import sleep

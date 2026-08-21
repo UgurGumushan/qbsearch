@@ -1,5 +1,4 @@
 # VERSION: 1.01
-# AUTHORS: iordic (iordicdev@gmail.com)
 
 import re
 from datetime import datetime

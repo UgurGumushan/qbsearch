@@ -1,7 +1,5 @@
 # VERSION: 1.1
-# AUTHORS: PlutoMonkey
 
-# some other imports if necessary
 import json
 from datetime import datetime
 from typing import ClassVar

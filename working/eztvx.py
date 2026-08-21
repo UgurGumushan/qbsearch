@@ -1,5 +1,4 @@
 #VERSION: 3.20
-#AUTHORS: DrPurp (Updated)
 
 import json
 import re

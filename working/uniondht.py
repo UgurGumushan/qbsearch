@@ -1,6 +1,4 @@
 # VERSION: 1.2
-# AUTHOR: msagca
-# -*- coding: utf-8 -*-
 from html.parser import HTMLParser
 from queue import Queue
 from threading import Thread

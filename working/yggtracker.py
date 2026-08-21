@@ -1,6 +1,4 @@
 # VERSION: 1.1
-# LICENSE: MIT
-# AUTHORS: https://github.com/YGGverse/qbittorrent-yggtracker-search-plugin
 
 import json
 from typing import ClassVar

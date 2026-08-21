@@ -1,5 +1,4 @@
 # VERSION: 1.0
-# AUTHORS: tolotp
 
 import json
 import urllib.parse

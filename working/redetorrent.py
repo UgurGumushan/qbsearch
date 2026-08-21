@@ -1,8 +1,4 @@
 # VERSION: 1.00
-# AUTHORS: bebetoh
-# https://redetorrent.com
-# pt_BR
-# Conteúdo com Audio em Português (Dublado / Dual Áudio / Legendado)
 
 from __future__ import annotations
 

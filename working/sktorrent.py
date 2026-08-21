@@ -1,5 +1,3 @@
-#MADE BY ASHALDA
-#https://github.com/Ashalda
 # VERSION: 1.1
 
 import re

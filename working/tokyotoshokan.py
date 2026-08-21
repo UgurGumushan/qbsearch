@@ -1,6 +1,4 @@
 #VERSION: 2.3
-#Author: Douman (douman@gmx.se)
-#        Bruno Barbieri (brunorex@gmail.com)
 
 try:
     #python3

@@ -1,5 +1,4 @@
 #VERSION: 1.0
-# AUTHORS: caiocinel, Bioux1
 
 import json
 from typing import ClassVar

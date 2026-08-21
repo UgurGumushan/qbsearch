@@ -1,5 +1,4 @@
 #VERSION: 1.6
-# AUTHORS: iordic (iordicdev@gmail.com)
 import base64
 import codecs
 import re

@@ -1,5 +1,4 @@
 # VERSION: 1.1
-# AUTHORS: LightDestory (https://github.com/LightDestory)
 
 import re
 from time import sleep

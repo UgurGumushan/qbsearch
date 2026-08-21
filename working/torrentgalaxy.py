@@ -1,7 +1,5 @@
 # VERSION: 0.08
-# AUTHORS: nindogo (nindogo@gmail.com)
 
-# LICENSING INFORMATION
 
 import math
 import re

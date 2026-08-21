@@ -1,5 +1,4 @@
 #VERSION: 1.25
-#AUTHORS: Jose Lorenzo (josee.loren@gmail.com)
 
 import json
 import urllib.error

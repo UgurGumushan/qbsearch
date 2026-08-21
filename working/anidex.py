@@ -1,7 +1,5 @@
 # VERSION: 0.02
-# AUTHORS: nindogo (nindogo@gmail.com)
 
-# LICENSING INFORMATION
 
 import re
 import threading

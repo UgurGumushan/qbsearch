@@ -1,5 +1,4 @@
 # VERSION: 1.9
-# AUTHORS: Lyra Aranha (lyra@lazulyra.com)
 
 from __future__ import annotations
 

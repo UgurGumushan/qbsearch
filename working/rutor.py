@@ -1,7 +1,5 @@
 # VERSION: 1.21
-# AUTHORS: imDMG [imdmgg@gmail.com]
 
-# Rutor.org search engine plugin for qBittorrent
 
 from __future__ import annotations
 

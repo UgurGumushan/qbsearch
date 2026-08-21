@@ -1,13 +1,9 @@
 #VERSION: 1.4
-#AUTHORS: hoanns,nindogo,dgaus
-# magnetdl.com
-# first thirty pages
 
 import re
 
 from helpers import retrieve_url
 
-# qBt
 from novaprinter import prettyPrinter
 
 

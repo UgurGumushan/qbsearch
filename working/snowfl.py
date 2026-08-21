@@ -1,7 +1,5 @@
 # VERSION: 1.3
-# AUTHORS: LightDestory (https://github.com/LightDestory)
 
-# Based on gitDew work (https://github.com/gitDew/qbittorrent-snowfl-search-plugin)
 
 import json
 import random

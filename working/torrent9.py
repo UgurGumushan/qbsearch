@@ -1,8 +1,5 @@
 # VERSION: 2.0
-# AUTHOR: Davy39 <davy39@hmamail.com>, Paolo M
-# CONTRIBUTORS: Simon <simon@brulhart.me>
 
-# Copyleft
 
 
 import json

@@ -1,10 +1,5 @@
 # VERSION: 2.2
-# AUTHOR: Davy39 <davy39@hmamail.com>, Paolo M
-# CONTRIBUTORS:
-#    Simon <simon@brulhart.me>
-#    Marc Bresson
 
-# Copyleft
 
 
 import logging
