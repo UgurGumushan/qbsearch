@@ -1,18 +1,33 @@
 # VERSION: 1.1
-
+"""
+MyPorn Club adult search. Fetches every paginated result page (threaded) and
+reads each torrent's detail page for its magnet link, appending a computed
+web-seed (&ws=) when the torrent advertises one.
+"""
+from __future__ import annotations
 
 import base64
 import json
 import re
 import threading
 import time
-import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
-from typing import ClassVar
+from typing import ClassVar, TypedDict, cast
 
 from helpers import download_file, retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
+
+
+class MyPornRow(TypedDict, total=False):
+    link: str
+    name: str
+    size: str
+    seeds: int
+    leech: int
+    engine_url: str
+    desc_link: str
+    pub_date: int
 
 
 class mypornclub:
@@ -28,11 +43,11 @@ class mypornclub:
 
         DIV, A, SPAN, I, B = ("div", "a", "span", "i", "b")
 
-        def __init__(self, url):
+        def __init__(self, url: str) -> None:
             HTMLParser.__init__(self)
             self.url = url
-            self.row = {}
-            self.rows = []
+            self.row: MyPornRow = {}
+            self.rows: list[MyPornRow] = []
 
             self.foundResults = False
             self.insideRow = False
@@ -45,31 +60,34 @@ class mypornclub:
             self.insideLeechCell = False
             self.shouldAddBrackets = False
             self.shouldAddName = False
-            self.web_seed = False
+            self.web_seed: str | None = None
             self.shouldGetDate = False
             self.magnet_regex = r'href=["\']magnet:.+?["\']'
             self.has_web_regex = (
                 r"(sxyprn\.com[^\w]*?post[^\w]*?[\w]*?\.html)"
             )
 
-        def preda(self, arg):
-            arg[5] = int(arg[5])
-            arg[5] -= int(self.ssut51(arg[6])) + int(self.ssut51(arg[7]))
-            arg[5] = str(arg[5])
+        def preda(self, arg: list[str]) -> list[str]:
+            adjusted = int(arg[5])
+            adjusted -= self.ssut51(arg[6]) + self.ssut51(arg[7])
+            arg[5] = str(adjusted)
             return arg
 
-        def ssut51(self, arg):
+        def ssut51(self, arg: str) -> int:
+            # Digit sum of the argument; part of the web-seed signature
             str_num = ''.join(filter(str.isdigit, arg))
             sut = 0
             for char in str_num:
                 sut += int(char)
             return sut
 
-        def boo(self, ss, es):
+        def boo(self, ss: str, es: str) -> str:
+            # urlsafe-base64 of "digit_sum(sxyprn.com)-digit_sum(...)"; part of
+            # the web-seed signature
             b = base64.b64encode((ss + "-" + "sxyprn.com" + "-" + es).encode()).decode()
             return b.replace('+', '-').replace('/', '_').replace('=', '.')
 
-        def check_for_web_seed(self, web_page_url):
+        def check_for_web_seed(self, web_page_url: str) -> str | None:
             id = web_page_url.split("/")[-1].split(".")[0]
             web_page_url = re.sub(r'\\', r'', web_page_url)
             page = retrieve_url(web_page_url)
@@ -86,9 +104,11 @@ class mypornclub:
             else:
                 return None
 
-        def handle_starttag(self, tag, attrs):
-            params = dict(attrs)
-            cssClasses = params.get("class", "")
+        def handle_starttag(
+            self, tag: str, attrs: list[tuple[str, str | None]]
+        ) -> None:
+            params = {key: value for key, value in attrs if value is not None}
+            cssClasses = params.get("class") or ""
             if "torrents_list" in cssClasses:
                 self.foundResults = True
                 return
@@ -139,11 +159,14 @@ class mypornclub:
                 and "uploader_tel" not in cssClasses
             ):
                 href = params.get("href")
+                if href is None:
+                    return
                 link = f"{self.url}{href}"
                 self.row["desc_link"] = link
                 torrent_page = retrieve_url(link)
                 matches = re.finditer(self.magnet_regex, torrent_page, re.MULTILINE)
                 magnet_urls = [x.group() for x in matches]
+                # Use the first magnet found on the detail page
                 self.row["link"] = magnet_urls[0].replace("'", '"').split('"')[1]
 
                 _has_page = re.finditer(self.has_web_regex, torrent_page, re.MULTILINE)
@@ -158,7 +181,7 @@ class mypornclub:
             if self.insideMetaData and "teis" in cssClasses:
                 self.insideLabelCell = True
 
-        def handle_data(self, data):
+        def handle_data(self, data: str) -> None:
 
             if self.shouldGetDate:
                 self.shouldGetDate = False
@@ -180,11 +203,11 @@ class mypornclub:
             if self.insideRow:
                 if self.insideTorrentData and self.insideTorrentName:
                     if self.shouldAddBrackets:
-                        self.row["name"] += f"[{data}]".strip()
+                        self.row["name"] = f"{self.row.get('name') or ''}[{data}]".strip()
                         self.shouldAddBrackets = False
                         return
                     if self.shouldAddName:
-                        self.row["name"] += f" {data}".strip()
+                        self.row["name"] = f"{self.row.get('name') or ''} {data}".strip()
                         return
 
                 if self.insideMetaData:
@@ -195,12 +218,18 @@ class mypornclub:
                         self.insideLabelCell = False
 
                     if self.insideSeedCell:
-                        self.row["seeds"] = data
+                        try:
+                            self.row["seeds"] = int(data)
+                        except ValueError:
+                            self.row["seeds"] = -1
                         self.insideSeedCell = False
                         self.insideLabelCell = False
 
                     if self.insideLeechCell:
-                        self.row["leech"] = data
+                        try:
+                            self.row["leech"] = int(data)
+                        except ValueError:
+                            self.row["leech"] = -1
                         self.insideLeechCell = False
                         self.insideLabelCell = False
 
@@ -214,7 +243,7 @@ class mypornclub:
 
                 
 
-        def handle_endtag(self, tag):
+        def handle_endtag(self, tag: str) -> None:
             if self.insideRow and tag == self.DIV:
                 if self.insideTorrentData and tag == self.DIV:
                     self.insideTorrentData = False
@@ -228,24 +257,24 @@ class mypornclub:
                 self.row["engine_url"] = self.url
 
                 if self.web_seed:
-                    self.row["name"] = "💥 " + self.row["name"]
-                    self.web_seed = False
+                    self.row["name"] = "💥 " + (self.row.get("name") or "")
+                    self.web_seed = None
 
-                prettyPrinter(self.row)
+                prettyPrinter(cast(SearchResults, cast(object, self.row)))
                 self.row = {}
                 self.insideRow = False
 
-    def download_torrent(self, info):
+    def download_torrent(self, info: str) -> None:
         print(download_file(info))
 
-    def do_search(self, page, what):
+    def do_search(self, page: int, what: str) -> None:
         parser = self.MyHtmlParser(self.url)
         page_url = f"{self.url}/s/{what}/seeders/{page}"
         retrievedHtml = retrieve_url(page_url)
         parser.feed(retrievedHtml)
         parser.close()
 
-    def search(self, what, cat="all"):
+    def search(self, what: str, cat: str = "all") -> None:
         parser = self.MyHtmlParser(self.url)
         what = what.replace("%20", "-")
         what = what.replace(" ", "-")

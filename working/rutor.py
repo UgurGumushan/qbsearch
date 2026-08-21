@@ -1,6 +1,11 @@
 # VERSION: 1.21
+"""
+Rutor (https://rutor.info) search engine. Scrapes the Rutor multi-site
+aggregator; optional http/https/socks5 proxy support is configured in
+rutor.json, and large result sets are fetched concurrently one page at a time.
+"""
 
-
+# Rutor.org search engine plugin for qBittorrent
 from __future__ import annotations
 
 import base64
@@ -87,7 +92,7 @@ def rng(t: int) -> range:
 
 
 def date_normalize(date_str: str) -> int:
-    # replace names month
+    # Map Russian month abbreviations (Янв, Фев, ...) to month numbers.
     months = (
         "Янв",
         "Фев",
@@ -133,8 +138,8 @@ class Config:
                 raise ValueError("Incorrect json scheme.")
         except Exception as e:
             logger.error(e)
-            FILE_J.write_text(self.to_str())
-            (BASEDIR / f"{FILENAME}.ico").write_bytes(base64.b64decode(ICON))
+            _ = FILE_J.write_text(self.to_str())
+            _ = (BASEDIR / f"{FILENAME}.ico").write_bytes(base64.b64decode(ICON))
 
     def to_str(self) -> str:
         return json.dumps(self.to_dict(), indent=4, sort_keys=False)
@@ -235,11 +240,11 @@ class Rutor:
             self._init()
             handler(*args)
         except EngineError as ex:
-            logger.exception(ex)
+            logger.exception("Engine error during search")
             self.pretty_error(args[0], str(ex))
-        except Exception as ex:
+        except Exception:
             self.pretty_error(args[0], "Unexpected error, please check logs")
-            logger.exception(ex)
+            logger.exception("Unexpected error while searching")
 
     def _init(self) -> None:
         # add proxy handler if needed
@@ -283,7 +288,7 @@ class Rutor:
             query = query.replace("h/0", "h/{}")
             qrs = [query.format(x) for x in rng(total)]
             with ThreadPoolExecutor(len(qrs)) as executor:
-                executor.map(self.searching, qrs, timeout=30)
+                _ = executor.map(self.searching, qrs, timeout=30)
 
         logger.debug(f"--- {time.time() - t0} seconds ---")
         logger.info(f"Found torrents: {total}")
@@ -294,7 +299,7 @@ class Rutor:
 
         # Create a torrent file
         with NamedTemporaryFile(suffix=".torrent", delete=False) as fd:
-            fd.write(response)
+            _ = fd.write(response)
 
             # return file path
             logger.debug(fd.name + " " + url)
@@ -360,6 +365,6 @@ if __name__ == "__main__":
     if BASEDIR.parent.joinpath("settings_gui.py").exists():
         from settings_gui import EngineSettingsGUI
 
-        EngineSettingsGUI(str(BASEDIR / FILENAME))
+        _ = EngineSettingsGUI(str(BASEDIR / FILENAME))
     engine = rutor()
     engine.search("doctor")

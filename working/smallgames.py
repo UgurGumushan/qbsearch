@@ -1,23 +1,30 @@
 # VERSION: 1.03
-
+"""
+small-games.info search engine. Not every result links a torrent file
+directly: open the description link for the game page, and if it offers a
+mediaget button, append &direct=1 to that link to get the .torrent.
+"""
 from __future__ import annotations
 
 import os
 import re
 import ssl
 import tempfile
-from typing import ClassVar
+from typing import ClassVar, cast
 from urllib.request import urlopen
 
 # qBt
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 # noinspection PyPep8Naming
 class smallgames:
     url = "http://small-games.info/"
     name = 'small-games.info'
-    result: ClassVar[dict[str, object | str]]  = {
+    result: ClassVar[SearchResults] = {
+        'name': '',
+        'link': '',
+        'size': '',
         'seeds': -1,
         'leech': -1,
         'engine_url': url
@@ -25,7 +32,7 @@ class smallgames:
     supported_categories: ClassVar[dict[str, bool]] = {'all': True,
                             'games': True}
 
-    def download_torrent(self, url):
+    def download_torrent(self, url: str) -> None:
         file, path = tempfile.mkstemp('.torrent')
         file = os.fdopen(file, "wb")
 
@@ -35,16 +42,16 @@ class smallgames:
             return
         else:
             # Write it to a file
-            file.write(dat)
+            _ = file.write(dat)
             file.close()
             # return file path
             print(path + " " + url)
 
-    def search(self, what, cat='all'):
+    def search(self, what: str, cat: str = 'all') -> None:
         query = "https://small-games.info/?go=search&go=search&search_text=" + what
         data = self.get_url(query).decode('utf-8', 'replace')
         match = re.compile('<a title=\"(.*?)\"\\shref=\"/.*?i=(\\d*).*?Скачать\\sигру\\s\\((.{2,11})\\)')
-        results = match.findall(data)
+        results = cast(list[tuple[str, str, str]], match.findall(data))
         name_clean = re.compile('[A-Za-z0-9].*')
 
         for res in results:
@@ -57,7 +64,7 @@ class smallgames:
             prettyPrinter(self.result)
 
     @staticmethod
-    def get_url(url):
+    def get_url(url: str) -> bytes:
         context = ssl._create_unverified_context()
         return urlopen(url, context=context).read()
 

@@ -1,11 +1,15 @@
 # VERSION: 1.1
-
+"""
+SkTorrent (https://sktorrent.eu) search engine. Scrape-based; results are
+turned into magnets pointing at the site's announce tracker plus a set of
+external UDP trackers.
+"""
 import re
 from datetime import datetime
 from typing import ClassVar
 
 from helpers import retrieve_url
-from novaprinter import prettyPrinter
+from novaprinter import SearchResults, prettyPrinter
 
 
 class sktorrent:
@@ -40,17 +44,17 @@ class sktorrent:
                 date = m.group("date")
                 dt = datetime.strptime(date, "%d/%m/%Y")
 
-                dict = {
+                result: SearchResults = {
                     "link": (f"magnet:?xt=urn:btih:{id}&tr=https%3A%2F%2Fannounce1.sktorrent.eu%2Ftorrent%2Fannounce.php%3Fpid%3D1968a215113a4d87936336557ba8e800&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fipv4announce.sktorrent.eu%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce"),
                     "name": m.group("name"),
                     "size": m.group("size").strip(),
-                    "seeds": m.group("seeders"),
-                    "leech": m.group("leechers"),
+                    "seeds": int(m.group("seeders")),
+                    "leech": int(m.group("leechers")),
                     "engine_url": sktorrent.url,
                     "desc_link": (f"https://sktorrent.eu/torrent/details.php?id={id}"),
                     "pub_date": int(dt.timestamp())
                 }
             
-                prettyPrinter(dict)
+                prettyPrinter(result)
 
             turn += 1
