@@ -5,7 +5,9 @@ from collections.abc import Callable
 from types import ModuleType
 from typing import Protocol, cast
 
-# pyright: reportPrivateUsage=false
+# The fixture intentionally loads a generated module through importlib's
+# dynamic loader API, whose Python 3.9 types are incomplete.
+# pyright: reportPrivateUsage=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
 
 
 class Response(Protocol):

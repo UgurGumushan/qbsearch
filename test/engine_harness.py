@@ -16,6 +16,10 @@ import sys
 import types
 from typing import TypedDict, Union, cast
 
+# The compatibility harness intentionally exercises importlib's dynamic loader
+# API, whose Python 3.9 types are incomplete.
+# pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false
+
 # qBitt's nova3 dir (holds helpers.py, novaprinter.py, socks.py, nova2.py).
 QB_NOVA3 = os.path.expanduser("~/Library/Application Support/qBittorrent/nova3")
 # qBitt's log, which records the Python interpreter it resolved to.
