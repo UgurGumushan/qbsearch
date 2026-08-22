@@ -1,5 +1,4 @@
 # Versions are pinned so local hooks and CI enforce the same diagnostics.
 basedpyright==1.39.10
-Pillow==11.3.0
 ruff==0.16.3
 typing_extensions==4.14.1

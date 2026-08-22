@@ -6,10 +6,19 @@ all/danishbytes.cookies
 __pycache__/
 *.pyc
 .ruff_cache/
-plugins/*.log
+.venv/
+.opencode/
+.pytest_cache/
+.mypy_cache/
+*.log
 plugins/*.cookie
 plugins/*_temp.*
 
 # macOS
 .DS_Store
 /external
+ATTRIBUTIONS_EMAILS.txt
+node_modules/
+
+# Bun / release output
+working/

@@ -1,0 +1,12 @@
+import {
+  CATALOG_PATH,
+  DOCUMENTATION_DIR,
+  ICON_DIR,
+  INSTALL_DIR,
+  ROOT,
+  SCREENSHOT_PATH,
+  WORKING_DIR,
+} from "../scripts/repository";
+
+export { CATALOG_PATH, DOCUMENTATION_DIR, ICON_DIR, INSTALL_DIR, ROOT, SCREENSHOT_PATH };
+export const DEFAULT_OUTPUT = `${WORKING_DIR}/qbsearch-dev.zip`;

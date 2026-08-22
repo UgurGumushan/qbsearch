@@ -1,0 +1,41 @@
+{
+  "name": "qbsearch",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "scripts": {
+    "setup": "bun scripts/commands.ts setup",
+    "check": "bun scripts/commands.ts check",
+    "catalog": "bun scripts/commands.ts catalog",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "harden": "bun scripts/commands.ts harden",
+    "help": "bun scripts/commands.ts help",
+    "icons": "bun scripts/commands.ts icons",
+    "lint": "eslint \"check/**/*.ts\" \"generate/**/*.ts\" \"release/**/*.ts\" \"scripts/**/*.ts\" \"test/**/*.ts\"",
+    "python:check": "bun scripts/commands.ts python",
+    "static-check": "bun scripts/commands.ts static",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:live": "bun scripts/commands.ts test-live",
+    "test:live:watch": "bun scripts/commands.ts test-live-watch",
+    "release": "bun scripts/commands.ts release",
+    "typecheck": "tsc --noEmit",
+    "upstream": "bun scripts/commands.ts upstream"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/bun": "1.4.0",
+    "@types/node": "26.2.0",
+    "cross-image": "0.4.3",
+    "eslint": "10.9.0",
+    "eslint-config-prettier": "10.1.8",
+    "fflate": "0.8.3",
+    "globals": "17.11.0",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0"
+  }
+}

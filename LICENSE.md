@@ -2,8 +2,9 @@
 
 Licensing information for each engine plugin in `plugins/`, transcribed from
 the license blocks that used to sit at the top of each file. Those blocks were
-moved out of the plugins (see ATTRIBUTIONS.md for the author headers that went
-along) so the engines stay readable; the license terms are preserved here.
+moved out of the plugins (see [documentation/ATTRIBUTIONS.md](documentation/ATTRIBUTIONS.md)
+for the author headers that went along) so the engines stay readable; the
+license terms are preserved here.
 
 ## Full license texts
 
@@ -95,77 +96,77 @@ above; **Unlicense** = The Unlicense above; **MIT-note** = header said
 header carried only the word "Copyleft" with no verifiable license text;
 **None** = no license information was present in the file.
 
-| File | License |
-|------|---------|
-| [academictorrents.py](plugins/academictorrents.py) | None |
-| [acgrip.py](plugins/acgrip.py) | GPLv3 |
-| [ali213.py](plugins/ali213.py) | None |
-| [anidex.py](plugins/anidex.py) | None (empty `# LICENSING INFORMATION` marker only) |
-| [animetosho.py](plugins/animetosho.py) | GPLv3 |
-| [apachetorrent.py](plugins/apachetorrent.py) | None |
-| [audiobookbay.py](plugins/audiobookbay.py) | MIT |
-| [bitsearch.py](plugins/bitsearch.py) | MIT |
-| [bt4gprx.py](plugins/bt4gprx.py) | None |
-| [btdig.py](plugins/btdig.py) | Unlicense |
-| [calidadtorrent.py](plugins/calidadtorrent.py) | MIT |
-| [cloudtorrents.py](plugins/cloudtorrents.py) | MIT |
-| [cpasbien.py](plugins/cpasbien.py) | Copyleft |
-| [darklibria.py](plugins/darklibria.py) | None |
-| [divxtotal.py](plugins/divxtotal.py) | MIT |
-| [dmhy.py](plugins/dmhy.py) | GPLv3 |
-| [dodi_repacks.py](plugins/dodi_repacks.py) | None |
-| [dontorrent.py](plugins/dontorrent.py) | MIT |
-| [elitetorrent.py](plugins/elitetorrent.py) | None |
-| [esmeraldatorrent.py](plugins/esmeraldatorrent.py) | MIT |
-| [eztvx.py](plugins/eztvx.py) | None |
-| [fitgirl_repacks.py](plugins/fitgirl_repacks.py) | None |
-| [glotorrents.py](plugins/glotorrents.py) | None |
-| [goggames.py](plugins/goggames.py) | None |
-| [kickasstorrents.py](plugins/kickasstorrents.py) | None |
-| [magnetdl.py](plugins/magnetdl.py) | None |
-| [maxitorrent.py](plugins/maxitorrent.py) | None |
-| [mejortorrent.py](plugins/mejortorrent.py) | None |
-| [mikan.py](plugins/mikan.py) | None |
-| [mikanani.py](plugins/mikanani.py) | GPLv3 |
-| [mypornclub.py](plugins/mypornclub.py) | MIT |
-| [naranjatorrent.py](plugins/naranjatorrent.py) | MIT |
-| [nekobt.py](plugins/nekobt.py) | None |
-| [nyaa_phuong.py](plugins/nyaa_phuong.py) | None (empty `# LICENSING INFORMATION` marker only) |
-| [nyaapantsu.py](plugins/nyaapantsu.py) | GPLv3 |
-| [nyaasi.py](plugins/nyaasi.py) | GPLv3 |
-| [onlinefix.py](plugins/onlinefix.py) | None |
-| [pirateiro.py](plugins/pirateiro.py) | None |
-| [redetorrent.py](plugins/redetorrent.py) | None |
-| [rockbox.py](plugins/rockbox.py) | None |
-| [rutor.py](plugins/rutor.py) | None |
-| [sktorrent.py](plugins/sktorrent.py) | None |
-| [smallgames.py](plugins/smallgames.py) | None |
-| [snowfl.py](plugins/snowfl.py) | None |
-| [solidtorrents.py](plugins/solidtorrents.py) | MIT |
-| [subsplease.py](plugins/subsplease.py) | None |
-| [sukebeisi.py](plugins/sukebeisi.py) | GPLv3 |
-| [thepiratebay.py](plugins/thepiratebay.py) | None |
-| [therarbg.py](plugins/therarbg.py) | MIT |
-| [tokyotoshokan.py](plugins/tokyotoshokan.py) | None |
-| [tomadivx.py](plugins/tomadivx.py) | MIT |
-| [torrent9.py](plugins/torrent9.py) | Copyleft |
-| [torrentdownload.py](plugins/torrentdownload.py) | None |
-| [torrentdownloads.py](plugins/torrentdownloads.py) | MIT |
-| [torrentgalaxy.py](plugins/torrentgalaxy.py) | None (empty `# LICENSING INFORMATION` marker only) |
-| [traht.py](plugins/traht.py) | MIT |
-| [uniondht.py](plugins/uniondht.py) | None |
-| [xxxclubto.py](plugins/xxxclubto.py) | MIT |
-| [yggtracker.py](plugins/yggtracker.py) | MIT-note |
-| [yourbittorrent.py](plugins/yourbittorrent.py) | None |
-| [yts.py](plugins/yts.py) | None |
+| File                                               | License                                            |
+| -------------------------------------------------- | -------------------------------------------------- |
+| [academictorrents.py](plugins/academictorrents.py) | None                                               |
+| [acgrip.py](plugins/acgrip.py)                     | GPLv3                                              |
+| [ali213.py](plugins/ali213.py)                     | None                                               |
+| [anidex.py](plugins/anidex.py)                     | None (empty `# LICENSING INFORMATION` marker only) |
+| [animetosho.py](plugins/animetosho.py)             | GPLv3                                              |
+| [apachetorrent.py](plugins/apachetorrent.py)       | None                                               |
+| [audiobookbay.py](plugins/audiobookbay.py)         | MIT                                                |
+| [bitsearch.py](plugins/bitsearch.py)               | MIT                                                |
+| [bt4gprx.py](plugins/bt4gprx.py)                   | None                                               |
+| [btdig.py](plugins/btdig.py)                       | Unlicense                                          |
+| [calidadtorrent.py](plugins/calidadtorrent.py)     | MIT                                                |
+| [cloudtorrents.py](plugins/cloudtorrents.py)       | MIT                                                |
+| [cpasbien.py](plugins/cpasbien.py)                 | Copyleft                                           |
+| [darklibria.py](plugins/darklibria.py)             | None                                               |
+| [divxtotal.py](plugins/divxtotal.py)               | MIT                                                |
+| [dmhy.py](plugins/dmhy.py)                         | GPLv3                                              |
+| [dodi_repacks.py](plugins/dodi_repacks.py)         | None                                               |
+| [dontorrent.py](plugins/dontorrent.py)             | MIT                                                |
+| [elitetorrent.py](plugins/elitetorrent.py)         | None                                               |
+| [esmeraldatorrent.py](plugins/esmeraldatorrent.py) | MIT                                                |
+| [eztvx.py](plugins/eztvx.py)                       | None                                               |
+| [fitgirl_repacks.py](plugins/fitgirl_repacks.py)   | None                                               |
+| [glotorrents.py](plugins/glotorrents.py)           | None                                               |
+| [goggames.py](plugins/goggames.py)                 | None                                               |
+| [kickasstorrents.py](plugins/kickasstorrents.py)   | None                                               |
+| [magnetdl.py](plugins/magnetdl.py)                 | None                                               |
+| [maxitorrent.py](plugins/maxitorrent.py)           | None                                               |
+| [mejortorrent.py](plugins/mejortorrent.py)         | None                                               |
+| [mikan.py](plugins/mikan.py)                       | None                                               |
+| [mikanani.py](plugins/mikanani.py)                 | GPLv3                                              |
+| [mypornclub.py](plugins/mypornclub.py)             | MIT                                                |
+| [naranjatorrent.py](plugins/naranjatorrent.py)     | MIT                                                |
+| [nekobt.py](plugins/nekobt.py)                     | None                                               |
+| [nyaa_phuong.py](plugins/nyaa_phuong.py)           | None (empty `# LICENSING INFORMATION` marker only) |
+| [nyaapantsu.py](plugins/nyaapantsu.py)             | GPLv3                                              |
+| [nyaasi.py](plugins/nyaasi.py)                     | GPLv3                                              |
+| [onlinefix.py](plugins/onlinefix.py)               | None                                               |
+| [pirateiro.py](plugins/pirateiro.py)               | None                                               |
+| [redetorrent.py](plugins/redetorrent.py)           | None                                               |
+| [rockbox.py](plugins/rockbox.py)                   | None                                               |
+| [rutor.py](plugins/rutor.py)                       | None                                               |
+| [sktorrent.py](plugins/sktorrent.py)               | None                                               |
+| [smallgames.py](plugins/smallgames.py)             | None                                               |
+| [snowfl.py](plugins/snowfl.py)                     | None                                               |
+| [solidtorrents.py](plugins/solidtorrents.py)       | MIT                                                |
+| [subsplease.py](plugins/subsplease.py)             | None                                               |
+| [sukebeisi.py](plugins/sukebeisi.py)               | GPLv3                                              |
+| [thepiratebay.py](plugins/thepiratebay.py)         | None                                               |
+| [therarbg.py](plugins/therarbg.py)                 | MIT                                                |
+| [tokyotoshokan.py](plugins/tokyotoshokan.py)       | None                                               |
+| [tomadivx.py](plugins/tomadivx.py)                 | MIT                                                |
+| [torrent9.py](plugins/torrent9.py)                 | Copyleft                                           |
+| [torrentdownload.py](plugins/torrentdownload.py)   | None                                               |
+| [torrentdownloads.py](plugins/torrentdownloads.py) | MIT                                                |
+| [torrentgalaxy.py](plugins/torrentgalaxy.py)       | None (empty `# LICENSING INFORMATION` marker only) |
+| [traht.py](plugins/traht.py)                       | MIT                                                |
+| [uniondht.py](plugins/uniondht.py)                 | None                                               |
+| [xxxclubto.py](plugins/xxxclubto.py)               | MIT                                                |
+| [yggtracker.py](plugins/yggtracker.py)             | MIT-note                                           |
+| [yourbittorrent.py](plugins/yourbittorrent.py)     | None                                               |
+| [yts.py](plugins/yts.py)                           | None                                               |
 
 ### Summary
 
-| License | Count | Files |
-|---------|-------|-------|
-| MIT | 15 | audiobookbay, bitsearch, calidadtorrent, cloudtorrents, divxtotal, dontorrent, esmeraldatorrent, mypornclub, naranjatorrent, solidtorrents, therarbg, tomadivx, torrentdownloads, traht, xxxclubto |
-| GPLv3 (or later) | 7 | acgrip, animetosho, dmhy, mikanani, nyaapantsu, nyaasi, sukebeisi |
-| Unlicense | 1 | btdig |
-| MIT (note only) | 1 | yggtracker |
-| Copyleft (no verifiable text) | 2 | cpasbien, torrent9 |
-| No license stated | 35 | the remainder, incl. the three files with an empty `# LICENSING INFORMATION` marker (anidex, nyaa_phuong, torrentgalaxy) |
+| License                       | Count | Files                                                                                                                                                                                              |
+| ----------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MIT                           | 15    | audiobookbay, bitsearch, calidadtorrent, cloudtorrents, divxtotal, dontorrent, esmeraldatorrent, mypornclub, naranjatorrent, solidtorrents, therarbg, tomadivx, torrentdownloads, traht, xxxclubto |
+| GPLv3 (or later)              | 7     | acgrip, animetosho, dmhy, mikanani, nyaapantsu, nyaasi, sukebeisi                                                                                                                                  |
+| Unlicense                     | 1     | btdig                                                                                                                                                                                              |
+| MIT (note only)               | 1     | yggtracker                                                                                                                                                                                         |
+| Copyleft (no verifiable text) | 2     | cpasbien, torrent9                                                                                                                                                                                 |
+| No license stated             | 35    | the remainder, incl. the three files with an empty `# LICENSING INFORMATION` marker (anidex, nyaa_phuong, torrentgalaxy)                                                                           |

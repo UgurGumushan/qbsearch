@@ -18,8 +18,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.11"
+          bun-version: "1.3.14"
+      - name: Install Bun dependencies
+        run: bun install --frozen-lockfile
       - name: Run real remote-service smoke tests
-        run: ./test_all_plugins.sh --skip-safety --timeout 120
+        run: bun run test:live -- --skip-safety --timeout 120

@@ -19,5 +19,5 @@ What happened?
 Relevant output from the focused command:
 
 ```text
-./test_all_plugins.sh --plugin <plugin-id> --require-results
+bun run test:live -- --plugin <plugin-id> --require-results
 ```

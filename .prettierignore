@@ -1,0 +1,18 @@
+# Python is formatted and linted exclusively by Ruff.
+**/*.py
+
+# Generated catalog output is controlled by its TypeScript generator.
+catalog/plugins.json
+documentation/PLUGINS.md
+
+# Lockfiles and vendored/generated/local material.
+bun.lock
+package-lock.json
+external/**
+node_modules/**
+working/**
+.opencode/**
+.venv/**
+.ruff_cache/**
+**/__pycache__/**
+*.log

@@ -1,13 +1,13 @@
 # qBittorrent search-engine plugin collection. Each file in plugins/ is a
 # standalone nova2 engine; qBitt (Python 3) imports them directly, so no shared
-# modules exist. See test_engines.py for the installability harness.
+# modules exist. See test/engines.py for the installability harness.
 
 [tool.ruff]
 target-version = "py39"
 line-length = 100
 # external/ is a vendored snapshot of the upstream author repos (see
-# ATTRIBUTIONS.md); it is provenance, not maintained code.
-exclude = ["external"]
+# documentation/ATTRIBUTIONS.md); it is provenance, not maintained code.
+exclude = ["external", "node_modules", "working", ".opencode"]
 
 [tool.ruff.lint]
 # Intentional scraper idioms the repo keeps:
@@ -29,7 +29,7 @@ ignore = [
 
 [tool.basedpyright]
 pythonVersion = "3.9"
-exclude = ["external", ".venv"]
+exclude = ["external", ".venv", "node_modules", "working", ".opencode", ".ruff_cache"]
 
 # qBitt's nova3 modules (`helpers`, `novaprinter`, `socks`) and `requests`
 # (one engine) live inside qBitt's installation, not on the host. typings/

@@ -382,7 +382,7 @@ _qbt_helper_retrieve_url = None
 
 
 class maxitorrent:
-    url: str = "https://atomixhq.com"
+    url: str = "http://atomixhq.com"
     name: str = "MaxiTorrent"
     size: str = ""
     count: int = 1

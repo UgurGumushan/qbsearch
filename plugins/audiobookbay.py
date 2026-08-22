@@ -328,8 +328,9 @@ class NotFoundError(Exception):
 
 
 class audiobookbay:
-    url: str = "http://theaudiobookbay.se/"
+    url: str = "https://audiobookbay.org/"
     urls: ClassVar[list[str]] = [
+        "https://audiobookbay.org/",
         "http://theaudiobookbay.se/",
         "http://audiobookbay.fi/",
         "http://audiobookbay.is/",
