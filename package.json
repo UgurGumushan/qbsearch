@@ -2,6 +2,9 @@
   "name": "qbsearch",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/website"
+  ],
   "engines": {
     "bun": ">=1.3.0"
   },

@@ -22,3 +22,8 @@ node_modules/
 
 # Bun / release output
 working/
+
+# Next.js website output
+.next/
+next-env.d.ts
+*.tsbuildinfo

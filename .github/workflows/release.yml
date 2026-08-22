@@ -33,8 +33,23 @@ jobs:
         env:
           RELEASE_VERSION: ${{ github.ref_name }}
         run: bun run release -- --version "${RELEASE_VERSION#v}" --output "working/qbsearch-${RELEASE_VERSION#v}.zip"
+      - name: Create stable download alias
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: cp "working/qbsearch-${RELEASE_VERSION#v}.zip" working/qbsearch-latest.zip
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" "working/qbsearch-${RELEASE_TAG#v}.zip" --generate-notes
+        run: |
+          if [ -f "documentation/releases/${RELEASE_TAG}.md" ]; then
+            gh release create "$RELEASE_TAG" \
+              "working/qbsearch-${RELEASE_TAG#v}.zip" \
+              working/qbsearch-latest.zip \
+              --notes-file "documentation/releases/${RELEASE_TAG}.md"
+          else
+            gh release create "$RELEASE_TAG" \
+              "working/qbsearch-${RELEASE_TAG#v}.zip" \
+              working/qbsearch-latest.zip \
+              --generate-notes
+          fi

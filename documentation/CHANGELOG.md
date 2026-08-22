@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.1.5
+
+- Added a catalog-driven Next.js distribution website under `packages/website`
+  with responsive installation guidance, plugin search, category filters, and
+  links to the maintained source catalog.
+- Added a `/download/latest` release resolver so the website sends users to the
+  ZIP built by the GitHub Actions release workflow.
+- Added a stable `qbsearch-latest.zip` asset alongside each versioned release
+  archive for durable website download links.
+- Added the website as a Bun workspace package with pinned Next.js and React
+  dependencies.
+
 ## 0.1.4
 
 - Added a catalog-driven user installation and plugin discovery workflow.
