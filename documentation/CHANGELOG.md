@@ -33,3 +33,15 @@
 - Hardened all plugin engines and support tooling for strict linting and type checking while preserving qBittorrent Python 3.9 compatibility.
 - Added safer live-test adapters and runtime validation across the plugin collection.
 - Fixed live testing for AnimeTosho feeds that omit peer counts.
+
+## 0.1.2
+
+- Updated the RARBG plugin for the JSON search API.
+- Added published-date extraction to a dozen engines across anime, general,
+  and movie categories.
+- Added a qBittorrent Search tab screenshot to the README.
+
+## 0.1.1
+
+- Fixed the Python checker environment used by the release workflow.
+- No plugin engine changes.
