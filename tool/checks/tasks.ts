@@ -12,6 +12,7 @@ export const CHECK_TASKS: Record<CheckScope, CheckTask[]> = {
     { label: "ESLint", command: [BUN, "run", "lint"] },
     { label: "Prettier", command: [BUN, "run", "format:check"] },
     { label: "Python checks", command: [BUN, "tool/checks/command.ts", "python"] },
+    { label: "Generated files", command: [BUN, "tool/entry.ts", "gen", "--", "--check"] },
   ],
   python: [
     { label: "Ruff lint", command: ["ruff", "check", "."] },
