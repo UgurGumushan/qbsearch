@@ -10,7 +10,7 @@
       "status": "active",
       "icon": "icons/academictorrents.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/academictorrents.py",
       "license": "None",
       "notes": ""
     },
@@ -23,7 +23,7 @@
       "status": "active",
       "icon": "icons/acgrip.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/Cc050511/qBit-search-plugins/main/acgrip.py",
       "license": "GPLv3",
       "notes": ""
     },
@@ -36,7 +36,7 @@
       "status": "active",
       "icon": "icons/ali213.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/master/ali213.py",
       "license": "None",
       "notes": ""
     },
@@ -49,7 +49,7 @@
       "status": "intermittent",
       "icon": "icons/anidex.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/nindogo/qbtSearchScripts/master/anidex.py",
       "license": "None (empty `# LICENSING INFORMATION` marker only)",
       "notes": ""
     },
@@ -62,7 +62,7 @@
       "status": "active",
       "icon": "icons/animetosho.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/AlaaBrahim/qBitTorrent-animetosho-search-plugin/main/animetosho.py",
       "license": "GPLv3",
       "notes": ""
     },
@@ -75,7 +75,7 @@
       "status": "active",
       "icon": "icons/apachetorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://gist.githubusercontent.com/bebetoh/3bb49cdf2b3718937b5446db1e4a4915/raw/1819e3ed75faa0da1571173a677081dc107054aa/apachetorrent.py",
       "license": "None",
       "notes": ""
     },
@@ -88,7 +88,7 @@
       "status": "active",
       "icon": "icons/audiobookbay.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/nklido/qBittorrent_search_engines/master/engines/audiobookbay.py",
       "license": "MIT",
       "notes": ""
     },
@@ -101,7 +101,7 @@
       "status": "unavailable",
       "icon": "icons/bitsearch.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/bitsearch.py",
       "license": "MIT",
       "notes": ""
     },
@@ -114,7 +114,7 @@
       "status": "active",
       "icon": "icons/bt4gprx.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/TuckerWarlock/qbittorrent-search-plugins/main/bt4gprx.com/bt4gprx.py",
       "license": "None",
       "notes": ""
     },
@@ -127,7 +127,7 @@
       "status": "active",
       "icon": "icons/btdig.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/galaris/BTDigg-qBittorrent-plugin/main/btdig.py",
       "license": "Unlicense",
       "notes": ""
     },
@@ -140,7 +140,7 @@
       "status": "intermittent",
       "icon": "icons/calidadtorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/calidadtorrent.py",
       "license": "MIT",
       "notes": ""
     },
@@ -153,7 +153,7 @@
       "status": "unavailable",
       "icon": "icons/cloudtorrents.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/elazar/qbittorrent-search-plugins/refs/heads/add-cloudtorrents-plugin/nova3/engines/cloudtorrents.py",
       "license": "MIT",
       "notes": ""
     },
@@ -166,7 +166,7 @@
       "status": "active",
       "icon": "icons/cpasbien.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/MarcBresson/cpasbien/master/src/cpasbien.py",
       "license": "Copyleft",
       "notes": ""
     },
@@ -179,7 +179,7 @@
       "status": "active",
       "icon": "icons/darklibria.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/bugsbringer/qbit-plugins/master/darklibria.py",
       "license": "None",
       "notes": ""
     },
@@ -192,7 +192,7 @@
       "status": "active",
       "icon": "icons/divxtotal.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/divxtotal.py",
       "license": "MIT",
       "notes": ""
     },
@@ -205,7 +205,7 @@
       "status": "active",
       "icon": "icons/dmhy.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/ZH1637/dmhy/main/dmhy.py",
       "license": "GPLv3",
       "notes": ""
     },
@@ -218,7 +218,7 @@
       "status": "active",
       "icon": "icons/dodi_repacks.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/Bioux1/qbtSearchPlugins/main/dodi_repacks.py",
       "license": "None",
       "notes": ""
     },
@@ -231,7 +231,7 @@
       "status": "active",
       "icon": "icons/dontorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/dontorrent.py",
       "license": "MIT",
       "notes": ""
     },
@@ -244,7 +244,7 @@
       "status": "active",
       "icon": "icons/elitetorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/iordic/qbittorrent-search-plugins/master/engines/elitetorrent.py",
       "license": "None",
       "notes": ""
     },
@@ -257,7 +257,7 @@
       "status": "active",
       "icon": "icons/esmeraldatorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/esmeraldatorrent.py",
       "license": "MIT",
       "notes": ""
     },
@@ -270,7 +270,7 @@
       "status": "active",
       "icon": "icons/eztvx.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/DrPurp/eztvx-qbittorrent-plugin/main/eztvx.py",
       "license": "None",
       "notes": ""
     },
@@ -283,7 +283,7 @@
       "status": "active",
       "icon": "icons/fitgirl_repacks.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/Bioux1/qbtSearchPlugins/main/fitgirl_repacks.py",
       "license": "None",
       "notes": ""
     },
@@ -296,7 +296,7 @@
       "status": "intermittent",
       "icon": "icons/glotorrents.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/glotorrents.py",
       "license": "None",
       "notes": ""
     },
@@ -309,7 +309,7 @@
       "status": "active",
       "icon": "icons/goggames.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/tolotp/qbittorrent-search-plugins-de-busqueda/refs/heads/main/Plugins/goggames.py",
       "license": "None",
       "notes": ""
     },
@@ -322,7 +322,7 @@
       "status": "intermittent",
       "icon": "icons/kickasstorrents.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/kickasstorrents.py",
       "license": "None",
       "notes": ""
     },
@@ -335,7 +335,7 @@
       "status": "unavailable",
       "icon": "icons/magnetdl.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/nindogo/qbtSearchScripts/master/magnetdl.py",
       "license": "None",
       "notes": ""
     },
@@ -348,7 +348,7 @@
       "status": "active",
       "icon": "icons/maxitorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/joseeloren/search-plugins/master/nova3/engines/maxitorrent.py",
       "license": "None",
       "notes": ""
     },
@@ -361,7 +361,7 @@
       "status": "intermittent",
       "icon": "icons/mejortorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/iordic/qbittorrent-search-plugins/master/engines/mejortorrent.py",
       "license": "None",
       "notes": ""
     },
@@ -374,7 +374,7 @@
       "status": "active",
       "icon": "icons/mikan.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/Cycloctane/qBittorrent-plugins/master/engines/mikan.py",
       "license": "None",
       "notes": ""
     },
@@ -387,7 +387,7 @@
       "status": "active",
       "icon": "icons/mikanani.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/Cc050511/qBit-search-plugins/main/mikanani.py",
       "license": "GPLv3",
       "notes": ""
     },
@@ -400,7 +400,7 @@
       "status": "active",
       "icon": "icons/mypornclub.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/mypornclub.py",
       "license": "MIT",
       "notes": ""
     },
@@ -413,7 +413,7 @@
       "status": "active",
       "icon": "icons/naranjatorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/naranjatorrent.py",
       "license": "MIT",
       "notes": ""
     },
@@ -426,7 +426,7 @@
       "status": "active",
       "icon": "icons/nekobt.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/tolotp/qbittorrent-search-plugins-de-busqueda/refs/heads/main/Plugins/nekobt.py",
       "license": "None",
       "notes": ""
     },
@@ -439,7 +439,7 @@
       "status": "active",
       "icon": "icons/nyaa_phuong.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/phuongtailtranminh/qBittorrent-Nyaa-Search-Plugin-master/nyaa.py",
       "license": "None (empty `# LICENSING INFORMATION` marker only)",
       "notes": ""
     },
@@ -452,7 +452,7 @@
       "status": "active",
       "icon": "icons/nyaapantsu.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/MadeOfMagicAndWires/qBit-plugins/master/engines/nyaapantsu.py",
       "license": "GPLv3",
       "notes": ""
     },
@@ -465,7 +465,7 @@
       "status": "active",
       "icon": "icons/nyaasi.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/MadeOfMagicAndWires/qBit-plugins/master/engines/nyaasi.py",
       "license": "GPLv3",
       "notes": ""
     },
@@ -478,7 +478,7 @@
       "status": "active",
       "icon": "icons/onlinefix.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/caiocinel/onlinefix-qbittorrent-plugin/main/onlinefix.py",
       "license": "None",
       "notes": ""
     },
@@ -491,7 +491,7 @@
       "status": "active",
       "icon": "icons/pirateiro.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/pirateiro.py",
       "license": "None",
       "notes": ""
     },
@@ -504,7 +504,7 @@
       "status": "active",
       "icon": "icons/redetorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://gist.githubusercontent.com/bebetoh/b5e1f4731462de9b837f5026617b1d4a/raw/e71d0020078d56d3f7e9a903ca7b4d44774e10f7/redetorrent.py",
       "license": "None",
       "notes": ""
     },
@@ -517,7 +517,7 @@
       "status": "intermittent",
       "icon": "icons/rockbox.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/rockbox.py",
       "license": "None",
       "notes": ""
     },
@@ -530,7 +530,7 @@
       "status": "active",
       "icon": "icons/rutor.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/imDMG/qBt_SE/master/engines/rutor.py",
       "license": "None",
       "notes": ""
     },
@@ -543,7 +543,7 @@
       "status": "active",
       "icon": "icons/sktorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/Ashalda/sktorrent-qbt/refs/heads/main/sktorrent.py",
       "license": "None",
       "notes": ""
     },
@@ -556,7 +556,7 @@
       "status": "active",
       "icon": "icons/smallgames.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/master/smallgames.py",
       "license": "None",
       "notes": ""
     },
@@ -569,7 +569,7 @@
       "status": "active",
       "icon": "icons/snowfl.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/snowfl.py",
       "license": "None",
       "notes": ""
     },
@@ -582,7 +582,7 @@
       "status": "unavailable",
       "icon": "icons/solidtorrents.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/solidtorrents.py",
       "license": "MIT",
       "notes": ""
     },
@@ -595,7 +595,7 @@
       "status": "active",
       "icon": "icons/subsplease.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/kli885/qBittorent-SubsPlease-Search-Plugin/main/subsplease.py",
       "license": "None",
       "notes": ""
     },
@@ -608,7 +608,7 @@
       "status": "active",
       "icon": "icons/sukebeisi.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/vt-idiot/qBit-SukebeiNyaa-plugin/master/engines/sukebeisi.py",
       "license": "GPLv3",
       "notes": ""
     },
@@ -621,7 +621,7 @@
       "status": "active",
       "icon": "icons/thepiratebay.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/thepiratebay.py",
       "license": "None",
       "notes": ""
     },
@@ -634,7 +634,7 @@
       "status": "active",
       "icon": "icons/therarbg.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/therarbg.py",
       "license": "MIT",
       "notes": ""
     },
@@ -647,7 +647,7 @@
       "status": "active",
       "icon": "icons/tokyotoshokan.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BrunoReX/qBittorrent-Search-Plugin-TokyoToshokan/master/tokyotoshokan.py",
       "license": "None",
       "notes": ""
     },
@@ -660,7 +660,7 @@
       "status": "active",
       "icon": "icons/tomadivx.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/tomadivx.py",
       "license": "MIT",
       "notes": ""
     },
@@ -673,7 +673,7 @@
       "status": "active",
       "icon": "icons/torrent9.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/menegop/qbfrench/master/torrent9.py",
       "license": "Copyleft",
       "notes": ""
     },
@@ -686,7 +686,7 @@
       "status": "active",
       "icon": "icons/torrentdownload.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/torrentdownload.py",
       "license": "None",
       "notes": ""
     },
@@ -699,7 +699,7 @@
       "status": "active",
       "icon": "icons/torrentdownloads.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/torrentdownloads.py",
       "license": "MIT",
       "notes": ""
     },
@@ -712,7 +712,7 @@
       "status": "unavailable",
       "icon": "icons/torrentgalaxy.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/nindogo/qbtSearchScripts/master/torrentgalaxy.py",
       "license": "None (empty `# LICENSING INFORMATION` marker only)",
       "notes": ""
     },
@@ -725,7 +725,7 @@
       "status": "intermittent",
       "icon": "icons/traht.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/traht.py",
       "license": "MIT",
       "notes": ""
     },
@@ -738,7 +738,7 @@
       "status": "active",
       "icon": "icons/uniondht.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/msagca/qbittorrent-plugins/main/uniondht.py",
       "license": "None",
       "notes": ""
     },
@@ -751,7 +751,7 @@
       "status": "active",
       "icon": "icons/xxxclubto.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/xxxclubto.py",
       "license": "MIT",
       "notes": ""
     },
@@ -764,7 +764,7 @@
       "status": "active",
       "icon": "icons/yggtracker.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/YGGverse/qbittorrent-yggtracker-search-plugin/main/yggtracker.py",
       "license": "MIT-note",
       "notes": ""
     },
@@ -777,7 +777,7 @@
       "status": "active",
       "icon": "icons/yourbittorrent.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/yourbittorrent.py",
       "license": "None",
       "notes": ""
     },
@@ -790,7 +790,7 @@
       "status": "active",
       "icon": "icons/yts.ico",
       "requires_auth": false,
-      "source_url": null,
+      "source_url": "https://codeberg.org/lazulyra/qbit-plugins/raw/branch/main/yts/yts.py",
       "license": "None",
       "notes": ""
     }
