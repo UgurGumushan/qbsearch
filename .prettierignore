@@ -4,6 +4,8 @@
 # Generated catalog output is controlled by its TypeScript generator.
 catalog/plugins.json
 documentation/PLUGINS.md
+documentation/CLI.md
+test/plugin_sources.ts
 
 # Lockfiles and vendored/generated/local material.
 bun.lock

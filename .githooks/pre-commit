@@ -1,10 +1,17 @@
 #!/bin/sh
 set -eu
 
+# Pre-commit hook: same fast subset CI gates on (see `bun run check -- --fast`).
+# Bypass with SKIP_QBSEARCH_HOOK=1 (e.g. work-in-progress commits).
+if [ "${SKIP_QBSEARCH_HOOK:-0}" = "1" ]; then
+    exit 0
+fi
+
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 if ! command -v bun >/dev/null 2>&1; then
     echo "error: Bun is not installed; install Bun and run 'bun run setup'." >&2
+    echo "To commit without the hook: SKIP_QBSEARCH_HOOK=1 git commit" >&2
     exit 127
 fi
-exec bun run static-check
+exec bun run check -- --fast

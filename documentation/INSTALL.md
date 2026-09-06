@@ -58,7 +58,7 @@ Launch qBittorrent and open the Search tab. If a plugin is missing:
 - confirm the file is in the active profile's `nova3/engines` directory;
 - check that qBittorrent was fully closed before installation;
 - remove an older duplicate with the same filename;
-- run `bun run test:live -- --install-only --skip-safety` from the checkout to
+- run `bun run test -- --live --install-only --skip-safety` from the checkout to
   validate all engine metadata and search contracts without network requests.
 
 The live test command is not required for installation and does contact the

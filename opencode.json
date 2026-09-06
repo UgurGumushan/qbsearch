@@ -10,5 +10,12 @@
       "command": ["ruff", "server"],
       "extensions": [".py"]
     }
+  },
+  "tasks": {
+    "check-fast": "bun run check -- --fast",
+    "check-full": "bun run check",
+    "gen-check": "bun run gen -- --check",
+    "gen-write": "bun run gen -- --write",
+    "live-focused": "bun run test -- --live --plugin yts"
   }
 }
