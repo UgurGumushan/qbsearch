@@ -43,17 +43,17 @@ remote site, using each plugin's catalog query and a thread pool sized to the
 machine:
 
 ```sh
-bun run test:live
+bun run test -- --live
 ```
 
 Useful variants:
 
 ```sh
-bun run test:live -- --plugin yts
-bun run test:live -- --content-category anime
-bun run test:live -- --query ubuntu
-bun run test:live -- --require-results
-bun run test:live:watch -- --plugin yts
+bun run test -- --live --plugin yts
+bun run test -- --live --content-category anime
+bun run test -- --live --query ubuntu
+bun run test -- --live --require-results
+bun run test -- --live --watch --plugin yts
 ```
 
 Live tests run each plugin in an isolated Bun/TypeScript subprocess. The worker
@@ -69,9 +69,9 @@ unless `--skip-safety` is specified.
 Do not use sensitive queries in live tests. The query is used to construct the
 TypeScript endpoint probe and is sent to the remote service.
 
-Use `test:live:watch` while iterating on a plugin. It runs the same live test,
+Use `bun run test -- --live --watch` while iterating on a plugin. It runs the same live test,
 then reruns it when a plugin source or the catalog changes; pass the same
-options after `--` as for `test:live`. Because it makes real requests, stop it
+options after `--` as for the live run. Because it makes real requests, stop it
 when you are done.
 
 ## Maintainer checks
@@ -79,8 +79,8 @@ when you are done.
 ```sh
 bun run setup
 bun run check
-bun run test:watch
-bun run test:live
+bun run test -- --watch
+bun run test -- --live
 bun run release -- 1.0.0
 ```
 
