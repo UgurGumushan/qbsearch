@@ -1,5 +1,5 @@
-import { generatePluginCatalog } from "../../generate/catalog/command";
-import { hardenPlugins } from "../../generate/harden/command";
+import { generatePluginCatalog } from "../catalog/command";
+import { hardenPlugins } from "../harden/command";
 
 /** Validate standalone plugins without editing (catalog + preamble audit). */
 export async function validatePlugins(): Promise<number> {

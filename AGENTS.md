@@ -7,9 +7,9 @@
 - `tool/` is the single command layer: `tool/cli.ts` routes all commands,
   `tool/core/` holds the shared helpers (paths, process runner, plugin
   discovery, Python-source parser), `tool/commands/` holds the six commands,
-  and `tool/generators/` holds file renderers. Older `scripts/`, `check/`,
-  `generate/`, and `release/` modules remain as thin shims or workers that
-  delegate to `tool/core/`; put new shared code in `tool/core/`, not in shims.
+  and `tool/generators/` holds file renderers. Domain workers live beside them
+  (`tool/catalog/`, `tool/harden/`, `tool/icons/`, `tool/upstream/`,
+  `tool/checks/`, `tool/release/`); put new shared code in `tool/core/`.
 - `icons/` stores matching plugin icons; `catalog/plugins.json` is the metadata
   source of truth and `documentation/PLUGINS.md` is generated from it.
 - `documentation/` contains installation, catalog, attribution, changelog,

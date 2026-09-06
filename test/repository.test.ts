@@ -8,9 +8,9 @@ import {
   discoverPlugins,
   loadCatalog,
   renderPluginDocs,
-} from "../generate/catalog/index";
-import { validateCatalog } from "../check/catalog_validation";
-import { auditPlugin } from "../check/harden/audit_plugin";
+} from "../tool/catalog/index";
+import { validateCatalog } from "../tool/checks/catalog_validation";
+import { auditPlugin } from "../tool/checks/harden/audit_plugin";
 import { runSafetySuite } from "./safety";
 import { PLUGIN_SOURCES } from "./plugin_sources";
 import { assertPassed, runPython } from "./support/process";

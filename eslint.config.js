@@ -4,15 +4,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 // Source of truth for TS roots: tool/core/repo.ts TYPESCRIPT_DIRS (+ packages/website).
-const TYPESCRIPT_FILES = [
-  "check/**/*.ts",
-  "generate/**/*.ts",
-  "release/**/*.ts",
-  "scripts/**/*.ts",
-  "test/**/*.ts",
-  "tool/**/*.ts",
-  "packages/website/**/*.{ts,tsx}",
-];
+const TYPESCRIPT_FILES = ["test/**/*.ts", "tool/**/*.ts", "packages/website/**/*.{ts,tsx}"];
 
 export default tseslint.config(
   {

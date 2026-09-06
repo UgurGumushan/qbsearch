@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { catalogEntries, discoverPlugins, loadCatalog } from "../../generate/catalog/index";
+import { catalogEntries, discoverPlugins, loadCatalog } from "../../tool/catalog/index";
 import { CATALOG_PATH } from "./paths";
 
 /** Return plugin files only when the generated catalog and disk agree. */

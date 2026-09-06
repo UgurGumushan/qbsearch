@@ -18,9 +18,9 @@ and docs cannot drift apart.
 - `tool/commands/` — thin CLI adapters over the workers below.
 - `tool/generators/` — pure renderers (watch manifest, CLI docs).
 
-Legacy modules under `scripts/`, `check/`, `generate/`, and `release/`
-remain as thin shims or workers delegating to `tool/core/`. New shared code
-goes in `tool/core/`.
+Domain workers live in matching directories (`tool/catalog/`, `tool/harden/`,
+`tool/icons/`, `tool/upstream/`, `tool/checks/`, `tool/release/`) and share
+`tool/core/`. New shared code goes in `tool/core/`.
 
 ## Check modes
 

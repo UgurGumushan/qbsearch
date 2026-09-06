@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { SAFETY_PREAMBLE } from "../generate/harden/safety_preamble";
+import { SAFETY_PREAMBLE } from "../tool/harden/safety_preamble";
 import { auditPlugins } from "./safety/plugin_audit";
 import { runSafetyPythonHarness } from "./safety/python_harness";
 

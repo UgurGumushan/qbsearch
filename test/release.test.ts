@@ -3,8 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { unzipSync } from "fflate";
-import { catalogEntries, loadCatalog } from "../generate/catalog";
-import { buildRelease } from "../release/command";
+import { catalogEntries, loadCatalog } from "../tool/catalog";
+import { buildRelease } from "../tool/release/command";
 
 test("release archives contain canonical documentation and installers", async () => {
   const directory = await mkdtemp(join(tmpdir(), "qbsearch-release-"));

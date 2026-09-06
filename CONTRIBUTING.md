@@ -15,8 +15,8 @@ must import qBittorrent plugins.
 
 The public maintenance entrypoint is `tool/entry.ts`, exposed through the six
 package scripts (`setup`, `check`, `gen`, `plugin`, `test`, `release`). Shared
-helpers live in `tool/core/`; `check/`, `generate/`, and `release/` workers
-delegate to it. The Python compatibility harnesses remain under `test/`
+helpers live in `tool/core/` with domain workers in `tool/catalog/`,
+`tool/harden/`, `tool/icons/`, `tool/checks/`, and `tool/release/`. The Python compatibility harnesses remain under `test/`
 because they must import qBittorrent's Python modules and plugins.
 
 The collection installers live in `install/`. Keep `macos.sh` and `linux.sh`

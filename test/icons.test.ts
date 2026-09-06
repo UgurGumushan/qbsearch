@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Image } from "cross-image";
-import { convertToIco, inspectImage } from "../generate/icons/image_converter";
+import { convertToIco, inspectImage } from "../tool/icons/image_converter";
 
 test("Bun image converter creates a transparent 32px ICO", async () => {
   const source = Image.create(64, 32, 255, 0, 0, 255);
