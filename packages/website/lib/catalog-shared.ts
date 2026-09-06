@@ -6,7 +6,7 @@ export type PluginCategory =
 
 export type PluginStatus = "active" | "intermittent" | "unavailable" | "retired";
 
-export type Plugin = {
+export interface Plugin {
   id: string;
   name: string;
   site_url: string;
@@ -18,7 +18,7 @@ export type Plugin = {
   source_url: string | null;
   license: string;
   notes: string;
-};
+}
 
 export function categoryLabel(category: PluginCategory): string {
   return category.charAt(0).toUpperCase() + category.slice(1);
