@@ -18,7 +18,7 @@ from helpers import retrieve_url as _qbt_helper_retrieve_url
 from novaprinter import SearchResults, prettyPrinter
 
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
-# This block is rendered into each standalone engine.  Keep it stdlib-only.
+# Slim stdlib-only helpers for standalone engines (rendered by `bun run gen`).
 try:
     import socket as _qbt_socket
     import time as _qbt_time
@@ -93,8 +93,23 @@ class _QBTResponseContext(_QBTResponse, _QBTProtocol):
 _qbt_urlopen_typed = _qbt_cast(_QBTCallable[..., _QBTResponseContext], _qbt_urlopen)
 
 
+def _qbt_get_deadline() -> float:
+    global _qbt_search_deadline
+    if _qbt_search_deadline is None:
+        _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
+    return _qbt_search_deadline
+
+
+def _qbt_new_deadline() -> float:
+    return _qbt_get_deadline()
+
+
+def _qbt_sleep(attempt: int) -> None:
+    _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
+
+
 class _QBTEmptyResponse:
-    """Response-shaped empty value used when a request is exhausted."""
+    """Empty response fallback so one dead request never aborts a search."""
 
     status: int | None = 200
     code: int = 200
@@ -145,13 +160,10 @@ class _QBTTransientHTTPError(Exception):
     pass
 
 
-def _qbt_sleep(attempt: int) -> None:
-    _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
-
-
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times and return empty data."""
-    for attempt in range(max(1, int(MAX_ATTEMPTS))):
+    """Run a helper request a bounded number of times; return empty on failure."""
+    attempts = max(1, int(MAX_ATTEMPTS))
+    for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
             return ""
         try:
@@ -173,7 +185,7 @@ def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
                 pass
         except Exception:
             pass
-        if attempt + 1 < max(1, int(MAX_ATTEMPTS)):
+        if attempt + 1 < attempts:
             _qbt_sleep(attempt)
     return ""
 
@@ -184,7 +196,7 @@ def _qbt_safe_urlopen(
     *,
     context: object | None = None,
 ) -> _QBTResponseContext:
-    """Open a URL with explicit timeout/retry policy and an empty fallback."""
+    """Open a URL with timeout/retry policy; return an empty response when exhausted."""
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         remaining = _qbt_get_deadline() - _qbt_time.monotonic()
@@ -192,14 +204,12 @@ def _qbt_safe_urlopen(
             return _qbt_empty_response(url)
         response: _QBTResponseContext | None = None
         try:
-            request_timeout = min(float(HTTP_TIMEOUT), remaining)
+            timeout = min(float(HTTP_TIMEOUT), remaining)
             if context is None:
-                response = _qbt_urlopen_typed(url, data=data, timeout=request_timeout)
+                response = _qbt_urlopen_typed(url, data=data, timeout=timeout)
             else:
-                response = _qbt_urlopen_typed(
-                    url, data=data, timeout=request_timeout, context=context
-                )
-            status = response.status
+                response = _qbt_urlopen_typed(url, data=data, timeout=timeout, context=context)
+            status: object = response.status
             if status is None:
                 status = response.getcode()
             if status in _QBT_RETRYABLE_HTTP_STATUS:
@@ -233,8 +243,6 @@ def _qbt_safe_urlopen(
                     response.close()
                 except Exception:
                     pass
-            # A malformed request is not useful to retry, but it must not
-            # abort the qBittorrent search process.
             return _qbt_empty_response(url)
         if attempt + 1 < attempts:
             _qbt_sleep(attempt)
@@ -287,7 +295,6 @@ def _qbt_run_parallel(
             try:
                 results.append(future.result())
             except Exception:
-                # One dead site/detail page must not discard other results.
                 pass
     except _qbt_FuturesTimeoutError:
         for future in futures:
@@ -295,24 +302,11 @@ def _qbt_run_parallel(
     finally:
         try:
             _ = executor.shutdown(wait=False, cancel_futures=True)
-        except TypeError:  # pragma: no cover - compatibility with old qBitt Python
+        except TypeError:
             _ = executor.shutdown(wait=False)
     return results
 
 
-def _qbt_new_deadline() -> float:
-    return _qbt_get_deadline()
-
-
-def _qbt_get_deadline() -> float:
-    global _qbt_search_deadline
-    if _qbt_search_deadline is None:
-        _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
-    return _qbt_search_deadline
-
-
-# These hooks are available to standalone engines even when a particular
-# engine does not call every optional adapter directly.
 __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",

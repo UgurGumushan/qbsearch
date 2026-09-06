@@ -2,6 +2,9 @@ import { SAFETY_PREAMBLE, SAFETY_PREAMBLE_WITH_OVERRIDE } from "./safety_preambl
 import { END_MARKER, START_MARKER } from "./constants";
 import { bracketDelta, hasFinalNewline, indentation } from "./source_text";
 
+/** Anchor line for deterministic preamble placement in newly scaffolded engines. */
+export const PREAMBLE_ANCHOR = "# QBSEARCH-PREAMBLE-ANCHOR";
+
 export function ensureFutureAnnotations(source: string): string {
   if (/^from\s+__future__\s+import\s+.*\bannotations\b/m.test(source)) {
     return source;
@@ -109,12 +112,17 @@ export function insertAfterImports(source: string, includeOverride: boolean): st
   if (hasFinalNewline(source)) {
     lines.pop();
   }
+  const preamble = includeOverride ? SAFETY_PREAMBLE_WITH_OVERRIDE : SAFETY_PREAMBLE;
+  const anchorIndex = lines.findIndex((line) => line.trim() === PREAMBLE_ANCHOR);
+  if (anchorIndex >= 0) {
+    lines.splice(anchorIndex, 1, ...preamble.split("\n"));
+    return lines.join("\n").replace(/\n{4,}/g, "\n\n\n") + "\n";
+  }
   const helperFallback =
     source.includes("retrieve_url as _qbt_helper_retrieve_url") ||
     /_qbt_helper_retrieve_url\s*=\s*None/.test(source)
       ? []
       : ["_qbt_helper_retrieve_url = None"];
-  const preamble = includeOverride ? SAFETY_PREAMBLE_WITH_OVERRIDE : SAFETY_PREAMBLE;
   let insertionLine = lastTopLevelImportEnd(source);
   let cursor = insertionLine;
   while (cursor < lines.length && lines[cursor].trim() === "") {
