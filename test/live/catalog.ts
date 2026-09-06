@@ -1,5 +1,5 @@
 import { CATALOG_PATH } from "../support/paths";
-import { catalogEntries, loadCatalog } from "../../generate/catalog";
+import { catalogEntries, loadCatalog } from "../../tool/catalog";
 
 export interface LiveCatalogEntry {
   id: string;

@@ -10,15 +10,7 @@
     "skipLibCheck": true,
     "types": ["bun", "node"]
   },
-  "include": [
-    "check/**/*.ts",
-    "generate/**/*.ts",
-    "release/**/*.ts",
-    "scripts/**/*.ts",
-    "test/**/*.ts",
-    "tool/**/*.ts",
-    "packages/website/**/*.{ts,tsx}"
-  ],
+  "include": ["test/**/*.ts", "tool/**/*.ts", "packages/website/**/*.{ts,tsx}"],
   "exclude": [
     "node_modules",
     "external",

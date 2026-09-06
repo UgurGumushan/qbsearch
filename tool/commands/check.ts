@@ -1,4 +1,4 @@
-import { CHECK_TASKS } from "../../check/tasks";
+import { CHECK_TASKS } from "../checks/tasks";
 import { runParallel } from "../core/run";
 
 export type CheckMode = "fast" | "full";

@@ -22,7 +22,7 @@ export const ICONS_MANIFEST_PATH = resolve(WORKING_DIR, "icons-manifest.json");
  * Keep tsconfig.json include, eslint.config.js, and package.json
  * in sync with this list when adding a directory.
  */
-export const TYPESCRIPT_DIRS = ["check", "generate", "release", "scripts", "test", "tool"] as const;
+export const TYPESCRIPT_DIRS = ["test", "tool"] as const;
 
 export const TYPESCRIPT_GLOBS = TYPESCRIPT_DIRS.map((dir) => `${dir}/**/*.ts`);
 

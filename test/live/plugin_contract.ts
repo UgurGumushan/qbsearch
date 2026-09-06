@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
-import { END_MARKER, START_MARKER } from "../../generate/harden/constants";
-import { inspectPlugin } from "../../generate/catalog/index";
+import { END_MARKER, START_MARKER } from "../../tool/harden/constants";
+import { inspectPlugin } from "../../tool/catalog/index";
 import { versionFromSource } from "./plugin_source";
 import type { LivePluginContract } from "./types";
 

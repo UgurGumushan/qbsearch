@@ -7,7 +7,7 @@
  */
 import "../catalog/plugins.json" with { type: "text" };
 import "./plugin_sources";
-import { checkCatalog } from "../check/catalog";
+import { checkCatalog } from "../tool/checks/catalog";
 import { runLive } from "./live";
 
 if (import.meta.main) {

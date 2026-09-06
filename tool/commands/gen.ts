@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
-import { checkCatalog } from "../../check/catalog";
-import { generatePluginCatalog } from "../../generate/catalog/command";
-import { hardenPlugins } from "../../generate/harden/command";
-import { makeIcons } from "../../generate/icons/command";
+import { checkCatalog } from "../checks/catalog";
+import { generatePluginCatalog } from "../catalog/command";
+import { hardenPlugins } from "../harden/command";
+import { makeIcons } from "../icons/command";
 import { CLI_DOCS_PATH, ROOT } from "../core/repo";
 import { renderCliDocs } from "../cli-docs";
 import { checkPluginSources, writePluginSources } from "../generators/plugin-sources";

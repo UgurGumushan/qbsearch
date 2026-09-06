@@ -1,14 +1,15 @@
 import { resolve } from "node:path";
-import { buildRelease } from "../release/command";
-import { normalizeReleaseArguments } from "../release/command_arguments";
-import { checkCatalog } from "../check/catalog";
+import { buildRelease } from "./release/command";
+import { normalizeReleaseArguments } from "./release/command_arguments";
+import { checkCatalog } from "./checks/catalog";
 import { ROOT } from "./core/repo";
 import { runCommand } from "./core/run";
 import { runCheckCommand } from "./commands/check";
 import { runGenCommand } from "./commands/gen";
 import { runPluginCommand } from "./commands/plugin";
-import { setup } from "../scripts/command/setup";
-import { stripArgumentSeparator } from "../scripts/command/arguments";
+import { setup } from "./commands/setup";
+import { stripArgumentSeparator } from "./core/args";
+import { importUpstreamPlugins } from "./upstream";
 
 export interface CommandSpec {
   name: string;
@@ -151,7 +152,7 @@ export async function runCommandLine(rawArgs: string[]): Promise<number> {
       return runGenCommand(["--write", "--only", "icons"]);
     case "upstream":
       console.warn("Deprecated alias: upstream is now under gen (kept for compatibility).");
-      return runCommand([process.execPath, "scripts/commands.ts", "upstream", ...args], "Upstream");
+      return importUpstreamPlugins(args);
     case "test-live":
     case "test:live":
       console.warn("Deprecated: use 'bun run test -- --live ...' instead of test:live.");
