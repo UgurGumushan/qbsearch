@@ -329,7 +329,7 @@ class MikananiRow(TypedDict, total=False):
 class mikanani:
     """Class used by qBittorrent to search for torrents."""
 
-    url: str = "https://mikanime.tv"
+    url: str = "https://mikanani.me"
     name: str = "mikanani"
 
     ###########################################################################

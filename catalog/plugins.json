@@ -33,12 +33,12 @@
       "site_url": "http://down.ali213.net/",
       "category": "games",
       "default_query": "minecraft",
-      "status": "active",
+      "status": "unavailable",
       "icon": "icons/ali213.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/master/ali213.py",
       "license": "None",
-      "notes": ""
+      "notes": "HTTPS endpoint hangs (connection timeout) as of 2026-09-06; HTTP only redirects to it."
     },
     {
       "id": "anidex",
@@ -306,12 +306,12 @@
       "site_url": "https://gog-games.to",
       "category": "games",
       "default_query": "minecraft",
-      "status": "active",
+      "status": "retired",
       "icon": "icons/goggames.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/tolotp/qbittorrent-search-plugins-de-busqueda/refs/heads/main/Plugins/goggames.py",
       "license": "None",
-      "notes": ""
+      "notes": "Site closed permanently (farewell notice on homepage); engine retained for history."
     },
     {
       "id": "kickasstorrents",
@@ -381,15 +381,15 @@
     {
       "id": "mikanani",
       "name": "mikanani",
-      "site_url": "https://mikanime.tv",
+      "site_url": "https://mikanani.me",
       "category": "anime",
-      "default_query": "one piece",
+      "default_query": "cowboy bebop",
       "status": "active",
       "icon": "icons/mikanani.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/Cc050511/qBit-search-plugins/main/mikanani.py",
       "license": "GPLv3",
-      "notes": ""
+      "notes": "Domain moved from mikanime.tv (now redirects) to mikanani.me. Default query narrowed: broad queries exceed the 60s search budget on this slow site."
     },
     {
       "id": "mypornclub",
@@ -488,12 +488,12 @@
       "site_url": "https://pirateiro.io/",
       "category": "movies",
       "default_query": "inception",
-      "status": "active",
+      "status": "unavailable",
       "icon": "icons/pirateiro.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/pirateiro.py",
       "license": "None",
-      "notes": ""
+      "notes": "pirateiro.io no longer resolves (NXDOMAIN) and the pirateiro.com mirror is unreachable as of 2026-09-06."
     },
     {
       "id": "redetorrent",
@@ -501,12 +501,12 @@
       "site_url": "https://redetorrent.com",
       "category": "movies",
       "default_query": "inception",
-      "status": "active",
+      "status": "unavailable",
       "icon": "icons/redetorrent.ico",
       "requires_auth": false,
       "source_url": "https://gist.githubusercontent.com/bebetoh/b5e1f4731462de9b837f5026617b1d4a/raw/e71d0020078d56d3f7e9a903ca7b4d44774e10f7/redetorrent.py",
       "license": "None",
-      "notes": ""
+      "notes": "Origin returns HTTP 522 (Cloudflare) as of 2026-09-06."
     },
     {
       "id": "rockbox",

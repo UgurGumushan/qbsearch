@@ -7,7 +7,7 @@ The `status` field describes repository support, not a guarantee that a remote
 site is online at this moment. Live tests contact the sites listed below.
 
 - Categories: adult (5), anime (10), books (2), games (6), general (17), movies (17), software (3), tv (1)
-- Status: active (49), intermittent (7), unavailable (5)
+- Status: active (45), intermittent (7), retired (1), unavailable (8)
 
 | Plugin | Category | Status | License | Site | Default live query | Install |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -20,7 +20,7 @@ site is online at this moment. Live tests contact the sites listed below.
 | [AniDex](../plugins/anidex.py) | anime | intermittent | None (empty `# LICENSING INFORMATION` marker only) | [site](https://anidex.info/) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/anidex.py) |
 | [Anime Tosho](../plugins/animetosho.py) | anime | active | GPLv3 | [site](https://animetosho.org) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/animetosho.py) |
 | [DMHY](../plugins/dmhy.py) | anime | active | GPLv3 | [site](https://share.dmhy.org) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/dmhy.py) |
-| [mikanani](../plugins/mikanani.py) | anime | active | GPLv3 | [site](https://mikanime.tv) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/mikanani.py) |
+| [mikanani](../plugins/mikanani.py) | anime | active | GPLv3 | [site](https://mikanani.me) | `cowboy bebop (Domain moved from mikanime.tv (now redirects) to mikanani.me. Default query narrowed: broad queries exceed the 60s search budget on this slow site.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/mikanani.py) |
 | [MikanProject](../plugins/mikan.py) | anime | active | None | [site](https://mikanime.tv) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/mikan.py) |
 | [NekoBT](../plugins/nekobt.py) | anime | active | None | [site](https://nekobt.to/) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/nekobt.py) |
 | [Nyaa.si](../plugins/nyaasi.py) | anime | active | GPLv3 | [site](https://nyaa.si) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/nyaasi.py) |
@@ -28,10 +28,10 @@ site is online at this moment. Live tests contact the sites listed below.
 | [Tokyo Toshokan](../plugins/tokyotoshokan.py) | anime | active | None | [site](http://tokyotosho.info) | `one piece` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/tokyotoshokan.py) |
 | [AudioBook Bay (ABB)](../plugins/audiobookbay.py) | books | active | MIT | [site](https://audiobookbay.org/) | `the hobbit` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/audiobookbay.py) |
 | [dark-libria](../plugins/darklibria.py) | books | active | None | [site](https://darklibria.it/) | `the hobbit` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/darklibria.py) |
-| [ali213](../plugins/ali213.py) | games | active | None | [site](http://down.ali213.net/) | `minecraft` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/ali213.py) |
+| [ali213](../plugins/ali213.py) | games | unavailable | None | [site](http://down.ali213.net/) | `minecraft (HTTPS endpoint hangs (connection timeout) as of 2026-09-06; HTTP only redirects to it.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/ali213.py) |
 | [DODI Repacks](../plugins/dodi_repacks.py) | games | active | None | [site](https://dodi-repacks.site/) | `elden ring` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/dodi_repacks.py) |
 | [FitGirl Repacks](../plugins/fitgirl_repacks.py) | games | active | None | [site](https://fitgirl-repacks.site/) | `elden ring` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/fitgirl_repacks.py) |
-| [GOG-Games](../plugins/goggames.py) | games | active | None | [site](https://gog-games.to) | `minecraft` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/goggames.py) |
+| [GOG-Games](../plugins/goggames.py) | games | retired | None | [site](https://gog-games.to) | `minecraft (Site closed permanently (farewell notice on homepage); engine retained for history.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/goggames.py) |
 | [Online-Fix](../plugins/onlinefix.py) | games | active | None | [site](https://online-fix.me/) | `minecraft` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/onlinefix.py) |
 | [small-games.info](../plugins/smallgames.py) | games | active | None | [site](http://small-games.info/) | `minecraft` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/smallgames.py) |
 | [Bit Search](../plugins/bitsearch.py) | general | unavailable | MIT | [site](https://bitsearch.to) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/bitsearch.py) |
@@ -61,8 +61,8 @@ site is online at this moment. Live tests contact the sites listed below.
 | [MaxiTorrent](../plugins/maxitorrent.py) | movies | active | None | [site](http://atomixhq.com) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/maxitorrent.py) |
 | [MejorTorrent](../plugins/mejortorrent.py) | movies | intermittent | None | [site](https://www36.mejortorrent.eu) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/mejortorrent.py) |
 | [NaranjaTorrent](../plugins/naranjatorrent.py) | movies | active | MIT | [site](https://naranjatorrent.com/) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/naranjatorrent.py) |
-| [Pirateiro](../plugins/pirateiro.py) | movies | active | None | [site](https://pirateiro.io/) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/pirateiro.py) |
-| [RedeTorrent](../plugins/redetorrent.py) | movies | active | None | [site](https://redetorrent.com) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/redetorrent.py) |
+| [Pirateiro](../plugins/pirateiro.py) | movies | unavailable | None | [site](https://pirateiro.io/) | `inception (pirateiro.io no longer resolves (NXDOMAIN) and the pirateiro.com mirror is unreachable as of 2026-09-06.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/pirateiro.py) |
+| [RedeTorrent](../plugins/redetorrent.py) | movies | unavailable | None | [site](https://redetorrent.com) | `inception (Origin returns HTTP 522 (Cloudflare) as of 2026-09-06.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/redetorrent.py) |
 | [The RarBg](../plugins/therarbg.py) | movies | active | MIT | [site](https://therarbg.com) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/therarbg.py) |
 | [TomaDivx](../plugins/tomadivx.py) | movies | active | MIT | [site](https://tomadivx.net/) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/tomadivx.py) |
 | [Torrent9 (french)](../plugins/torrent9.py) | movies | active | Copyleft | [site](http://torent9.fr) | `inception` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrent9.py) |
