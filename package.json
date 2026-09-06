@@ -19,16 +19,7 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "lint": "eslint \"test/**/*.ts\" \"tool/**/*.ts\" \"packages/website/**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit",
-    "static-check": "bun tool/entry.ts check -- --fast",
-    "python:check": "bun tool/checks/command.ts python",
-    "catalog": "bun tool/entry.ts gen -- --write --only catalog",
-    "harden": "bun tool/entry.ts gen -- --check --only harden",
-    "icons": "bun tool/entry.ts gen -- --write --only icons",
-    "test:watch": "bun tool/entry.ts test -- --watch",
-    "test:live": "bun tool/entry.ts test -- --live",
-    "test:live:watch": "bun tool/entry.ts test -- --live --watch",
-    "upstream": "bun tool/entry.ts upstream"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

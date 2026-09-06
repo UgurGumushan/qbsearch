@@ -1,7 +1,7 @@
 # Plugin catalog
 
 This file is generated from [`catalog/plugins.json`](../catalog/plugins.json).
-Edit the JSON catalog and run `bun run catalog`.
+Edit the JSON catalog and run `bun run gen -- --write --only catalog`.
 
 The `status` field describes repository support, not a guarantee that a remote
 site is online at this moment. Live tests contact the sites listed below.

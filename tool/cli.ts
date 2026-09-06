@@ -9,7 +9,6 @@ import { runGenCommand } from "./commands/gen";
 import { runPluginCommand } from "./commands/plugin";
 import { setup } from "./commands/setup";
 import { stripArgumentSeparator } from "./core/args";
-import { importUpstreamPlugins } from "./upstream";
 
 export interface CommandSpec {
   name: string;
@@ -122,45 +121,6 @@ export async function runCommandLine(rawArgs: string[]): Promise<number> {
     case "-h":
       printHelp();
       return 0;
-    // Legacy aliases — kept working, documented in CLI.md as deprecated.
-    case "static":
-    case "static-check":
-      console.warn("Deprecated: use 'bun run check -- --fast' instead of static-check.");
-      return runCheckCommand(
-        args.includes("--help") || args.includes("-h") ? ["--help"] : ["--fast"],
-      );
-    case "python":
-    case "python:check":
-      console.warn("Deprecated: use 'bun run check -- --fast' instead of python:check.");
-      return runCommand([process.execPath, "run", "python:check"], "Python checks");
-    case "catalog":
-      console.warn("Deprecated: use 'bun run gen -- --write --only catalog' instead of catalog.");
-      if (args.includes("--help") || args.includes("-h")) {
-        return runGenCommand(["--help"]);
-      }
-      return runGenCommand(args.length > 0 ? args : ["--write", "--only", "catalog"]);
-    case "harden":
-      console.warn("Deprecated: use 'bun run gen -- [--check|--write] --only harden' instead.");
-      if (args.includes("--help") || args.includes("-h")) {
-        return runGenCommand(["--help"]);
-      }
-      return runGenCommand(
-        args.length > 0 ? [...args, "--only", "harden"] : ["--check", "--only", "harden"],
-      );
-    case "icons":
-      console.warn("Deprecated: use 'bun run gen -- --write --only icons' instead of icons.");
-      return runGenCommand(["--write", "--only", "icons"]);
-    case "upstream":
-      console.warn("Deprecated alias: upstream is now under gen (kept for compatibility).");
-      return importUpstreamPlugins(args);
-    case "test-live":
-    case "test:live":
-      console.warn("Deprecated: use 'bun run test -- --live ...' instead of test:live.");
-      return runLive(args);
-    case "test-live-watch":
-    case "test:live:watch":
-      console.warn("Deprecated: use 'bun run test -- --live --watch ...' instead.");
-      return runLive([...args, "--watch"]);
     default:
       console.error(`Unknown command '${command}'. Run 'bun run help' for usage.`);
       return 2;

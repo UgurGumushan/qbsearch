@@ -14,10 +14,10 @@ test("canonical command routing rejects unknown commands", async () => {
   expect(await runCommandLine(["not-a-command"])).toBe(2);
 });
 
-test("legacy aliases still route through the unified entrypoint", async () => {
-  expect(await runCommandLine(["static-check", "--help"])).toBe(0);
-  expect(await runCommandLine(["catalog", "--help"])).toBe(0);
-  expect(await runCommandLine(["harden", "--help"])).toBe(0);
+test("retired aliases are rejected as unknown commands", async () => {
+  for (const retired of ["static-check", "catalog", "harden", "test:live", "upstream"]) {
+    expect(await runCommandLine([retired])).toBe(2);
+  }
 });
 
 test("maintenance package scripts use the shared command router", async () => {

@@ -40,9 +40,9 @@ bun run release -- 0.1.3              # Build working/qbsearch-0.1.3.zip
 
 `bun run check` is deterministic and does not contact remote sites. Live tests
 make real HTTP requests through Bun; use focused runs while developing parsers.
-`documentation/CLI.md` is generated from the router table; legacy aliases
-(`catalog`, `harden`, `static-check`, `test:live`, …) still work but are
-deprecated in favor of the six commands above.
+`documentation/CLI.md` is generated from the router table. The six commands
+above are the entire surface; retired aliases are rejected — do not
+reintroduce them.
 
 ## Coding Style and Naming
 
