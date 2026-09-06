@@ -1,13 +1,20 @@
-import { resolve } from "node:path";
-
-/** Absolute paths shared by repository maintenance workers. */
-export const ROOT = resolve(import.meta.dir, "..");
-export const PLUGIN_DIR = resolve(ROOT, "plugins");
-export const ICON_DIR = resolve(ROOT, "icons");
-export const CATALOG_PATH = resolve(ROOT, "catalog", "plugins.json");
-export const DOCUMENTATION_DIR = resolve(ROOT, "documentation");
-export const DOCS_PATH = resolve(DOCUMENTATION_DIR, "PLUGINS.md");
-export const INSTALL_DIR = resolve(ROOT, "install");
-export const SCREENSHOT_PATH = resolve(ROOT, "images", "screenshot.png");
-export const WORKING_DIR = resolve(ROOT, "working");
-export const UPSTREAM_DIR = resolve(ROOT, "external", "upstream");
+/** @deprecated Import from tool/core/repo.ts instead. Thin shim kept for migration. */
+export {
+  CATALOG_PATH,
+  CLI_DOCS_PATH,
+  DOCUMENTATION_DIR,
+  DOCS_PATH,
+  FIXTURES_DIR,
+  ICON_DIR,
+  ICONS_MANIFEST_PATH,
+  INSTALL_DIR,
+  PLUGIN_DIR,
+  ROOT,
+  SCREENSHOT_PATH,
+  TEST_DIR,
+  TYPESCRIPT_DIRS,
+  TYPESCRIPT_GLOBS,
+  UPSTREAM_DIR,
+  WEBSITE_GLOBS,
+  WORKING_DIR,
+} from "../tool/core/repo";

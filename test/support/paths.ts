@@ -1,9 +1,7 @@
+/** @deprecated Import from tool/core/repo.ts instead. Thin shim kept for migration. */
+export { CATALOG_PATH, FIXTURES_DIR, PLUGIN_DIR, ROOT, TEST_DIR } from "../../tool/core/repo";
 import { resolve } from "node:path";
-import { CATALOG_PATH, PLUGIN_DIR, ROOT } from "../../scripts/repository";
+import { TEST_DIR } from "../../tool/core/repo";
 
-export { CATALOG_PATH, PLUGIN_DIR, ROOT };
-
-export const TEST_DIR = resolve(ROOT, "test");
-export const FIXTURES_DIR = resolve(TEST_DIR, "fixtures");
 export const LIVE_WORKER = resolve(TEST_DIR, "live_plugin.ts");
 export const LIVE_SAFETY_SUITE = resolve(TEST_DIR, "live_safety.ts");

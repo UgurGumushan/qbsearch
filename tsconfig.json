@@ -15,7 +15,9 @@
     "generate/**/*.ts",
     "release/**/*.ts",
     "scripts/**/*.ts",
-    "test/**/*.ts"
+    "test/**/*.ts",
+    "tool/**/*.ts",
+    "packages/website/**/*.{ts,tsx}"
   ],
   "exclude": [
     "node_modules",
@@ -25,6 +27,7 @@
     "working",
     "dist",
     "build",
+    "**/.next",
     ".opencode",
     ".venv",
     ".ruff_cache",
