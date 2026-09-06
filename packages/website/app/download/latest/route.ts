@@ -3,15 +3,15 @@ import { NextResponse } from "next/server";
 const RELEASE_API = "https://api.github.com/repos/UgurGumushan/qbsearch/releases/latest";
 const RELEASES_URL = "https://github.com/UgurGumushan/qbsearch/releases/latest";
 
-type ReleaseAsset = {
+interface ReleaseAsset {
   name: string;
   browser_download_url: string;
-};
+}
 
-type LatestRelease = {
+interface LatestRelease {
   html_url?: string;
   assets?: ReleaseAsset[];
-};
+}
 
 export const revalidate = 300;
 

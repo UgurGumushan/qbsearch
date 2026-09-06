@@ -9,9 +9,9 @@ import {
   type PluginCategory,
 } from "@/lib/catalog-shared";
 
-type PluginDirectoryProps = {
+interface PluginDirectoryProps {
   plugins: Plugin[];
-};
+}
 
 const statusLabels: Record<Plugin["status"], string> = {
   active: "Active",
@@ -64,7 +64,9 @@ export function PluginDirectory({ plugins }: PluginDirectoryProps) {
     }
 
     window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
+    return () => {
+      window.removeEventListener("keydown", focusSearch);
+    };
   }, []);
 
   return (
@@ -78,7 +80,9 @@ export function PluginDirectory({ plugins }: PluginDirectoryProps) {
             type="search"
             placeholder="Search by plugin or category"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
           />
           <kbd>/</kbd>
         </label>
@@ -92,7 +96,9 @@ export function PluginDirectory({ plugins }: PluginDirectoryProps) {
         <button
           className={activeCategory === "all" ? "category-tab is-active" : "category-tab"}
           type="button"
-          onClick={() => setActiveCategory("all")}
+          onClick={() => {
+            setActiveCategory("all");
+          }}
         >
           All engines
         </button>
@@ -101,7 +107,9 @@ export function PluginDirectory({ plugins }: PluginDirectoryProps) {
             className={activeCategory === category ? "category-tab is-active" : "category-tab"}
             type="button"
             key={category}
-            onClick={() => setActiveCategory(category)}
+            onClick={() => {
+              setActiveCategory(category);
+            }}
           >
             {categoryLabel(category)}
           </button>

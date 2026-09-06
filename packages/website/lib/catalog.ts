@@ -5,10 +5,10 @@ import type { Plugin } from "./catalog-shared";
 export { categoryLabel, pluginSourceUrl, RELEASES_URL, REPOSITORY_URL } from "./catalog-shared";
 export type { Plugin, PluginCategory, PluginStatus } from "./catalog-shared";
 
-type Catalog = {
+interface Catalog {
   schema_version: number;
   plugins: Plugin[];
-};
+}
 
 const catalogPath = resolve(process.cwd(), "../../catalog/plugins.json");
 let catalogPromise: Promise<Plugin[]> | undefined;
