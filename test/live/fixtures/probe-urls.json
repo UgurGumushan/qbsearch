@@ -1,0 +1,351 @@
+{
+  "academictorrents": {
+    "query": "machine learning",
+    "siteUrl": "https://academictorrents.com/",
+    "urls": []
+  },
+  "acgrip": {
+    "query": "one piece",
+    "siteUrl": "https://acg.rip",
+    "urls": ["https://acg.rip/page/1?term=one%20piece"]
+  },
+  "ali213": {
+    "query": "minecraft",
+    "siteUrl": "http://down.ali213.net/",
+    "urls": [
+      "http://down.ali213.net/search?kw=minecraft",
+      "allhttp://down.ali213.net/search?kw=minecraft",
+      "http://down.ali213.net/search?kw="
+    ]
+  },
+  "anidex": {
+    "query": "one piece",
+    "siteUrl": "https://anidex.info/",
+    "urls": [
+      "https://anidex.info/?s=seeders&o=desc&q=one%20piece",
+      "https://anidex.info/?s=seeders&o=desc&",
+      "https://anidex.info/&offset="
+    ]
+  },
+  "animetosho": {
+    "query": "one piece",
+    "siteUrl": "https://animetosho.org",
+    "urls": ["https://feed.animetosho.org/json?q=one%20piece"]
+  },
+  "apachetorrent": {
+    "query": "inception",
+    "siteUrl": "https://apachetorrent.com",
+    "urls": ["https://apachetorrent.com/index.php?s="]
+  },
+  "audiobookbay": {
+    "query": "the hobbit",
+    "siteUrl": "https://audiobookbay.org/",
+    "urls": ["https://audiobookbay.org/page/1/?s=the%20hobbit"]
+  },
+  "bitsearch": {
+    "query": "inception",
+    "siteUrl": "https://bitsearch.to",
+    "urls": ["https://bitsearch.to/search?q=inception&page=1"]
+  },
+  "bt4gprx": {
+    "query": "ubuntu",
+    "siteUrl": "https://bt4gprx.com/",
+    "urls": []
+  },
+  "btdig": {
+    "query": "ubuntu",
+    "siteUrl": "https://www.btdig.com",
+    "urls": [
+      "https://www.btdig.com/search?q=ubuntu&order=0",
+      "https://www.btdig.com/search?q=ubuntu&p=1&order=0"
+    ]
+  },
+  "calidadtorrent": {
+    "query": "inception",
+    "siteUrl": "https://calidadtorrent.com",
+    "urls": ["https://calidadtorrent.com/buscar/page/1?q=inception"]
+  },
+  "cloudtorrents": {
+    "query": "ubuntu",
+    "siteUrl": "https://cloudtorrents.com",
+    "urls": [
+      "https://api.cloudtorrents.com/search/?query=ubuntu&offset=0&limit=50",
+      "https://api.cloudtorrents.com/search/?search=ubuntu",
+      "https://api.cloudtorrents.com/search/?",
+      "https://cloudtorrents.com/"
+    ]
+  },
+  "cpasbien": {
+    "query": "inception",
+    "siteUrl": "http://www.cpasbien.fr",
+    "urls": ["http://www.cpasbien.fr/recherche/inception/1"]
+  },
+  "darklibria": {
+    "query": "the hobbit",
+    "siteUrl": "https://darklibria.it/",
+    "urls": []
+  },
+  "divxtotal": {
+    "query": "inception",
+    "siteUrl": "https://divxtotal.wtf/",
+    "urls": ["https://divxtotal.wtf//buscar/inception/page/1"]
+  },
+  "dmhy": {
+    "query": "one piece",
+    "siteUrl": "https://share.dmhy.org",
+    "urls": ["https://share.dmhy.org/topics/list/page/1?keyword=one%20piece"]
+  },
+  "dodi_repacks": {
+    "query": "elden ring",
+    "siteUrl": "https://dodi-repacks.site/",
+    "urls": []
+  },
+  "dontorrent": {
+    "query": "inception",
+    "siteUrl": "https://dontorrent.phd",
+    "urls": ["https://dontorrent.phd/buscar"]
+  },
+  "elitetorrent": {
+    "query": "inception",
+    "siteUrl": "https://www.elitetorrent.com",
+    "urls": [
+      "https://www.elitetorrent.com/(https://www.elitetorrent.com/series/.*?/|https://www.elitetorrent.com/peliculas/.*?/)",
+      "https://www.elitetorrent.com/0/.*?/"
+    ]
+  },
+  "esmeraldatorrent": {
+    "query": "inception",
+    "siteUrl": "https://esmeraldatorrent.com/",
+    "urls": ["https://esmeraldatorrent.com//buscar/inception/page/1"]
+  },
+  "eztvx": {
+    "query": "tt0903747",
+    "siteUrl": "https://eztvx.to",
+    "urls": []
+  },
+  "fitgirl_repacks": {
+    "query": "elden ring",
+    "siteUrl": "https://fitgirl-repacks.site/",
+    "urls": []
+  },
+  "glotorrents": {
+    "query": "inception",
+    "siteUrl": "https://glodls.to/",
+    "urls": [
+      "https://glodls.to/search_results.php?search=inception&cat=0&page=0&incldead=0&inclexternal=0"
+    ]
+  },
+  "goggames": {
+    "query": "minecraft",
+    "siteUrl": "https://gog-games.to",
+    "urls": ["https://gog-games.to/api/web/recent-torrents"]
+  },
+  "kickasstorrents": {
+    "query": "inception",
+    "siteUrl": "https://katcr.to/",
+    "urls": ["https://katcr.to/search/inception/0/"]
+  },
+  "magnetdl": {
+    "query": "ubuntu",
+    "siteUrl": "http://www.magnetdl.com/",
+    "urls": ["http://www.magnetdl.com/ubuntu"]
+  },
+  "maxitorrent": {
+    "query": "inception",
+    "siteUrl": "http://atomixhq.com",
+    "urls": ["http://atomixhq.com/get/result/"]
+  },
+  "mejortorrent": {
+    "query": "inception",
+    "siteUrl": "https://www36.mejortorrent.eu",
+    "urls": [
+      "https://www36.mejortorrent.eu/busqueda?q=inception",
+      "https://www36.mejortorrent.eu/0/[0-9]+/[%5E/"
+    ]
+  },
+  "mikan": {
+    "query": "one piece",
+    "siteUrl": "https://mikanime.tv",
+    "urls": []
+  },
+  "mikanani": {
+    "query": "cowboy bebop",
+    "siteUrl": "https://mikanani.me",
+    "urls": ["https://mikanani.me/Home/Search?page=1&searchstr=cowboy%20bebop&subgroupid=all"]
+  },
+  "mypornclub": {
+    "query": "test",
+    "siteUrl": "https://myporn.club",
+    "urls": ["https://myporn.club/s/test/seeders/1"]
+  },
+  "naranjatorrent": {
+    "query": "inception",
+    "siteUrl": "https://naranjatorrent.com/",
+    "urls": ["https://naranjatorrent.com//buscar/inception/page/1"]
+  },
+  "nekobt": {
+    "query": "one piece",
+    "siteUrl": "https://nekobt.to/",
+    "urls": ["https://nekobt.to/api/v1/torrents/search?query=one%20piece"]
+  },
+  "nyaa_phuong": {
+    "query": "one piece",
+    "siteUrl": "https://sukebei.nyaa.si",
+    "urls": []
+  },
+  "nyaapantsu": {
+    "query": "one piece",
+    "siteUrl": "https://nyaa.pantsu.cat",
+    "urls": ["https://nyaa.pantsu.cat/search/1?s=0&sort=5&order=false&max=300&c="]
+  },
+  "nyaasi": {
+    "query": "one piece",
+    "siteUrl": "https://nyaa.si",
+    "urls": ["https://nyaa.si/?f=0&s=seeders&o=desc&c=0_0&q=one%20piece"]
+  },
+  "onlinefix": {
+    "query": "minecraft",
+    "siteUrl": "https://online-fix.me/",
+    "urls": []
+  },
+  "pirateiro": {
+    "query": "inception",
+    "siteUrl": "https://pirateiro.io/",
+    "urls": ["https://pirateiro.io/search?query=inception&page=1"]
+  },
+  "redetorrent": {
+    "query": "inception",
+    "siteUrl": "https://redetorrent.com",
+    "urls": ["https://redetorrent.com/index.php?s="]
+  },
+  "rockbox": {
+    "query": "ubuntu",
+    "siteUrl": "https://rawkbawx.rocks/",
+    "urls": [
+      "https://rawkbawx.rocks/torrents.php?active=0&search=ubuntu&options=0&order=data&page=0"
+    ]
+  },
+  "rutor": {
+    "query": "inception",
+    "siteUrl": "https://rutor.info/",
+    "urls": [
+      "https://rutor.info/search/0/0/000/0/inception",
+      "https://rutor.info/%20is%20blocked.%20Try%20another%20proxy.",
+      "https://rutor.info/%20is%20not%20responding%20(timed%20out).",
+      "https://rutor.info/%20is%20not%20response!%20Maybe%20it%20is%20blocked.",
+      "https://rutor.info/error"
+    ]
+  },
+  "sktorrent": {
+    "query": "inception",
+    "siteUrl": "https://sktorrent.eu",
+    "urls": []
+  },
+  "smallgames": {
+    "query": "minecraft",
+    "siteUrl": "http://small-games.info/",
+    "urls": [
+      "https://small-games.info/?go=search&go=search&search_text=minecraft",
+      "https://small-games.info/?go=search&go=search&search_text=",
+      "http://small-games.info/getTorrent.php?direct=1&gid=",
+      "http://small-games.info/?go=game&c=61&i="
+    ]
+  },
+  "snowfl": {
+    "query": "inception",
+    "siteUrl": "https://snowfl.com/",
+    "urls": []
+  },
+  "solidtorrents": {
+    "query": "ubuntu",
+    "siteUrl": "https://solidtorrents.to",
+    "urls": ["https://solidtorrents.to/search?q=ubuntu&page=1"]
+  },
+  "subsplease": {
+    "query": "one piece",
+    "siteUrl": "https://subsplease.org/",
+    "urls": ["https://subsplease.org/api/?f=search&tz=$&s=one%20piece&p=1"]
+  },
+  "sukebeisi": {
+    "query": "one piece",
+    "siteUrl": "https://sukebei.nyaa.si",
+    "urls": ["https://sukebei.nyaa.si/?f=0&s=seeders&o=desc&c=0_0&q=one%20piece"]
+  },
+  "thepiratebay": {
+    "query": "inception",
+    "siteUrl": "https://thepiratebay.org/",
+    "urls": []
+  },
+  "therarbg": {
+    "query": "inception",
+    "siteUrl": "https://therarbg.com",
+    "urls": ["https://therarbg.com/get-posts/keywords:inception"]
+  },
+  "tokyotoshokan": {
+    "query": "one piece",
+    "siteUrl": "http://tokyotosho.info",
+    "urls": [
+      "http://tokyotosho.info/search.php?terms=one%20piece&type=0&size_min=&size_max=&username="
+    ]
+  },
+  "tomadivx": {
+    "query": "inception",
+    "siteUrl": "https://tomadivx.net/",
+    "urls": ["https://tomadivx.net//buscar/inception/page/1"]
+  },
+  "torrent9": {
+    "query": "inception",
+    "siteUrl": "http://torent9.fr",
+    "urls": ["https://www.torrent9.fm", "http://torent9.fr/search_torrent/inception/page-1"]
+  },
+  "torrentdownload": {
+    "query": "inception",
+    "siteUrl": "https://www.torrentdownload.info/",
+    "urls": ["https://www.torrentdownload.info/search?q=inception&p=1"]
+  },
+  "torrentdownloads": {
+    "query": "inception",
+    "siteUrl": "https://torrentdownloads.pro",
+    "urls": ["https://torrentdownloads.pro/search/?new=1&s_cat=all&search=inception&page=1"]
+  },
+  "torrentgalaxy": {
+    "query": "inception",
+    "siteUrl": "https://torrentgalaxy.to",
+    "urls": [
+      "https://torrentgalaxy.to/torrents.php?search=inception",
+      "https://torrentgalaxy.to/&page="
+    ]
+  },
+  "traht": {
+    "query": "inception",
+    "siteUrl": "https://traht.org",
+    "urls": ["https://traht.org/browse.php?search=inception&page=1"]
+  },
+  "uniondht": {
+    "query": "ubuntu",
+    "siteUrl": "http://uniondht.org",
+    "urls": ["http://uniondht.org/tracker.php?nm=ubuntu&start=0"]
+  },
+  "xxxclubto": {
+    "query": "test",
+    "siteUrl": "https://xxxclub.to",
+    "urls": ["https://xxxclub.to/torrents/search//test?page=1&sort=seeders&order=asc"]
+  },
+  "yggtracker": {
+    "query": "ubuntu",
+    "siteUrl": "https://github.com/YGGverse/YGGtracker",
+    "urls": [
+      "https://raw.githubusercontent.com/YGGverse/qbittorrent-yggtracker-search-plugin/main/nodes.json"
+    ]
+  },
+  "yourbittorrent": {
+    "query": "inception",
+    "siteUrl": "https://yourbittorrent.com/",
+    "urls": ["https://yourbittorrent.com/?q=inception"]
+  },
+  "yts": {
+    "query": "inception",
+    "siteUrl": "https://yts.bz/",
+    "urls": ["https://movies-api.accel.li/api/v2/list_movies.json?"]
+  }
+}

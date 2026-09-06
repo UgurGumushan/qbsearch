@@ -1,5 +1,6 @@
 import { loadLiveCatalog, type LiveCatalogEntry } from "./live/catalog";
 import { parseLiveArguments, type LiveArguments } from "./live/cli";
+import { writeProbeFixtures } from "./live/probe_fixtures";
 import {
   logicalCpuCount,
   mapConcurrent,
@@ -93,6 +94,16 @@ export async function runLive(rawArgs: string[]): Promise<number> {
   } catch (error) {
     console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
     return 2;
+  }
+
+  if (args.recordProbes) {
+    try {
+      await writeProbeFixtures(args.query);
+    } catch (error) {
+      console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+      return 2;
+    }
+    return 0;
   }
 
   let selected: LiveCatalogEntry[];

@@ -49,6 +49,7 @@ bun run test
 bun run test -- --watch
 bun run test -- --live --plugin yts
 bun run test -- --live --plugin yts --require-results
+bun run test -- --live --record-probes
 ```
 
 ## `bun run release`

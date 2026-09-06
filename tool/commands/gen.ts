@@ -6,19 +6,21 @@ import { makeIcons } from "../icons/command";
 import { CLI_DOCS_PATH, ROOT } from "../core/repo";
 import { renderCliDocs } from "../cli-docs";
 import { checkPluginSources, writePluginSources } from "../generators/plugin-sources";
+import { checkProbeFixtures, writeProbeFixtures } from "../../test/live/probe_fixtures";
 
 /** gen --write regenerates; --check audits without editing. */
 export async function runGenCommand(rawArgs: string[]): Promise<number> {
   if (rawArgs.includes("--help") || rawArgs.includes("-h")) {
-    console.log(`Usage: bun run gen [-- --check|--write] [--only catalog|harden|icons|cli|sources]
+    console.log(`Usage: bun run gen [-- --check|--write] [--only catalog|harden|icons|cli|sources|probes]
 
 Modes:
   --check  Audit generated files without editing (default in check --fast)
-  --write  Regenerate catalog docs, plugin preambles, icons, CLI docs
+  --write  Regenerate catalog docs, plugin preambles, icons, CLI docs, probe fixtures
 
 Examples:
   bun run gen -- --check
   bun run gen -- --write --only catalog
+  bun run gen -- --write --only probes
 `);
     return 0;
   }
@@ -26,13 +28,30 @@ Examples:
   const only = rawArgs.includes("--only") ? onlyArg : null;
   if (
     rawArgs.includes("--only") &&
-    !["catalog", "harden", "icons", "cli", "sources"].includes(only ?? "")
+    !["catalog", "harden", "icons", "cli", "sources", "probes"].includes(only ?? "")
   ) {
     console.error(`unrecognized --only target: ${only ?? "(missing)"}`);
     return 2;
   }
   const write = rawArgs.includes("--write");
   const mode = write ? "--write" : "--check";
+
+  // Probe fixtures are a single deterministic generated file.
+  if (only === "probes") {
+    if (!write) {
+      const drifts = await checkProbeFixtures();
+      if (drifts.length > 0) {
+        for (const drift of drifts) {
+          console.error(`ERROR: probe fixture drift: ${drift}`);
+        }
+        console.error("run `bun run gen -- --write --only probes` to re-record");
+        return 1;
+      }
+      return 0;
+    }
+    await writeProbeFixtures(null);
+    return 0;
+  }
 
   // CLI docs are cheap and always consistent with the router table.
   if (only === "cli") {
@@ -57,6 +76,7 @@ Examples:
   const runHarden = only === null || only === "harden";
   const runIcons = only === "icons";
   const runSources = only === null || only === "sources";
+  const runProbes = only === null || only === "probes";
 
   if (runCatalog) {
     if (write) {
@@ -89,6 +109,20 @@ Examples:
       const drift = await checkPluginSources();
       if (drift !== null) {
         console.error("ERROR: " + drift);
+        return 1;
+      }
+    }
+  }
+  if (runProbes) {
+    if (write) {
+      await writeProbeFixtures(null);
+    } else {
+      const drifts = await checkProbeFixtures();
+      if (drifts.length > 0) {
+        for (const drift of drifts) {
+          console.error(`ERROR: probe fixture drift: ${drift}`);
+        }
+        console.error("run `bun run gen -- --write --only probes` to re-record");
         return 1;
       }
     }

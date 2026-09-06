@@ -21,6 +21,7 @@ test("live coordinator parser keeps repeated plugin filters and defaults", () =>
     timeout: 30,
     skipSafety: false,
     installOnly: false,
+    recordProbes: false,
     query: "ubuntu linux",
     category: "all",
     contentCategory: "all",

@@ -2,6 +2,7 @@ export interface LiveArguments {
   timeout: number;
   skipSafety: boolean;
   installOnly: boolean;
+  recordProbes: boolean;
   query: string | null;
   category: string;
   contentCategory: string;
@@ -19,12 +20,13 @@ const VALUE_OPTIONS = new Set([
 ]);
 
 export function liveUsage(): string {
-  return `Usage: bun run test:live[:watch] -- [options]
+  return `Usage: bun run test -- --live [options]
 
 Options:
   --timeout SECONDS       Per-plugin process timeout (default: 120)
   --skip-safety           Skip the local safety helper suite
   --install-only          Validate metadata and search contracts without requests
+  --record-probes         Record probe-URL fixtures offline instead of probing (no requests)
   --query QUERY           Use one query for every plugin
   --category CATEGORY     qBittorrent category (default: all)
   --content-category CAT  Limit tests to a catalog content category (default: all)
@@ -47,6 +49,7 @@ export function parseLiveArguments(rawArgs: string[]): LiveArguments | null {
     timeout: 120,
     skipSafety: false,
     installOnly: false,
+    recordProbes: false,
     query: null,
     category: "all",
     contentCategory: "all",
@@ -72,6 +75,10 @@ export function parseLiveArguments(rawArgs: string[]): LiveArguments | null {
     }
     if (argument === "--allow-empty") {
       args.allowEmpty = true;
+      continue;
+    }
+    if (argument === "--record-probes") {
+      args.recordProbes = true;
       continue;
     }
     if (argument === "--require-results") {
