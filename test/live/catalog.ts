@@ -1,4 +1,4 @@
-import { CATALOG_PATH } from "../support/paths";
+import { CATALOG_PATH } from "../../tool/core/repo";
 import { catalogEntries, loadCatalog } from "../../tool/catalog";
 
 export interface LiveCatalogEntry {

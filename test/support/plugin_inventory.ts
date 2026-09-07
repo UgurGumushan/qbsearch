@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { catalogEntries, discoverPlugins, loadCatalog } from "../../tool/catalog/index";
-import { CATALOG_PATH } from "./paths";
+import { CATALOG_PATH } from "../../tool/core/repo";
 
 /** Return plugin files only when the generated catalog and disk agree. */
 export async function discoverCatalogPlugins(): Promise<string[]> {

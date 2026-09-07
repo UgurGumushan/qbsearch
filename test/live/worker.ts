@@ -1,5 +1,5 @@
 import { basename, resolve } from "node:path";
-import { ROOT } from "../support/paths";
+import { ROOT } from "../../tool/core/repo";
 import { countResultMarkers, fetchTextWithRetry } from "./http";
 import { inspectLivePlugin } from "./plugin_contract";
 import { buildProbeUrl } from "./plugin_source";

@@ -13,7 +13,7 @@ import { validateCatalog } from "../tool/checks/catalog_validation";
 import { auditPlugin } from "../tool/checks/harden/audit_plugin";
 import { runSafetySuite } from "./safety";
 import { PLUGIN_SOURCES } from "./plugin_sources";
-import { assertPassed, runPython } from "./support/process";
+import { assertPassed, runPythonCaptured } from "../tool/core/run";
 
 setDefaultTimeout(120_000);
 
@@ -52,8 +52,11 @@ test("standalone plugin safety preambles are current", async () => {
 });
 
 test("plugins compile and remain installable", async () => {
-  assertPassed("Python compilation", await runPython(["-m", "compileall", "-q", "plugins"]));
-  const result = await runPython(["test/engines.py", "plugins"]);
+  assertPassed(
+    "Python compilation",
+    await runPythonCaptured(["-m", "compileall", "-q", "plugins"]),
+  );
+  const result = await runPythonCaptured(["test/engines.py", "plugins"]);
   assertPassed("plugin installability", result);
   expect(result.output).toContain("INSTALLABLE");
 });

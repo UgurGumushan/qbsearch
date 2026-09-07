@@ -1,7 +1,10 @@
 import { availableParallelism } from "node:os";
 import { basename, resolve } from "node:path";
-import { LIVE_SAFETY_SUITE, LIVE_WORKER, PLUGIN_DIR } from "../support/paths";
-import { runCommand, type TimedCommandResult } from "../support/process";
+import { PLUGIN_DIR, TEST_DIR } from "../../tool/core/repo";
+import { runCapturedCommand, type TimedCommandResult } from "../../tool/core/run";
+
+const LIVE_WORKER = resolve(TEST_DIR, "live_plugin.ts");
+const LIVE_SAFETY_SUITE = resolve(TEST_DIR, "live_safety.ts");
 
 export interface LiveTestResult {
   name: string;
@@ -34,7 +37,7 @@ export async function runBunScript(
   args: string[],
   timeout: number,
 ): Promise<LiveTestResult> {
-  const result = await runCommand([process.execPath, path, ...args], {
+  const result = await runCapturedCommand([process.execPath, path, ...args], {
     timeoutSeconds: timeout,
   });
   return resultFromCommand("TypeScript live helpers", result);
@@ -60,7 +63,7 @@ export async function runPlugin(
 
   const result = resultFromCommand(
     basename(path, ".py"),
-    await runCommand(command, { timeoutSeconds: timeout }),
+    await runCapturedCommand(command, { timeoutSeconds: timeout }),
   );
   result.detail = result.output.split(/\r?\n/).find((line) => line.startsWith("LIVE ")) ?? "";
   return result;
