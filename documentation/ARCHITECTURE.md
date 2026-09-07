@@ -19,7 +19,7 @@ and docs cannot drift apart.
 - `tool/generators/` — pure renderers (watch manifest, CLI docs).
 
 Domain workers live in matching directories (`tool/catalog/`, `tool/harden/`,
-`tool/icons/`, `tool/upstream/`, `tool/checks/`, `tool/release/`) and share
+`tool/icons/`, `tool/checks/`, `tool/release/`) and share
 `tool/core/`. New shared code goes in `tool/core/`.
 
 ## Check modes

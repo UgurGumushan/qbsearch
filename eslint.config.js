@@ -10,7 +10,6 @@ export default tseslint.config(
   {
     ignores: [
       "node_modules/**",
-      "external/**",
       "catalog/**",
       "documentation/PLUGINS.md",
       "working/**",

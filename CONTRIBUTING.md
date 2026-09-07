@@ -22,10 +22,8 @@ because they must import qBittorrent's Python modules and plugins.
 The collection installers live in `install/`. Keep `macos.sh` and `linux.sh`
 POSIX-shell-only and `windows.ps1` PowerShell-only: they must install the full
 collection without Python, Bun, command-line options, or user-specific
-configuration. Existing support JSON files must never be overwritten. The
-maintainer importer writes raw upstream snapshots to `external/upstream/` so it
-cannot overwrite the hardened files users install. Review upstream changes and
-port them into `plugins/` deliberately.
+configuration. Existing support JSON files must never be overwritten. Review upstream changes
+and port them into `plugins/` deliberately.
 
 ## Change an existing plugin
 

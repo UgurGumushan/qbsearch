@@ -16,7 +16,6 @@ plugins/*_temp.*
 
 # macOS
 .DS_Store
-/external
 ATTRIBUTIONS_EMAILS.txt
 node_modules/
 

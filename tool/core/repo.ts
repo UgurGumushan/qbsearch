@@ -11,7 +11,6 @@ export const CLI_DOCS_PATH = resolve(DOCUMENTATION_DIR, "CLI.md");
 export const INSTALL_DIR = resolve(ROOT, "install");
 export const SCREENSHOT_PATH = resolve(ROOT, "images", "screenshot.png");
 export const WORKING_DIR = resolve(ROOT, "working");
-export const UPSTREAM_DIR = resolve(ROOT, "external", "upstream");
 export const TEST_DIR = resolve(ROOT, "test");
 export const FIXTURES_DIR = resolve(TEST_DIR, "fixtures");
 export const PLUGIN_SOURCES_PATH = resolve(TEST_DIR, "plugin_sources.ts");
