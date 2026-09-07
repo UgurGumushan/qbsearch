@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.1.6
+
+- Triaged the weekly live sweep: retired goggames, marked three dead sites as
+  unavailable until they return, and moved mikanani to its new domain.
+- Added offline probe-URL fixtures (`test/live/fixtures/probe-urls.json`) with
+  drift detection, so live probe targets no longer depend on a network pass.
+- Reduced the command surface to six commands (`setup`, `check`, `gen`,
+  `plugin`, `test`, `release`); legacy aliases are rejected.
+- Moved all repository workers into `tool/` behind a single shared core and
+  wire `gen -- --check` into `check -- --fast` so the pre-commit hook audits
+  generated files as documented.
+- Removed deprecated `test/support/` shims and the unused upstream provenance
+  importer; provenance lives in catalog `source_url` fields.
 
 ## 0.1.5
 
