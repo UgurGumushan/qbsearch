@@ -48,6 +48,13 @@ preamble there (or replaces it in place for existing engines).
 `catalog/plugins.json` is the metadata source of truth; `PLUGINS.md` and
 `test/plugin_sources.ts` are generated from disk + catalog.
 
+The plugin quality contract is enforced in two layers. The generated runtime
+keeps each search bounded by a fresh deadline, retry budget, worker limit, and
+response-size limit. The repository audit checks every engine for unbounded
+network, pagination, detail, or concurrency work, unsafe TLS overrides, and
+transport paths that bypass explicit timeouts. These checks must remain
+stdlib-only in the generated engine; plugins must not import repository code.
+
 ## Live tests
 
 `test -- --live` probes real sites through isolated Bun workers using each

@@ -20,10 +20,10 @@ try:
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
     from collections.abc import Iterable as _QBTIterable
+    from concurrent.futures import FIRST_COMPLETED as _qbt_FIRST_COMPLETED
     from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
-    from concurrent.futures import TimeoutError as _qbt_FuturesTimeoutError
-    from concurrent.futures import as_completed as _qbt_as_completed
+    from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
     from types import TracebackType as _QBTTracebackType
     from typing import Callable as _QBTCallable
@@ -41,6 +41,7 @@ MAX_WORKERS = 4
 SEARCH_DEADLINE = 60.0
 MAX_PAGES = 30
 MAX_DETAILS = 100
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 _qbt_socket.setdefaulttimeout(HTTP_TIMEOUT)
 _QBT_RETRYABLE_HTTP_STATUS = frozenset((408, 425, 429, 500, 502, 503, 504))
@@ -88,11 +89,21 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
-    return _qbt_get_deadline()
+    global _qbt_search_deadline
+    _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
+    return _qbt_search_deadline
 
 
-def _qbt_sleep(attempt: int) -> None:
-    _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
+def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    if deadline is None:
+        deadline = _qbt_get_deadline()
+    remaining = deadline - _qbt_time.monotonic()
+    if remaining <= 0:
+        return False
+    delay = min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0, remaining)
+    if delay > 0:
+        _qbt_time.sleep(delay)
+    return _qbt_time.monotonic() < deadline
 
 
 class _QBTEmptyResponse:
@@ -143,6 +154,58 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
     return _qbt_cast(_QBTResponseContext, _qbt_cast(object, _QBTEmptyResponse(url)))
 
 
+def _qbt_response_limit(limit: object = None) -> int:
+    value = MAX_RESPONSE_BYTES if limit is None else limit
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return max(0, int(MAX_RESPONSE_BYTES))
+
+
+def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
+    """Read at most the configured response limit from an HTTP response."""
+    return response.read(_qbt_response_limit(limit))
+
+
+class _QBTBoundedResponse:
+    """Response proxy that bounds the existing no-argument read() call sites."""
+
+    def __init__(self, response: _QBTResponse) -> None:
+        self._qbt_response = response
+
+    def __enter__(self) -> "_QBTBoundedResponse":
+        self._qbt_response = self._qbt_response.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: _QBTTracebackType | None,
+    ) -> bool:
+        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+
+    def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
+        if size is None:
+            return _qbt_read_response(self._qbt_response)
+        try:
+            requested = int(size)
+        except (TypeError, ValueError):
+            return _qbt_read_response(self._qbt_response)
+        if requested < 0:
+            return _qbt_read_response(self._qbt_response)
+        return _qbt_read_response(
+            self._qbt_response,
+            min(requested, _qbt_response_limit()),
+        )
+
+    def close(self) -> None:
+        self._qbt_response.close()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._qbt_response, name)
+
+
 class _QBTTransientHTTPError(Exception):
     pass
 
@@ -172,8 +235,8 @@ def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
                 pass
         except Exception:
             pass
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return ""
     return ""
 
 
@@ -206,7 +269,10 @@ def _qbt_safe_urlopen(
             if status >= 400:
                 response.close()
                 return _qbt_empty_response(url)
-            return response
+            return _qbt_cast(
+                _QBTResponseContext,
+                _qbt_cast(object, _QBTBoundedResponse(response)),
+            )
         except _qbt_urllib_error.HTTPError as error:
             if error.code not in _QBT_RETRYABLE_HTTP_STATUS:
                 try:
@@ -231,8 +297,8 @@ def _qbt_safe_urlopen(
                 except Exception:
                     pass
             return _qbt_empty_response(url)
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return _qbt_empty_response(url)
     return _qbt_empty_response(url)
 
 
@@ -263,30 +329,60 @@ def _qbt_run_parallel(
     deadline: float | None = None,
 ) -> list[_QBTJobResult]:
     """Run bounded worker jobs, preserving completed work after failures."""
-    jobs = list(jobs)
-    if not jobs:
-        return []
     if deadline is None:
         deadline = _qbt_get_deadline()
-    executor = _QBTThreadPoolExecutor(max_workers=MAX_WORKERS)
-    futures: list[_QBTFuture[_QBTJobResult]] = []
-    for job in jobs:
-        if isinstance(job, tuple):
-            futures.append(executor.submit(worker, *job))
-        else:
-            futures.append(executor.submit(worker, job))
+    if deadline - _qbt_time.monotonic() <= 0:
+        return []
+    worker_limit = max(1, int(MAX_WORKERS))
+    job_iterator = iter(jobs)
+    initial_jobs: list[object] = []
+    for _ in range(worker_limit):
+        try:
+            initial_jobs.append(next(job_iterator))
+        except StopIteration:
+            break
+    if not initial_jobs or deadline - _qbt_time.monotonic() <= 0:
+        return []
+    executor = _QBTThreadPoolExecutor(max_workers=len(initial_jobs))
+    pending: set[_QBTFuture[_QBTJobResult]] = set()
     results: list[_QBTJobResult] = []
     try:
-        remaining = max(0.0, deadline - _qbt_time.monotonic())
-        for future in _qbt_as_completed(futures, timeout=remaining):
-            try:
-                results.append(future.result())
-            except Exception:
-                pass
-    except _qbt_FuturesTimeoutError:
-        for future in futures:
-            _ = future.cancel()
+        for job in initial_jobs:
+            if deadline - _qbt_time.monotonic() <= 0:
+                break
+            if isinstance(job, tuple):
+                pending.add(executor.submit(worker, *job))
+            else:
+                pending.add(executor.submit(worker, job))
+        while pending:
+            remaining = deadline - _qbt_time.monotonic()
+            if remaining <= 0:
+                break
+            done, pending = _qbt_wait(
+                pending,
+                timeout=remaining,
+                return_when=_qbt_FIRST_COMPLETED
+            )
+            if not done:
+                break
+            for future in done:
+                try:
+                    results.append(future.result())
+                except Exception:
+                    pass
+                if deadline - _qbt_time.monotonic() <= 0:
+                    continue
+                try:
+                    job = next(job_iterator)
+                except StopIteration:
+                    continue
+                if isinstance(job, tuple):
+                    pending.add(executor.submit(worker, *job))
+                else:
+                    pending.add(executor.submit(worker, job))
     finally:
+        for future in pending:
+            _ = future.cancel()
         try:
             _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:
@@ -298,6 +394,7 @@ __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
     "_qbt_run_parallel",
+    "_qbt_read_response",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -317,33 +414,30 @@ class ali213:
     result_page_match: re.Pattern[str] = re.compile(
         '<p class="downAddress"><a href="http://down.ali213.net/pcgame/(.*?)" target="_blank">.*?<em>(.{2,7})</em>'
     )
+    soft50_url_match: ClassVar[re.Pattern[str]] = re.compile(r'var downUrl ="/(.*?)"')
+    soft5566_url_match: ClassVar[re.Pattern[str]] = re.compile(
+        r'class="result_js" href="(.*?)" target="_blank">'
+    )
 
     supported_categories: ClassVar[dict[str, bool]] = {"all": True, "games": True, "software": True}
 
     first_dl_site: str = "http://www.soft50.com/"
     final_dl_site: str = "http://btfile.soft5566.com/y/"
+    torrent_url_match: ClassVar[re.Pattern[str]] = re.compile(
+        'id="btbtn" href="http://btfile\\.soft5566\\.com/y/(.*?)" target="_blank"'
+    )
 
     def handle_gamepage(self, size_gamepage: tuple[str, str]) -> None:
         data = retrieve_url(self.url + "pcgame/" + size_gamepage[0])
-        down_url_match: re.Pattern[str] = re.compile('var downUrl ="/(.*?)"')
-        url_key_soft50 = cast(list[str], down_url_match.findall(data))
+        url_key_soft50 = cast(list[str], self.soft50_url_match.findall(data))
         if url_key_soft50:
-            data = ""
-            tries = 0
-            while data == "" and tries < MAX_ATTEMPTS:
-                _qbt_sleep(tries)
-                data = retrieve_url(self.first_dl_site + url_key_soft50[0])
-                tries += 1
+            data = retrieve_url(self.first_dl_site + url_key_soft50[0])
 
-            down_url_match = re.compile('class="result_js" href="(.*?)" target="_blank">')
-            url_soft5566 = cast(list[str], down_url_match.findall(data))
+            url_soft5566 = cast(list[str], self.soft5566_url_match.findall(data))
             if url_soft5566:
                 data = retrieve_url(url_soft5566[0])
                 desc_site = url_soft5566[0]
-                down_url_match = re.compile(
-                    'id="btbtn" href="' + self.final_dl_site + '(.*?)" target="_blank"'
-                )
-                url_torrent = cast(list[str], down_url_match.findall(data))
+                url_torrent = cast(list[str], self.torrent_url_match.findall(data))
                 if url_torrent:
                     result: SearchResults = {
                         "name": url_torrent[0],
@@ -365,7 +459,15 @@ class ali213:
         if found_games:
             # handling each gamepage in parallel, to not waste time on waiting for requests
             # for 10 games this speeds up from 37s to 6s run time
-            jobs = [(game,) for game in found_games[: min(self.games_to_parse, MAX_DETAILS)]]
+            jobs: list[tuple[tuple[str, str]]] = []
+            seen_gamepages: set[str] = set()
+            for game in found_games:
+                if game[0] in seen_gamepages:
+                    continue
+                seen_gamepages.add(game[0])
+                jobs.append((game,))
+                if len(jobs) >= min(self.games_to_parse, MAX_DETAILS):
+                    break
             _ = _qbt_run_parallel(self.handle_gamepage, jobs, _qbt_new_deadline())
 
 

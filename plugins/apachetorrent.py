@@ -19,6 +19,11 @@ from urllib.parse import quote_plus, unquote, urljoin
 from helpers import retrieve_url as _qbt_helper_retrieve_url
 from novaprinter import SearchResults, prettyPrinter
 
+_WHITESPACE_RE = re.compile(r"\s+")
+_DOWNLOAD_SUFFIX_RE = re.compile(r"\s*Download\s*$", re.IGNORECASE)
+_BAIXAR_PREFIX_RE = re.compile(r"^BAIXAR\s+", re.IGNORECASE)
+_MAGNET_DN_RE = re.compile(r"[?&]dn=([^&]+)")
+
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
 # Slim stdlib-only helpers for standalone engines (rendered by `bun run gen`).
 try:
@@ -26,10 +31,10 @@ try:
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
     from collections.abc import Iterable as _QBTIterable
+    from concurrent.futures import FIRST_COMPLETED as _qbt_FIRST_COMPLETED
     from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
-    from concurrent.futures import TimeoutError as _qbt_FuturesTimeoutError
-    from concurrent.futures import as_completed as _qbt_as_completed
+    from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
     from types import TracebackType as _QBTTracebackType
     from typing import TYPE_CHECKING
@@ -56,6 +61,7 @@ MAX_WORKERS = 4
 SEARCH_DEADLINE = 60.0
 MAX_PAGES = 30
 MAX_DETAILS = 100
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 _qbt_socket.setdefaulttimeout(HTTP_TIMEOUT)
 _QBT_RETRYABLE_HTTP_STATUS = frozenset((408, 425, 429, 500, 502, 503, 504))
@@ -103,11 +109,21 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
-    return _qbt_get_deadline()
+    global _qbt_search_deadline
+    _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
+    return _qbt_search_deadline
 
 
-def _qbt_sleep(attempt: int) -> None:
-    _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
+def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    if deadline is None:
+        deadline = _qbt_get_deadline()
+    remaining = deadline - _qbt_time.monotonic()
+    if remaining <= 0:
+        return False
+    delay = min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0, remaining)
+    if delay > 0:
+        _qbt_time.sleep(delay)
+    return _qbt_time.monotonic() < deadline
 
 
 class _QBTEmptyResponse:
@@ -158,6 +174,58 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
     return _qbt_cast(_QBTResponseContext, _qbt_cast(object, _QBTEmptyResponse(url)))
 
 
+def _qbt_response_limit(limit: object = None) -> int:
+    value = MAX_RESPONSE_BYTES if limit is None else limit
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return max(0, int(MAX_RESPONSE_BYTES))
+
+
+def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
+    """Read at most the configured response limit from an HTTP response."""
+    return response.read(_qbt_response_limit(limit))
+
+
+class _QBTBoundedResponse:
+    """Response proxy that bounds the existing no-argument read() call sites."""
+
+    def __init__(self, response: _QBTResponse) -> None:
+        self._qbt_response = response
+
+    def __enter__(self) -> "_QBTBoundedResponse":
+        self._qbt_response = self._qbt_response.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: _QBTTracebackType | None,
+    ) -> bool:
+        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+
+    def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
+        if size is None:
+            return _qbt_read_response(self._qbt_response)
+        try:
+            requested = int(size)
+        except (TypeError, ValueError):
+            return _qbt_read_response(self._qbt_response)
+        if requested < 0:
+            return _qbt_read_response(self._qbt_response)
+        return _qbt_read_response(
+            self._qbt_response,
+            min(requested, _qbt_response_limit()),
+        )
+
+    def close(self) -> None:
+        self._qbt_response.close()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._qbt_response, name)
+
+
 class _QBTTransientHTTPError(Exception):
     pass
 
@@ -187,8 +255,8 @@ def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
                 pass
         except Exception:
             pass
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return ""
     return ""
 
 
@@ -221,7 +289,10 @@ def _qbt_safe_urlopen(
             if status >= 400:
                 response.close()
                 return _qbt_empty_response(url)
-            return response
+            return _qbt_cast(
+                _QBTResponseContext,
+                _qbt_cast(object, _QBTBoundedResponse(response)),
+            )
         except _qbt_urllib_error.HTTPError as error:
             if error.code not in _QBT_RETRYABLE_HTTP_STATUS:
                 try:
@@ -246,8 +317,8 @@ def _qbt_safe_urlopen(
                 except Exception:
                     pass
             return _qbt_empty_response(url)
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return _qbt_empty_response(url)
     return _qbt_empty_response(url)
 
 
@@ -278,30 +349,60 @@ def _qbt_run_parallel(
     deadline: float | None = None,
 ) -> list[_QBTJobResult]:
     """Run bounded worker jobs, preserving completed work after failures."""
-    jobs = list(jobs)
-    if not jobs:
-        return []
     if deadline is None:
         deadline = _qbt_get_deadline()
-    executor = _QBTThreadPoolExecutor(max_workers=MAX_WORKERS)
-    futures: list[_QBTFuture[_QBTJobResult]] = []
-    for job in jobs:
-        if isinstance(job, tuple):
-            futures.append(executor.submit(worker, *job))
-        else:
-            futures.append(executor.submit(worker, job))
+    if deadline - _qbt_time.monotonic() <= 0:
+        return []
+    worker_limit = max(1, int(MAX_WORKERS))
+    job_iterator = iter(jobs)
+    initial_jobs: list[object] = []
+    for _ in range(worker_limit):
+        try:
+            initial_jobs.append(next(job_iterator))
+        except StopIteration:
+            break
+    if not initial_jobs or deadline - _qbt_time.monotonic() <= 0:
+        return []
+    executor = _QBTThreadPoolExecutor(max_workers=len(initial_jobs))
+    pending: set[_QBTFuture[_QBTJobResult]] = set()
     results: list[_QBTJobResult] = []
     try:
-        remaining = max(0.0, deadline - _qbt_time.monotonic())
-        for future in _qbt_as_completed(futures, timeout=remaining):
-            try:
-                results.append(future.result())
-            except Exception:
-                pass
-    except _qbt_FuturesTimeoutError:
-        for future in futures:
-            _ = future.cancel()
+        for job in initial_jobs:
+            if deadline - _qbt_time.monotonic() <= 0:
+                break
+            if isinstance(job, tuple):
+                pending.add(executor.submit(worker, *job))
+            else:
+                pending.add(executor.submit(worker, job))
+        while pending:
+            remaining = deadline - _qbt_time.monotonic()
+            if remaining <= 0:
+                break
+            done, pending = _qbt_wait(
+                pending,
+                timeout=remaining,
+                return_when=_qbt_FIRST_COMPLETED
+            )
+            if not done:
+                break
+            for future in done:
+                try:
+                    results.append(future.result())
+                except Exception:
+                    pass
+                if deadline - _qbt_time.monotonic() <= 0:
+                    continue
+                try:
+                    job = next(job_iterator)
+                except StopIteration:
+                    continue
+                if isinstance(job, tuple):
+                    pending.add(executor.submit(worker, *job))
+                else:
+                    pending.add(executor.submit(worker, job))
     finally:
+        for future in pending:
+            _ = future.cancel()
         try:
             _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:
@@ -313,6 +414,7 @@ __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
     "_qbt_run_parallel",
+    "_qbt_read_response",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -427,19 +529,20 @@ class apachetorrent:
 
         def _clean_text(self, text: str) -> str:
             text = html.unescape(text)
-            text = re.sub(r"\s+", " ", text)
+            text = _WHITESPACE_RE.sub(" ", text)
             return text.strip()
 
         def _clean_title(self, title: str) -> str:
             title = self._clean_text(title)
-            title = re.sub(r"\s*Download\s*$", "", title, flags=re.IGNORECASE)
-            title = re.sub(r"\s+", " ", title)
+            title = _DOWNLOAD_SUFFIX_RE.sub("", title)
+            title = _WHITESPACE_RE.sub(" ", title)
             return title.strip()
 
     class MagnetLinksParser(HTMLParser):
         def __init__(self) -> None:
             HTMLParser.__init__(self)
             self.magnets: list[dict[str, str]] = []
+            self.seen_magnets: set[str] = set()
 
             self.inside_download_area: bool = False
             self.current_context: str = ""
@@ -464,7 +567,8 @@ class apachetorrent:
                 href = params.get("href", "")
                 title = params.get("title", "")
 
-                if href.startswith("magnet:?"):
+                if href.startswith("magnet:?") and href not in self.seen_magnets:
+                    self.seen_magnets.add(href)
                     self.magnets.append(
                         {
                             "magnet": html.unescape(href),
@@ -501,13 +605,13 @@ class apachetorrent:
 
         def _clean_text(self, text: str) -> str:
             text = html.unescape(text)
-            text = re.sub(r"\s+", " ", text)
+            text = _WHITESPACE_RE.sub(" ", text)
             return text.strip()
 
         def _clean_title(self, title: str) -> str:
             title = self._clean_text(title)
-            title = re.sub(r"^BAIXAR\s+", "", title, flags=re.IGNORECASE)
-            title = re.sub(r"\s+", " ", title)
+            title = _BAIXAR_PREFIX_RE.sub("", title)
+            title = _WHITESPACE_RE.sub(" ", title)
             return title.strip()
 
     def search(self, what: str, cat: str = "all") -> None:
@@ -523,8 +627,21 @@ class apachetorrent:
         search_parser.feed(search_html)
         search_parser.close()
 
-        for result in search_parser.results:
-            self._print_result_magnets(result)
+        jobs: list[tuple[int, dict[str, str]]] = []
+        seen_desc_links: set[str] = set()
+        for index, result in enumerate(search_parser.results):
+            desc_link = result.get("desc_link", "")
+            if not desc_link or desc_link in seen_desc_links:
+                continue
+            seen_desc_links.add(desc_link)
+            jobs.append((index, result))
+            if len(jobs) >= MAX_DETAILS:
+                break
+
+        resolved = _qbt_run_parallel(self._fetch_result_magnets, jobs, _qbt_new_deadline())
+        for _, torrent_items in sorted(resolved, key=lambda item: item[0]):
+            for torrent_info in torrent_items:
+                _qbt_prettyPrinter(torrent_info)
 
     def _build_search_url(self, what: str, cat: str) -> str:
         query = what.replace("%20", "+")
@@ -534,18 +651,21 @@ class apachetorrent:
 
         return self.url + "/index.php?s=" + quote_plus(query).replace("%2B", "+")
 
-    def _print_result_magnets(self, result: dict[str, str]) -> None:
+    def _fetch_result_magnets(
+        self, index: int, result: dict[str, str]
+    ) -> tuple[int, list[SearchResults]]:
         desc_link = result.get("desc_link", "")
         base_title = result.get("title", "").strip()
+        torrent_items: list[SearchResults] = []
 
         if not desc_link:
-            return
+            return index, torrent_items
 
         try:
             details_html = retrieve_url(desc_link)
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(f"Apache Torrent details request failed: {exc}", file=sys.stderr)
-            return
+            return index, torrent_items
 
         magnet_parser = self.MagnetLinksParser()
         magnet_parser.feed(details_html)
@@ -571,7 +691,9 @@ class apachetorrent:
                 "pub_date": -1,
             }
 
-            _qbt_prettyPrinter(torrent_info)
+            torrent_items.append(torrent_info)
+
+        return index, torrent_items
 
     def _build_result_name(self, base_title: str, magnet_title: str, magnet: str) -> str:
         if magnet_title:
@@ -585,13 +707,13 @@ class apachetorrent:
         return base_title
 
     def _extract_magnet_dn(self, magnet: str) -> str:
-        match = re.search(r"[?&]dn=([^&]+)", magnet)
+        match = _MAGNET_DN_RE.search(magnet)
 
         if not match:
             return ""
 
         name = unquote(match.group(1))
         name = name.replace(".", " ")
-        name = re.sub(r"\s+", " ", name)
+        name = _WHITESPACE_RE.sub(" ", name)
 
         return name.strip()

@@ -11,8 +11,8 @@
       "icon": "icons/academictorrents.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/academictorrents.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "acgrip",
@@ -25,7 +25,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/Cc050511/qBit-search-plugins/main/acgrip.py",
       "license": "GPLv3",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "ali213",
@@ -37,21 +37,8 @@
       "icon": "icons/ali213.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/master/ali213.py",
-      "license": "None",
+      "license": "Unknown",
       "notes": "HTTPS endpoint hangs (connection timeout) as of 2026-09-06; HTTP only redirects to it."
-    },
-    {
-      "id": "anidex",
-      "name": "AniDex",
-      "site_url": "https://anidex.info/",
-      "category": "anime",
-      "default_query": "one piece",
-      "status": "intermittent",
-      "icon": "icons/anidex.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/nindogo/qbtSearchScripts/master/anidex.py",
-      "license": "None (empty `# LICENSING INFORMATION` marker only)",
-      "notes": ""
     },
     {
       "id": "animetosho",
@@ -64,7 +51,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/AlaaBrahim/qBitTorrent-animetosho-search-plugin/main/animetosho.py",
       "license": "GPLv3",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "apachetorrent",
@@ -76,8 +63,8 @@
       "icon": "icons/apachetorrent.ico",
       "requires_auth": false,
       "source_url": "https://gist.githubusercontent.com/bebetoh/3bb49cdf2b3718937b5446db1e4a4915/raw/1819e3ed75faa0da1571173a677081dc107054aa/apachetorrent.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "audiobookbay",
@@ -90,7 +77,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/nklido/qBittorrent_search_engines/master/engines/audiobookbay.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "bitsearch",
@@ -103,7 +90,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/bitsearch.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Unavailable in recent maintenance sweeps; keep non-active until remote service recovers."
     },
     {
       "id": "bt4gprx",
@@ -115,8 +102,8 @@
       "icon": "icons/bt4gprx.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/TuckerWarlock/qbittorrent-search-plugins/main/bt4gprx.com/bt4gprx.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "btdig",
@@ -129,33 +116,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/galaris/BTDigg-qBittorrent-plugin/main/btdig.py",
       "license": "Unlicense",
-      "notes": ""
-    },
-    {
-      "id": "calidadtorrent",
-      "name": "CalidadTorrent",
-      "site_url": "https://calidadtorrent.com",
-      "category": "movies",
-      "default_query": "inception",
-      "status": "intermittent",
-      "icon": "icons/calidadtorrent.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/calidadtorrent.py",
-      "license": "MIT",
-      "notes": ""
-    },
-    {
-      "id": "cloudtorrents",
-      "name": "CloudTorrents",
-      "site_url": "https://cloudtorrents.com",
-      "category": "general",
-      "default_query": "ubuntu",
-      "status": "unavailable",
-      "icon": "icons/cloudtorrents.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/elazar/qbittorrent-search-plugins/refs/heads/add-cloudtorrents-plugin/nova3/engines/cloudtorrents.py",
-      "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "cpasbien",
@@ -168,7 +129,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/MarcBresson/cpasbien/master/src/cpasbien.py",
       "license": "Copyleft",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "darklibria",
@@ -180,8 +141,8 @@
       "icon": "icons/darklibria.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/bugsbringer/qbit-plugins/master/darklibria.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "divxtotal",
@@ -194,7 +155,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/divxtotal.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "dmhy",
@@ -207,7 +168,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/ZH1637/dmhy/main/dmhy.py",
       "license": "GPLv3",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "dodi_repacks",
@@ -219,8 +180,8 @@
       "icon": "icons/dodi_repacks.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/Bioux1/qbtSearchPlugins/main/dodi_repacks.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "dontorrent",
@@ -233,7 +194,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/dontorrent.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "elitetorrent",
@@ -245,8 +206,8 @@
       "icon": "icons/elitetorrent.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/iordic/qbittorrent-search-plugins/master/engines/elitetorrent.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "esmeraldatorrent",
@@ -259,7 +220,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/esmeraldatorrent.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "eztvx",
@@ -271,8 +232,8 @@
       "icon": "icons/eztvx.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/DrPurp/eztvx-qbittorrent-plugin/main/eztvx.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "fitgirl_repacks",
@@ -284,60 +245,8 @@
       "icon": "icons/fitgirl_repacks.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/Bioux1/qbtSearchPlugins/main/fitgirl_repacks.py",
-      "license": "None",
-      "notes": ""
-    },
-    {
-      "id": "glotorrents",
-      "name": "GloTorrents",
-      "site_url": "https://glodls.to/",
-      "category": "general",
-      "default_query": "inception",
-      "status": "intermittent",
-      "icon": "icons/glotorrents.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/glotorrents.py",
-      "license": "None",
-      "notes": ""
-    },
-    {
-      "id": "goggames",
-      "name": "GOG-Games",
-      "site_url": "https://gog-games.to",
-      "category": "games",
-      "default_query": "minecraft",
-      "status": "retired",
-      "icon": "icons/goggames.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/tolotp/qbittorrent-search-plugins-de-busqueda/refs/heads/main/Plugins/goggames.py",
-      "license": "None",
-      "notes": "Site closed permanently (farewell notice on homepage); engine retained for history."
-    },
-    {
-      "id": "kickasstorrents",
-      "name": "Kickasstorrents",
-      "site_url": "https://katcr.to/",
-      "category": "general",
-      "default_query": "inception",
-      "status": "intermittent",
-      "icon": "icons/kickasstorrents.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/kickasstorrents.py",
-      "license": "None",
-      "notes": ""
-    },
-    {
-      "id": "magnetdl",
-      "name": "MagnetDL",
-      "site_url": "http://www.magnetdl.com/",
-      "category": "general",
-      "default_query": "ubuntu",
-      "status": "unavailable",
-      "icon": "icons/magnetdl.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/nindogo/qbtSearchScripts/master/magnetdl.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "maxitorrent",
@@ -349,21 +258,8 @@
       "icon": "icons/maxitorrent.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/joseeloren/search-plugins/master/nova3/engines/maxitorrent.py",
-      "license": "None",
-      "notes": ""
-    },
-    {
-      "id": "mejortorrent",
-      "name": "MejorTorrent",
-      "site_url": "https://www36.mejortorrent.eu",
-      "category": "movies",
-      "default_query": "inception",
-      "status": "intermittent",
-      "icon": "icons/mejortorrent.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/iordic/qbittorrent-search-plugins/master/engines/mejortorrent.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "mikan",
@@ -375,8 +271,8 @@
       "icon": "icons/mikan.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/Cycloctane/qBittorrent-plugins/master/engines/mikan.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "mikanani",
@@ -402,7 +298,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/mypornclub.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "naranjatorrent",
@@ -415,7 +311,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/naranjatorrent.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "nekobt",
@@ -427,8 +323,8 @@
       "icon": "icons/nekobt.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/tolotp/qbittorrent-search-plugins-de-busqueda/refs/heads/main/Plugins/nekobt.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "nyaa_phuong",
@@ -440,8 +336,8 @@
       "icon": "icons/nyaa_phuong.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/phuongtailtranminh/qBittorrent-Nyaa-Search-Plugin-master/nyaa.py",
-      "license": "None (empty `# LICENSING INFORMATION` marker only)",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "nyaapantsu",
@@ -454,7 +350,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/MadeOfMagicAndWires/qBit-plugins/master/engines/nyaapantsu.py",
       "license": "GPLv3",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "nyaasi",
@@ -467,7 +363,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/MadeOfMagicAndWires/qBit-plugins/master/engines/nyaasi.py",
       "license": "GPLv3",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "onlinefix",
@@ -479,8 +375,8 @@
       "icon": "icons/onlinefix.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/caiocinel/onlinefix-qbittorrent-plugin/main/onlinefix.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "pirateiro",
@@ -492,34 +388,8 @@
       "icon": "icons/pirateiro.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/pirateiro.py",
-      "license": "None",
+      "license": "Unknown",
       "notes": "pirateiro.io no longer resolves (NXDOMAIN) and the pirateiro.com mirror is unreachable as of 2026-09-06."
-    },
-    {
-      "id": "redetorrent",
-      "name": "RedeTorrent",
-      "site_url": "https://redetorrent.com",
-      "category": "movies",
-      "default_query": "inception",
-      "status": "unavailable",
-      "icon": "icons/redetorrent.ico",
-      "requires_auth": false,
-      "source_url": "https://gist.githubusercontent.com/bebetoh/b5e1f4731462de9b837f5026617b1d4a/raw/e71d0020078d56d3f7e9a903ca7b4d44774e10f7/redetorrent.py",
-      "license": "None",
-      "notes": "Origin returns HTTP 522 (Cloudflare) as of 2026-09-06."
-    },
-    {
-      "id": "rockbox",
-      "name": "RockBox",
-      "site_url": "https://rawkbawx.rocks/",
-      "category": "software",
-      "default_query": "ubuntu",
-      "status": "intermittent",
-      "icon": "icons/rockbox.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/rockbox.py",
-      "license": "None",
-      "notes": ""
     },
     {
       "id": "rutor",
@@ -531,8 +401,8 @@
       "icon": "icons/rutor.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/imDMG/qBt_SE/master/engines/rutor.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "sktorrent",
@@ -544,8 +414,8 @@
       "icon": "icons/sktorrent.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/Ashalda/sktorrent-qbt/refs/heads/main/sktorrent.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "smallgames",
@@ -557,8 +427,8 @@
       "icon": "icons/smallgames.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/master/smallgames.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "snowfl",
@@ -570,8 +440,8 @@
       "icon": "icons/snowfl.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/snowfl.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "solidtorrents",
@@ -584,7 +454,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/solidtorrents.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Unavailable in recent maintenance sweeps; keep non-active until remote service recovers."
     },
     {
       "id": "subsplease",
@@ -596,8 +466,8 @@
       "icon": "icons/subsplease.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/kli885/qBittorent-SubsPlease-Search-Plugin/main/subsplease.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "sukebeisi",
@@ -610,7 +480,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/vt-idiot/qBit-SukebeiNyaa-plugin/master/engines/sukebeisi.py",
       "license": "GPLv3",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "thepiratebay",
@@ -622,8 +492,8 @@
       "icon": "icons/thepiratebay.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/thepiratebay.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "therarbg",
@@ -636,7 +506,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/therarbg.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "tokyotoshokan",
@@ -648,8 +518,8 @@
       "icon": "icons/tokyotoshokan.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BrunoReX/qBittorrent-Search-Plugin-TokyoToshokan/master/tokyotoshokan.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "tomadivx",
@@ -662,7 +532,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/tomadivx.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "torrent9",
@@ -675,7 +545,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/menegop/qbfrench/master/torrent9.py",
       "license": "Copyleft",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "torrentdownload",
@@ -687,8 +557,8 @@
       "icon": "icons/torrentdownload.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/torrentdownload.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "torrentdownloads",
@@ -701,20 +571,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/torrentdownloads.py",
       "license": "MIT",
-      "notes": ""
-    },
-    {
-      "id": "torrentgalaxy",
-      "name": "TorrentGalaxy",
-      "site_url": "https://torrentgalaxy.to",
-      "category": "general",
-      "default_query": "inception",
-      "status": "unavailable",
-      "icon": "icons/torrentgalaxy.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/nindogo/qbtSearchScripts/master/torrentgalaxy.py",
-      "license": "None (empty `# LICENSING INFORMATION` marker only)",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "traht",
@@ -727,7 +584,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/traht.py",
       "license": "MIT",
-      "notes": ""
+      "notes": "Intermittent availability observed; keep non-active and confirm stability before promoting."
     },
     {
       "id": "uniondht",
@@ -739,8 +596,8 @@
       "icon": "icons/uniondht.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/msagca/qbittorrent-plugins/main/uniondht.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "xxxclubto",
@@ -753,20 +610,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/xxxclubto.py",
       "license": "MIT",
-      "notes": ""
-    },
-    {
-      "id": "yggtracker",
-      "name": "YGGtracker",
-      "site_url": "https://github.com/YGGverse/YGGtracker",
-      "category": "general",
-      "default_query": "ubuntu",
-      "status": "active",
-      "icon": "icons/yggtracker.ico",
-      "requires_auth": false,
-      "source_url": "https://raw.githubusercontent.com/YGGverse/qbittorrent-yggtracker-search-plugin/main/yggtracker.py",
-      "license": "MIT-note",
-      "notes": ""
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "yourbittorrent",
@@ -778,8 +622,8 @@
       "icon": "icons/yourbittorrent.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/yourbittorrent.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
       "id": "yts",
@@ -791,8 +635,8 @@
       "icon": "icons/yts.ico",
       "requires_auth": false,
       "source_url": "https://codeberg.org/lazulyra/qbit-plugins/raw/branch/main/yts/yts.py",
-      "license": "None",
-      "notes": ""
+      "license": "Unknown",
+      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     }
   ]
 }

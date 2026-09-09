@@ -26,8 +26,13 @@ export const COMMANDS: CommandSpec[] = [
   {
     name: "check",
     description:
-      "Run deterministic checks. --fast is the pre-commit hook subset; --full (default) adds bun test.",
-    examples: ["bun run check", "bun run check -- --fast", "bun run check -- --full"],
+      "Run deterministic checks. --fast is the pre-commit hook subset; --full (default) adds bun test. --strict enforces metadata warnings as failures.",
+    examples: [
+      "bun run check",
+      "bun run check -- --fast",
+      "bun run check -- --full",
+      "bun run check -- --strict",
+    ],
   },
   {
     name: "gen",

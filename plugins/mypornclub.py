@@ -24,10 +24,10 @@ try:
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
     from collections.abc import Iterable as _QBTIterable
+    from concurrent.futures import FIRST_COMPLETED as _qbt_FIRST_COMPLETED
     from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
-    from concurrent.futures import TimeoutError as _qbt_FuturesTimeoutError
-    from concurrent.futures import as_completed as _qbt_as_completed
+    from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
     from types import TracebackType as _QBTTracebackType
     from typing import TYPE_CHECKING
@@ -54,6 +54,7 @@ MAX_WORKERS = 4
 SEARCH_DEADLINE = 60.0
 MAX_PAGES = 30
 MAX_DETAILS = 100
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 _qbt_socket.setdefaulttimeout(HTTP_TIMEOUT)
 _QBT_RETRYABLE_HTTP_STATUS = frozenset((408, 425, 429, 500, 502, 503, 504))
@@ -101,11 +102,21 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
-    return _qbt_get_deadline()
+    global _qbt_search_deadline
+    _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
+    return _qbt_search_deadline
 
 
-def _qbt_sleep(attempt: int) -> None:
-    _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
+def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    if deadline is None:
+        deadline = _qbt_get_deadline()
+    remaining = deadline - _qbt_time.monotonic()
+    if remaining <= 0:
+        return False
+    delay = min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0, remaining)
+    if delay > 0:
+        _qbt_time.sleep(delay)
+    return _qbt_time.monotonic() < deadline
 
 
 class _QBTEmptyResponse:
@@ -156,6 +167,58 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
     return _qbt_cast(_QBTResponseContext, _qbt_cast(object, _QBTEmptyResponse(url)))
 
 
+def _qbt_response_limit(limit: object = None) -> int:
+    value = MAX_RESPONSE_BYTES if limit is None else limit
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return max(0, int(MAX_RESPONSE_BYTES))
+
+
+def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
+    """Read at most the configured response limit from an HTTP response."""
+    return response.read(_qbt_response_limit(limit))
+
+
+class _QBTBoundedResponse:
+    """Response proxy that bounds the existing no-argument read() call sites."""
+
+    def __init__(self, response: _QBTResponse) -> None:
+        self._qbt_response = response
+
+    def __enter__(self) -> "_QBTBoundedResponse":
+        self._qbt_response = self._qbt_response.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: _QBTTracebackType | None,
+    ) -> bool:
+        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+
+    def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
+        if size is None:
+            return _qbt_read_response(self._qbt_response)
+        try:
+            requested = int(size)
+        except (TypeError, ValueError):
+            return _qbt_read_response(self._qbt_response)
+        if requested < 0:
+            return _qbt_read_response(self._qbt_response)
+        return _qbt_read_response(
+            self._qbt_response,
+            min(requested, _qbt_response_limit()),
+        )
+
+    def close(self) -> None:
+        self._qbt_response.close()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._qbt_response, name)
+
+
 class _QBTTransientHTTPError(Exception):
     pass
 
@@ -185,8 +248,8 @@ def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
                 pass
         except Exception:
             pass
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return ""
     return ""
 
 
@@ -219,7 +282,10 @@ def _qbt_safe_urlopen(
             if status >= 400:
                 response.close()
                 return _qbt_empty_response(url)
-            return response
+            return _qbt_cast(
+                _QBTResponseContext,
+                _qbt_cast(object, _QBTBoundedResponse(response)),
+            )
         except _qbt_urllib_error.HTTPError as error:
             if error.code not in _QBT_RETRYABLE_HTTP_STATUS:
                 try:
@@ -244,8 +310,8 @@ def _qbt_safe_urlopen(
                 except Exception:
                     pass
             return _qbt_empty_response(url)
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return _qbt_empty_response(url)
     return _qbt_empty_response(url)
 
 
@@ -276,30 +342,60 @@ def _qbt_run_parallel(
     deadline: float | None = None,
 ) -> list[_QBTJobResult]:
     """Run bounded worker jobs, preserving completed work after failures."""
-    jobs = list(jobs)
-    if not jobs:
-        return []
     if deadline is None:
         deadline = _qbt_get_deadline()
-    executor = _QBTThreadPoolExecutor(max_workers=MAX_WORKERS)
-    futures: list[_QBTFuture[_QBTJobResult]] = []
-    for job in jobs:
-        if isinstance(job, tuple):
-            futures.append(executor.submit(worker, *job))
-        else:
-            futures.append(executor.submit(worker, job))
+    if deadline - _qbt_time.monotonic() <= 0:
+        return []
+    worker_limit = max(1, int(MAX_WORKERS))
+    job_iterator = iter(jobs)
+    initial_jobs: list[object] = []
+    for _ in range(worker_limit):
+        try:
+            initial_jobs.append(next(job_iterator))
+        except StopIteration:
+            break
+    if not initial_jobs or deadline - _qbt_time.monotonic() <= 0:
+        return []
+    executor = _QBTThreadPoolExecutor(max_workers=len(initial_jobs))
+    pending: set[_QBTFuture[_QBTJobResult]] = set()
     results: list[_QBTJobResult] = []
     try:
-        remaining = max(0.0, deadline - _qbt_time.monotonic())
-        for future in _qbt_as_completed(futures, timeout=remaining):
-            try:
-                results.append(future.result())
-            except Exception:
-                pass
-    except _qbt_FuturesTimeoutError:
-        for future in futures:
-            _ = future.cancel()
+        for job in initial_jobs:
+            if deadline - _qbt_time.monotonic() <= 0:
+                break
+            if isinstance(job, tuple):
+                pending.add(executor.submit(worker, *job))
+            else:
+                pending.add(executor.submit(worker, job))
+        while pending:
+            remaining = deadline - _qbt_time.monotonic()
+            if remaining <= 0:
+                break
+            done, pending = _qbt_wait(
+                pending,
+                timeout=remaining,
+                return_when=_qbt_FIRST_COMPLETED
+            )
+            if not done:
+                break
+            for future in done:
+                try:
+                    results.append(future.result())
+                except Exception:
+                    pass
+                if deadline - _qbt_time.monotonic() <= 0:
+                    continue
+                try:
+                    job = next(job_iterator)
+                except StopIteration:
+                    continue
+                if isinstance(job, tuple):
+                    pending.add(executor.submit(worker, *job))
+                else:
+                    pending.add(executor.submit(worker, job))
     finally:
+        for future in pending:
+            _ = future.cancel()
         try:
             _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:
@@ -311,6 +407,7 @@ __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
     "_qbt_run_parallel",
+    "_qbt_read_response",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -335,7 +432,7 @@ class mypornclub:
     name: str = "MyPorn Club"
     supported_categories: ClassVar[dict[str, str]] = {"all": "all"}
 
-    pagination_regex: str = r"<div>Page\s\d\sof\s\d+</div>"
+    pagination_regex: str = r"<div>Page\s+\d+\s+of\s+(\d+)</div>"
 
     class MyHtmlParser(HTMLParser):
         def error(self, _message: str):
@@ -347,11 +444,21 @@ class mypornclub:
         I: str = "i"
         B: str = "b"
 
-        def __init__(self, url: str) -> None:
+        def __init__(
+            self,
+            url: str,
+            detail_budget: list[int] | None = None,
+            detail_lock: object | None = None,
+            detail_links: set[str] | None = None,
+            result_links: set[str] | None = None,
+        ) -> None:
             HTMLParser.__init__(self)
             self.url: str = url
             self.row: MyPornRow = {}
-            self.rows: list[MyPornRow] = []
+            self.detail_budget = detail_budget if detail_budget is not None else [MAX_DETAILS]
+            self.detail_lock = detail_lock if detail_lock is not None else _qbt_Lock()
+            self.detail_links = detail_links if detail_links is not None else set()
+            self.result_links = result_links if result_links is not None else set()
 
             self.foundResults: bool = False
             self.insideRow: bool = False
@@ -368,6 +475,24 @@ class mypornclub:
             self.shouldGetDate: bool = False
             self.magnet_regex: str = r'href=["\']magnet:.+?["\']'
             self.has_web_regex: str = r"(sxyprn\.com[^\w]*?post[^\w]*?[\w]*?\.html)"
+
+        def _claim_detail(self, link: str | None = None) -> bool:
+            with self.detail_lock:
+                if link is not None and link in self.detail_links:
+                    return False
+                if self.detail_budget[0] <= 0:
+                    return False
+                if link is not None:
+                    self.detail_links.add(link)
+                self.detail_budget[0] -= 1
+                return True
+
+        def _claim_result(self, link: str) -> bool:
+            with self.detail_lock:
+                if link in self.result_links:
+                    return False
+                self.result_links.add(link)
+                return True
 
         def preda(self, arg: list[str]) -> list[str]:
             adjusted = int(arg[5])
@@ -390,19 +515,26 @@ class mypornclub:
             return b.replace("+", "-").replace("/", "_").replace("=", ".")
 
         def check_for_web_seed(self, web_page_url: str) -> str | None:
-            id = web_page_url.split("/")[-1].split(".")[0]
+            page_id = web_page_url.split("/")[-1].split(".")[0]
             web_page_url = re.sub(r"\\", r"", web_page_url)
+            if not self._claim_detail(web_page_url):
+                return None
             page = retrieve_url(web_page_url)
             match = re.search(r'data-vnfo=(["\'])(?P<data>{.+?})\1', page)
             if match:
-                data1_value: object = cast(object, json.loads(match.group("data")))
+                try:
+                    data1_value: object = cast(object, json.loads(match.group("data")))
+                except (TypeError, ValueError):
+                    return None
                 if not isinstance(data1_value, dict):
                     return None
                 data1 = cast(dict[str, object], cast(object, data1_value))
-                raw_parts = data1.get(id)
+                raw_parts = data1.get(page_id)
                 if not isinstance(raw_parts, str):
                     return None
                 parts = raw_parts.split("/")
+                if len(parts) < 8:
+                    return None
                 parts[1] += (
                     "8" + "/" + self.boo(str(self.ssut51(parts[6])), str(self.ssut51(parts[7])))
                 )
@@ -457,11 +589,12 @@ class mypornclub:
                     return
                 link = f"{self.url}{href}"
                 self.row["desc_link"] = link
+                if not self._claim_detail(link):
+                    return
                 torrent_page = retrieve_url(link)
-                matches = re.finditer(self.magnet_regex, torrent_page, re.MULTILINE)
-                magnet_urls = [x.group() for x in matches]
+                magnet_match = re.search(self.magnet_regex, torrent_page, re.MULTILINE)
                 # Use the first magnet found on the detail page
-                if not magnet_urls:
+                if magnet_match is None:
                     # Some live pages are removed or replaced by an HTML
                     # interstitial before they expose a magnet link.
                     self.row = {}
@@ -470,12 +603,12 @@ class mypornclub:
                     self.insideTorrentName = False
                     self.insideMetaData = False
                     return
-                self.row["link"] = magnet_urls[0].replace("'", '"').split('"')[1]
+                self.row["link"] = magnet_match.group().replace("'", '"').split('"')[1]
 
-                _has_page = re.finditer(self.has_web_regex, torrent_page, re.MULTILINE)
-                has_page = ["https://" + x.group(1) for x in _has_page]
-                if has_page:
-                    self.web_seed = self.check_for_web_seed(has_page[0])
+                has_page_match = re.search(self.has_web_regex, torrent_page, re.MULTILINE)
+                if has_page_match:
+                    has_page = "https://" + has_page_match.group(1)
+                    self.web_seed = self.check_for_web_seed(has_page)
                     if self.web_seed:
                         self.row["link"] = self.row["link"] + self.web_seed
 
@@ -575,41 +708,60 @@ class mypornclub:
                     self.web_seed = None
 
                 if all(field in self.row for field in ("link", "name", "size", "seeds", "leech")):
-                    _qbt_prettyPrinter(cast(SearchResults, cast(object, self.row)))
+                    result = cast(SearchResults, cast(object, self.row))
+                    if self._claim_result(str(result["link"])):
+                        _qbt_prettyPrinter(result)
                 self.row = {}
                 self.insideRow = False
 
     def download_torrent(self, info: str) -> None:
         print(download_file(info))
 
-    def do_search(self, page: int, what: str) -> None:
-        parser = self.MyHtmlParser(self.url)
+    def do_search(
+        self,
+        page: int,
+        what: str,
+        detail_budget: list[int] | None = None,
+        detail_lock: object | None = None,
+        detail_links: set[str] | None = None,
+        result_links: set[str] | None = None,
+    ) -> None:
+        parser = self.MyHtmlParser(
+            self.url, detail_budget, detail_lock, detail_links, result_links
+        )
         page_url = f"{self.url}/s/{what}/seeders/{page}"
         retrievedHtml = retrieve_url(page_url)
         parser.feed(retrievedHtml)
         parser.close()
 
     def search(self, what: str, _cat: str = "all") -> None:
-        parser = self.MyHtmlParser(self.url)
+        deadline = _qbt_new_deadline()
+        detail_budget = [MAX_DETAILS]
+        detail_lock = _qbt_Lock()
+        detail_links: set[str] = set()
+        result_links: set[str] = set()
+        parser = self.MyHtmlParser(
+            self.url, detail_budget, detail_lock, detail_links, result_links
+        )
         what = what.replace("%20", "-")
         what = what.replace(" ", "-")
         page = 1
 
         page_url = f"{self.url}/s/{what}/seeders/{page}"
         retrievedHtml = retrieve_url(page_url)
-        pagination_matches = re.finditer(self.pagination_regex, retrievedHtml, re.MULTILINE)
-        pagination_pages = [x.group() for x in pagination_matches]
+        pagination_match = re.search(self.pagination_regex, retrievedHtml, re.MULTILINE)
         parser.feed(retrievedHtml)
         parser.close()
-        if not pagination_pages:
+        if pagination_match is None:
             return
         try:
-            lastPage = int(
-                pagination_pages[0].replace("<div>", "").replace("</div>", "").split(" ")[-1]
-            )
+            last_page = int(pagination_match.group(1))
         except (IndexError, ValueError):
             return
         page += 1
 
-        jobs = [(p, what) for p in range(page, min(lastPage, MAX_PAGES) + 1)]
-        _ = _qbt_run_parallel(self.do_search, jobs, _qbt_new_deadline())
+        jobs = [
+            (p, what, detail_budget, detail_lock, detail_links, result_links)
+            for p in range(page, min(last_page, MAX_PAGES) + 1)
+        ]
+        _ = _qbt_run_parallel(self.do_search, jobs, deadline)

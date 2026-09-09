@@ -24,10 +24,10 @@ try:
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
     from collections.abc import Iterable as _QBTIterable
+    from concurrent.futures import FIRST_COMPLETED as _qbt_FIRST_COMPLETED
     from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
-    from concurrent.futures import TimeoutError as _qbt_FuturesTimeoutError
-    from concurrent.futures import as_completed as _qbt_as_completed
+    from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
     from types import TracebackType as _QBTTracebackType
     from typing import TYPE_CHECKING
@@ -54,6 +54,7 @@ MAX_WORKERS = 4
 SEARCH_DEADLINE = 60.0
 MAX_PAGES = 30
 MAX_DETAILS = 100
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 _qbt_socket.setdefaulttimeout(HTTP_TIMEOUT)
 _QBT_RETRYABLE_HTTP_STATUS = frozenset((408, 425, 429, 500, 502, 503, 504))
@@ -101,11 +102,21 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
-    return _qbt_get_deadline()
+    global _qbt_search_deadline
+    _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
+    return _qbt_search_deadline
 
 
-def _qbt_sleep(attempt: int) -> None:
-    _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
+def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    if deadline is None:
+        deadline = _qbt_get_deadline()
+    remaining = deadline - _qbt_time.monotonic()
+    if remaining <= 0:
+        return False
+    delay = min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0, remaining)
+    if delay > 0:
+        _qbt_time.sleep(delay)
+    return _qbt_time.monotonic() < deadline
 
 
 class _QBTEmptyResponse:
@@ -156,6 +167,58 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
     return _qbt_cast(_QBTResponseContext, _qbt_cast(object, _QBTEmptyResponse(url)))
 
 
+def _qbt_response_limit(limit: object = None) -> int:
+    value = MAX_RESPONSE_BYTES if limit is None else limit
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return max(0, int(MAX_RESPONSE_BYTES))
+
+
+def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
+    """Read at most the configured response limit from an HTTP response."""
+    return response.read(_qbt_response_limit(limit))
+
+
+class _QBTBoundedResponse:
+    """Response proxy that bounds the existing no-argument read() call sites."""
+
+    def __init__(self, response: _QBTResponse) -> None:
+        self._qbt_response = response
+
+    def __enter__(self) -> "_QBTBoundedResponse":
+        self._qbt_response = self._qbt_response.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: _QBTTracebackType | None,
+    ) -> bool:
+        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+
+    def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
+        if size is None:
+            return _qbt_read_response(self._qbt_response)
+        try:
+            requested = int(size)
+        except (TypeError, ValueError):
+            return _qbt_read_response(self._qbt_response)
+        if requested < 0:
+            return _qbt_read_response(self._qbt_response)
+        return _qbt_read_response(
+            self._qbt_response,
+            min(requested, _qbt_response_limit()),
+        )
+
+    def close(self) -> None:
+        self._qbt_response.close()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._qbt_response, name)
+
+
 class _QBTTransientHTTPError(Exception):
     pass
 
@@ -185,8 +248,8 @@ def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
                 pass
         except Exception:
             pass
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return ""
     return ""
 
 
@@ -219,7 +282,10 @@ def _qbt_safe_urlopen(
             if status >= 400:
                 response.close()
                 return _qbt_empty_response(url)
-            return response
+            return _qbt_cast(
+                _QBTResponseContext,
+                _qbt_cast(object, _QBTBoundedResponse(response)),
+            )
         except _qbt_urllib_error.HTTPError as error:
             if error.code not in _QBT_RETRYABLE_HTTP_STATUS:
                 try:
@@ -244,8 +310,8 @@ def _qbt_safe_urlopen(
                 except Exception:
                     pass
             return _qbt_empty_response(url)
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return _qbt_empty_response(url)
     return _qbt_empty_response(url)
 
 
@@ -276,30 +342,60 @@ def _qbt_run_parallel(
     deadline: float | None = None,
 ) -> list[_QBTJobResult]:
     """Run bounded worker jobs, preserving completed work after failures."""
-    jobs = list(jobs)
-    if not jobs:
-        return []
     if deadline is None:
         deadline = _qbt_get_deadline()
-    executor = _QBTThreadPoolExecutor(max_workers=MAX_WORKERS)
-    futures: list[_QBTFuture[_QBTJobResult]] = []
-    for job in jobs:
-        if isinstance(job, tuple):
-            futures.append(executor.submit(worker, *job))
-        else:
-            futures.append(executor.submit(worker, job))
+    if deadline - _qbt_time.monotonic() <= 0:
+        return []
+    worker_limit = max(1, int(MAX_WORKERS))
+    job_iterator = iter(jobs)
+    initial_jobs: list[object] = []
+    for _ in range(worker_limit):
+        try:
+            initial_jobs.append(next(job_iterator))
+        except StopIteration:
+            break
+    if not initial_jobs or deadline - _qbt_time.monotonic() <= 0:
+        return []
+    executor = _QBTThreadPoolExecutor(max_workers=len(initial_jobs))
+    pending: set[_QBTFuture[_QBTJobResult]] = set()
     results: list[_QBTJobResult] = []
     try:
-        remaining = max(0.0, deadline - _qbt_time.monotonic())
-        for future in _qbt_as_completed(futures, timeout=remaining):
-            try:
-                results.append(future.result())
-            except Exception:
-                pass
-    except _qbt_FuturesTimeoutError:
-        for future in futures:
-            _ = future.cancel()
+        for job in initial_jobs:
+            if deadline - _qbt_time.monotonic() <= 0:
+                break
+            if isinstance(job, tuple):
+                pending.add(executor.submit(worker, *job))
+            else:
+                pending.add(executor.submit(worker, job))
+        while pending:
+            remaining = deadline - _qbt_time.monotonic()
+            if remaining <= 0:
+                break
+            done, pending = _qbt_wait(
+                pending,
+                timeout=remaining,
+                return_when=_qbt_FIRST_COMPLETED
+            )
+            if not done:
+                break
+            for future in done:
+                try:
+                    results.append(future.result())
+                except Exception:
+                    pass
+                if deadline - _qbt_time.monotonic() <= 0:
+                    continue
+                try:
+                    job = next(job_iterator)
+                except StopIteration:
+                    continue
+                if isinstance(job, tuple):
+                    pending.add(executor.submit(worker, *job))
+                else:
+                    pending.add(executor.submit(worker, job))
     finally:
+        for future in pending:
+            _ = future.cancel()
         try:
             _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:
@@ -311,12 +407,16 @@ __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
     "_qbt_run_parallel",
+    "_qbt_read_response",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
 
 
 # END GENERATED QBITT SAFETY PREAMBLE
+
+
+SOLIDTORRENTS_RESULTS_RE = re.compile(r"<b>\d+<\/b>")
 
 
 class solidtorrents:
@@ -351,6 +451,7 @@ class solidtorrents:
             self.insideStatsDiv: bool = False
             self.insideStatsColumn: bool = False
             self.insideLinksDiv: bool = False
+            self.seen_links: set[str] = set()
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
@@ -457,20 +558,30 @@ class solidtorrents:
                 return
 
             if tag == self.LI and self.insideSearchResult:
-                self.row["engine_url"] = self.url
-                print(self.row)
-                result = SearchResults(
-                    link=self.row["link"],
-                    name=self.row["name"],
-                    size=self.row["size"],
-                    seeds=int(self.row["seeds"]),
-                    leech=int(self.row["leech"]),
-                    engine_url=self.row["engine_url"],
-                    desc_link=self.row["desc_link"],
-                )
-                if self.row.get("pub_date", "-1") != "-1":
-                    result["pub_date"] = int(self.row["pub_date"])
-                _qbt_prettyPrinter(result)
+                link = self.row.get("link")
+                if link and link not in self.seen_links:
+                    self.row["engine_url"] = self.url
+                    try:
+                        seeds = int(self.row.get("seeds", "-1"))
+                    except ValueError:
+                        seeds = -1
+                    try:
+                        leech = int(self.row.get("leech", "-1"))
+                    except ValueError:
+                        leech = -1
+                    result = SearchResults(
+                        link=link,
+                        name=self.row.get("name", ""),
+                        size=self.row.get("size", "Unknown"),
+                        seeds=seeds,
+                        leech=leech,
+                        engine_url=self.row["engine_url"],
+                        desc_link=self.row.get("desc_link", "-1"),
+                    )
+                    if self.row.get("pub_date", "-1") != "-1":
+                        result["pub_date"] = int(self.row["pub_date"])
+                    self.seen_links.add(link)
+                    _qbt_prettyPrinter(result)
                 self.insideSearchResult = False
                 self.column = 0
                 return
@@ -486,12 +597,10 @@ class solidtorrents:
 
         page_url = f"{self.url}/search?q={what}&page={page}"
         retrievedHtml = retrieve_url(page_url)
-        results_matches = re.finditer(self.results_regex, retrievedHtml, re.MULTILINE)
-        results_array = [x.group() for x in results_matches]
-
-        if len(results_array) > 0:
-            results = int(results_array[0].replace("<b>", "").replace("</b>", ""))
-            pages = math.ceil(results / 20)
+        results_match = SOLIDTORRENTS_RESULTS_RE.search(retrievedHtml)
+        if results_match is not None:
+            results = int(results_match.group().replace("<b>", "").replace("</b>", ""))
+            pages = min(math.ceil(results / 20), MAX_PAGES)
         else:
             pages = 0
 
@@ -500,7 +609,7 @@ class solidtorrents:
         if pages > 0:
             parser.feed(retrievedHtml)
 
-            while page <= min(pages, MAX_PAGES):
+            while page <= pages and len(parser.seen_links) < MAX_DETAILS:
                 page_url = f"{self.url}/search?q={what}&page={page}"
                 retrievedHtml = retrieve_url(page_url)
                 parser.feed(retrievedHtml)

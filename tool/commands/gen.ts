@@ -11,7 +11,7 @@ import { checkProbeFixtures, writeProbeFixtures } from "../../test/live/probe_fi
 /** gen --write regenerates; --check audits without editing. */
 export async function runGenCommand(rawArgs: string[]): Promise<number> {
   if (rawArgs.includes("--help") || rawArgs.includes("-h")) {
-    console.log(`Usage: bun run gen [-- --check|--write] [--only catalog|harden|icons|cli|sources|probes]
+    console.log(`Usage: bun run gen [-- --check|--write] [--only catalog|harden|icons|cli|sources|probes] [--strict]
 
 Modes:
   --check  Audit generated files without editing (default in check --fast)
@@ -26,6 +26,7 @@ Examples:
   }
   const onlyArg = rawArgs[rawArgs.indexOf("--only") + 1];
   const only = rawArgs.includes("--only") ? onlyArg : null;
+  const strict = rawArgs.includes("--strict");
   if (
     rawArgs.includes("--only") &&
     !["catalog", "harden", "icons", "cli", "sources", "probes"].includes(only ?? "")
@@ -82,7 +83,8 @@ Examples:
     if (write) {
       exit = (await generatePluginCatalog(["--docs"])) !== 0 ? 1 : exit;
     } else {
-      exit = (await generatePluginCatalog(["--check"])) !== 0 ? 1 : exit;
+      const checkArgs = strict ? ["--check", "--strict"] : ["--check"];
+      exit = (await generatePluginCatalog(checkArgs)) !== 0 ? 1 : exit;
     }
     if (exit !== 0) {
       return exit;

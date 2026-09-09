@@ -6,6 +6,11 @@ import { discoverPlugins, inspectPluginFile as inspectPlugin } from "../core/plu
 import { catalogEntries } from "../catalog/storage";
 import type { Catalog, CatalogEntry } from "../catalog/types";
 
+export interface CatalogValidationReport {
+  errors: string[];
+  warnings: string[];
+}
+
 function pythonRepr(value: unknown): string {
   if (typeof value === "string") {
     return `'${value.replaceAll("'", "\\'")}'`;
@@ -26,8 +31,9 @@ function pythonRepr(value: unknown): string {
 }
 
 /** Validate catalog schema, plugin parity, metadata, and icon files. */
-export async function validateCatalog(catalog: Catalog): Promise<string[]> {
+export async function validateCatalog(catalog: Catalog): Promise<CatalogValidationReport> {
   const errors: string[] = [];
+  const warnings: string[] = [];
   if (catalog.schema_version !== 1) {
     errors.push("schema_version must be 1");
   }
@@ -36,7 +42,7 @@ export async function validateCatalog(catalog: Catalog): Promise<string[]> {
   try {
     entries = catalogEntries(catalog);
   } catch (error) {
-    return [error instanceof Error ? error.message : String(error)];
+    return { errors: [error instanceof Error ? error.message : String(error)], warnings };
   }
 
   const seen = new Set<string>();
@@ -56,7 +62,16 @@ export async function validateCatalog(catalog: Catalog): Promise<string[]> {
     }
     seen.add(stem);
 
-    const required = ["name", "site_url", "category", "default_query", "status", "icon"];
+    const required = [
+      "name",
+      "site_url",
+      "category",
+      "default_query",
+      "status",
+      "icon",
+      "license",
+      "notes",
+    ];
     const missing = required.filter((field) => !Object.hasOwn(entry, field));
     if (missing.length > 0) {
       errors.push(stem + " is missing: " + missing.join(", "));
@@ -82,6 +97,16 @@ export async function validateCatalog(catalog: Catalog): Promise<string[]> {
     const requiresAuth = Object.hasOwn(entry, "requires_auth") ? entry.requires_auth : false;
     if (typeof requiresAuth !== "boolean") {
       errors.push(stem + " requires_auth must be boolean");
+    }
+    if (typeof entry.license !== "string") {
+      errors.push(stem + " license must be a string");
+    } else if (!entry.license || entry.license === "None") {
+      warnings.push(stem + " has missing license metadata");
+    }
+    if (typeof entry.notes !== "string") {
+      errors.push(stem + " notes must be a string");
+    } else if (!entry.notes.trim()) {
+      warnings.push(stem + " has missing notes metadata");
     }
     const icon = resolve(ROOT, entry.icon);
     try {
@@ -111,5 +136,5 @@ export async function validateCatalog(catalog: Catalog): Promise<string[]> {
   if (missing.length > 0) {
     errors.push("plugins missing from catalog: " + missing.join(", "));
   }
-  return errors;
+  return { errors, warnings };
 }

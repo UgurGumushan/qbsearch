@@ -28,7 +28,7 @@ jobs:
       - name: Install release checkers
         run: python -m pip install --disable-pip-version-check --requirement requirements-dev.txt
       - name: Verify repository
-        run: bun run check
+        run: bun run check -- --strict
       - name: Build release archive
         env:
           RELEASE_VERSION: ${{ github.ref_name }}

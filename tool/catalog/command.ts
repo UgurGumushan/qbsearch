@@ -17,6 +17,7 @@ interface CatalogArguments {
   docs: boolean;
   refresh: boolean;
   check: boolean;
+  strict: boolean;
 }
 
 function usage(): string {
@@ -28,6 +29,7 @@ Options:
   --docs       Write documentation/PLUGINS.md
   --refresh    Fill catalog license fields from LICENSE.md
   --check      Validate the catalog and generated index without changing files
+  --strict     In strict mode, metadata warnings become hard failures
 `;
 }
 
@@ -38,6 +40,7 @@ function parseArguments(args: string[]): CatalogArguments | null {
     docs: false,
     refresh: false,
     check: false,
+    strict: false,
   };
   for (const argument of args) {
     switch (argument) {
@@ -56,6 +59,9 @@ function parseArguments(args: string[]): CatalogArguments | null {
       case "--check":
         parsed.check = true;
         break;
+      case "--strict":
+        parsed.strict = true;
+        break;
       case "--help":
       case "-h":
         console.log(usage());
@@ -67,12 +73,15 @@ function parseArguments(args: string[]): CatalogArguments | null {
   return parsed;
 }
 
-async function reportValidationErrors(catalog: Catalog): Promise<boolean> {
-  const errors = await validateCatalog(catalog);
+async function reportValidation(catalog: Catalog, strict = false): Promise<boolean> {
+  const { errors, warnings } = await validateCatalog(catalog);
   for (const error of errors) {
     console.error("ERROR: " + error);
   }
-  return errors.length > 0;
+  for (const warning of warnings) {
+    console.warn("WARNING: " + warning);
+  }
+  return errors.length > 0 || (strict && warnings.length > 0);
 }
 
 /** Execute catalog generation, refresh, documentation, and check modes. */
@@ -95,7 +104,7 @@ export async function generatePluginCatalog(rawArgs: string[]): Promise<number> 
         return 1;
       }
       catalog = await bootstrapCatalog();
-      if (await reportValidationErrors(catalog)) {
+      if (await reportValidation(catalog, args.strict)) {
         return 1;
       }
       if (args.write) {
@@ -116,7 +125,7 @@ export async function generatePluginCatalog(rawArgs: string[]): Promise<number> 
       }
     }
 
-    if (await reportValidationErrors(catalog)) {
+    if (await reportValidation(catalog, args.strict)) {
       return 1;
     }
 

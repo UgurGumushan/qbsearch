@@ -18,15 +18,6 @@
       "http://down.ali213.net/search?kw="
     ]
   },
-  "anidex": {
-    "query": "one piece",
-    "siteUrl": "https://anidex.info/",
-    "urls": [
-      "https://anidex.info/?s=seeders&o=desc&q=one%20piece",
-      "https://anidex.info/?s=seeders&o=desc&",
-      "https://anidex.info/&offset="
-    ]
-  },
   "animetosho": {
     "query": "one piece",
     "siteUrl": "https://animetosho.org",
@@ -58,21 +49,6 @@
     "urls": [
       "https://www.btdig.com/search?q=ubuntu&order=0",
       "https://www.btdig.com/search?q=ubuntu&p=1&order=0"
-    ]
-  },
-  "calidadtorrent": {
-    "query": "inception",
-    "siteUrl": "https://calidadtorrent.com",
-    "urls": ["https://calidadtorrent.com/buscar/page/1?q=inception"]
-  },
-  "cloudtorrents": {
-    "query": "ubuntu",
-    "siteUrl": "https://cloudtorrents.com",
-    "urls": [
-      "https://api.cloudtorrents.com/search/?query=ubuntu&offset=0&limit=50",
-      "https://api.cloudtorrents.com/search/?search=ubuntu",
-      "https://api.cloudtorrents.com/search/?",
-      "https://cloudtorrents.com/"
     ]
   },
   "cpasbien": {
@@ -128,40 +104,10 @@
     "siteUrl": "https://fitgirl-repacks.site/",
     "urls": []
   },
-  "glotorrents": {
-    "query": "inception",
-    "siteUrl": "https://glodls.to/",
-    "urls": [
-      "https://glodls.to/search_results.php?search=inception&cat=0&page=0&incldead=0&inclexternal=0"
-    ]
-  },
-  "goggames": {
-    "query": "minecraft",
-    "siteUrl": "https://gog-games.to",
-    "urls": ["https://gog-games.to/api/web/recent-torrents"]
-  },
-  "kickasstorrents": {
-    "query": "inception",
-    "siteUrl": "https://katcr.to/",
-    "urls": ["https://katcr.to/search/inception/0/"]
-  },
-  "magnetdl": {
-    "query": "ubuntu",
-    "siteUrl": "http://www.magnetdl.com/",
-    "urls": ["http://www.magnetdl.com/ubuntu"]
-  },
   "maxitorrent": {
     "query": "inception",
     "siteUrl": "http://atomixhq.com",
     "urls": ["http://atomixhq.com/get/result/"]
-  },
-  "mejortorrent": {
-    "query": "inception",
-    "siteUrl": "https://www36.mejortorrent.eu",
-    "urls": [
-      "https://www36.mejortorrent.eu/busqueda?q=inception",
-      "https://www36.mejortorrent.eu/0/[0-9]+/[%5E/"
-    ]
   },
   "mikan": {
     "query": "one piece",
@@ -196,7 +142,7 @@
   "nyaapantsu": {
     "query": "one piece",
     "siteUrl": "https://nyaa.pantsu.cat",
-    "urls": ["https://nyaa.pantsu.cat/search/1?s=0&sort=5&order=false&max=300&c="]
+    "urls": []
   },
   "nyaasi": {
     "query": "one piece",
@@ -212,18 +158,6 @@
     "query": "inception",
     "siteUrl": "https://pirateiro.io/",
     "urls": ["https://pirateiro.io/search?query=inception&page=1"]
-  },
-  "redetorrent": {
-    "query": "inception",
-    "siteUrl": "https://redetorrent.com",
-    "urls": ["https://redetorrent.com/index.php?s="]
-  },
-  "rockbox": {
-    "query": "ubuntu",
-    "siteUrl": "https://rawkbawx.rocks/",
-    "urls": [
-      "https://rawkbawx.rocks/torrents.php?active=0&search=ubuntu&options=0&order=data&page=0"
-    ]
   },
   "rutor": {
     "query": "inception",
@@ -308,14 +242,6 @@
     "siteUrl": "https://torrentdownloads.pro",
     "urls": ["https://torrentdownloads.pro/search/?new=1&s_cat=all&search=inception&page=1"]
   },
-  "torrentgalaxy": {
-    "query": "inception",
-    "siteUrl": "https://torrentgalaxy.to",
-    "urls": [
-      "https://torrentgalaxy.to/torrents.php?search=inception",
-      "https://torrentgalaxy.to/&page="
-    ]
-  },
   "traht": {
     "query": "inception",
     "siteUrl": "https://traht.org",
@@ -330,13 +256,6 @@
     "query": "test",
     "siteUrl": "https://xxxclub.to",
     "urls": ["https://xxxclub.to/torrents/search//test?page=1&sort=seeders&order=asc"]
-  },
-  "yggtracker": {
-    "query": "ubuntu",
-    "siteUrl": "https://github.com/YGGverse/YGGtracker",
-    "urls": [
-      "https://raw.githubusercontent.com/YGGverse/qbittorrent-yggtracker-search-plugin/main/nodes.json"
-    ]
   },
   "yourbittorrent": {
     "query": "inception",

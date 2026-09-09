@@ -1,4 +1,4 @@
-export type CheckScope = "check" | "static" | "python";
+export type CheckScope = "check" | "checkStrict" | "static" | "staticStrict" | "python";
 
 export interface CheckTask {
   label: string;

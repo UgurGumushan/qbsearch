@@ -1,104 +1,80 @@
-# qBittorrent search plugins
+# qBittorrent plugin collection
 
-Standalone qBittorrent search engines for Python 3.9+ and qBittorrent's nova3
-search-plugin system. Every file in [`plugins/`](plugins/) can be installed on
-its own; the repository does not require a shared runtime module.
+qbsearch is a standalone, installable collection of qBittorrent nova3 search plugins
+for Python 3.9+.
 
-## Install in under a minute
+Each file in [`plugins/`](plugins/) is a complete plugin and can be used without any
+repository runtime package.
 
-Choose one of these paths:
+## Install quickly
 
-- **One plugin:** download a `.py` file from the [plugin catalog](documentation/PLUGINS.md),
-  then install it from qBittorrent's Search plugins dialog or drag it into the
-  dialog. The optional matching icon is in [`icons/`](icons/).
-- **Everything:** download the latest archive from
-  [GitHub Releases](https://github.com/UgurGumushan/qbsearch/releases/latest),
-  unzip it, quit qBittorrent, and run `install/macos.sh`, `install/linux.sh`,
-  or `install/windows.ps1` for your platform.
-- **From a clone:** run the native installer for your platform: `./install/macos.sh`,
-  `./install/linux.sh`, or `./install/windows.ps1` in PowerShell.
+### One plugin
 
-The native installers require no Python, Bun, or other repository runtime. They
-always copy the complete collection: engines, matching icons, and support JSON
-files. An existing support file is kept so local qBittorrent settings are not
-overwritten. qBittorrent should be closed before installation and relaunched
-after. See [`documentation/INSTALL.md`](documentation/INSTALL.md) for destination
-paths and troubleshooting.
+- Download a plugin file from [`documentation/PLUGINS.md`](documentation/PLUGINS.md).
+- In qBittorrent, open **Search** → **Search plugins**, then add the `.py` file or drag it
+  into the dialog.
+- If available, a matching icon is installed from [`icons/`](icons/).
 
-## Browse the plugins
+### Complete collection
+
+- Download the latest archive from [GitHub Releases](https://github.com/UgurGumushan/qbsearch/releases/latest).
+- Unzip it and quit qBittorrent.
+- Run the installer for your platform:
+  - `install/macos.sh`
+  - `install/linux.sh`
+  - `install/windows.ps1`
+- Relaunch qBittorrent.
+
+### From a clone
+
+Run the same platform installer directly from a checkout:
+
+```sh
+./install/macos.sh
+./install/linux.sh
+./install/windows.ps1   # PowerShell
+```
+
+### Notes for installation
+
+- Existing qBittorrent support files are preserved during install.
+- qBittorrent must be closed during installation.
+- See [`documentation/INSTALL.md`](documentation/INSTALL.md) for platform paths and
+  troubleshooting.
+
+## Browse and choose plugins
 
 [`documentation/PLUGINS.md`](documentation/PLUGINS.md) is generated from
-[`catalog/plugins.json`](catalog/plugins.json) and lists each engine's
-category, repository status, site, installable file, and safe default
-live-test query. A status describes repository support; it is not a guarantee
-that a remote site is online at the moment you search.
+[`catalog/plugins.json`](catalog/plugins.json) and lists every plugin with:
 
-Adult-content engines are labeled `adult`. Review the catalog before installing
-engines on shared or managed qBittorrent systems.
+- category
+- repository status (`active`, `intermittent`, `unavailable`, `retired`)
+- site URL and safe default test query
+- source file link
 
-## Test the live services
+A status reflects repository maintenance state, not live site uptime.
 
-The default test command makes real HTTP requests to each active configured
-remote site, using each plugin's catalog query and a thread pool sized to the
-machine:
+Adult-content engines are labeled `adult`. Review plugin suitability before installing
+on shared systems.
 
-```sh
-bun run test -- --live
-```
+## Need maintainer/developer instructions?
 
-Useful variants:
+Use [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, checks, live testing, release
+procedures, and maintenance workflows.
 
-```sh
-bun run test -- --live --plugin yts
-bun run test -- --live --content-category anime
-bun run test -- --live --query ubuntu
-bun run test -- --live --require-results
-bun run test -- --live --watch --plugin yts
-```
+## Troubleshooting
 
-Live tests run each plugin in an isolated Bun/TypeScript subprocess. The worker
-validates the plugin's qBittorrent metadata and search contract, probes the
-configured endpoint, and reports individual pass/fail status. Empty result
-markers are allowed by default because a site may be reachable without
-matching records; `--require-results` makes them fail. Use `--install-only` for
-an offline metadata and contract check. Catalog entries marked `intermittent`,
-`unavailable`, or `retired` are skipped by the default run; pass `--plugin ID`
-to probe one explicitly. The TypeScript live-helper suite runs automatically
-unless `--skip-safety` is specified.
-
-Do not use sensitive queries in live tests. The query is used to construct the
-TypeScript endpoint probe and is sent to the remote service.
-
-Use `bun run test -- --live --watch` while iterating on a plugin. It runs the same live test,
-then reruns it when a plugin source or the catalog changes; pass the same
-options after `--` as for the live run. Because it makes real requests, stop it
-when you are done.
-
-## Maintainer checks
-
-```sh
-bun run setup
-bun run check
-bun run test -- --watch
-bun run test -- --live
-bun run release -- 1.0.0
-```
-
-`bun run setup` installs the pinned Bun and Python development dependencies and
-enables the automatic pre-commit hook. `bun run check` is deterministic and does
-not contact remote sites. Bun owns the repository command layer; Python is
-retained only for qBittorrent compatibility harnesses and plugin checks.
-Contributor workflow, catalog updates, release packaging, and CI behavior are
-documented in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- If a plugin does not run, make sure you installed the `.py` file matching your qBittorrent
+  build and restarted qBittorrent after install.
+- If installation fails, use the relevant installer for your OS again and verify your
+  network access and file permissions.
 
 ## Screenshot
 
 ![](images/screenshot.png)
 
-## Attribution
+## Attribution and license
 
-This collection incorporates engines from multiple upstream projects. See
-[`documentation/ATTRIBUTIONS.md`](documentation/ATTRIBUTIONS.md) and
-[`LICENSE.md`](LICENSE.md) for
-provenance and per-engine licensing. Source and license fields in the catalog
-should be completed or corrected when an engine is changed.
+This project includes engines from multiple upstream projects. See
+[`documentation/ATTRIBUTIONS.md`](documentation/ATTRIBUTIONS.md) and [`LICENSE.md`](LICENSE.md)
+for source and per-engine licensing.

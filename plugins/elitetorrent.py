@@ -24,10 +24,10 @@ try:
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
     from collections.abc import Iterable as _QBTIterable
+    from concurrent.futures import FIRST_COMPLETED as _qbt_FIRST_COMPLETED
     from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
-    from concurrent.futures import TimeoutError as _qbt_FuturesTimeoutError
-    from concurrent.futures import as_completed as _qbt_as_completed
+    from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
     from types import TracebackType as _QBTTracebackType
     from typing import Callable as _QBTCallable
@@ -45,6 +45,7 @@ MAX_WORKERS = 4
 SEARCH_DEADLINE = 60.0
 MAX_PAGES = 30
 MAX_DETAILS = 100
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 _qbt_socket.setdefaulttimeout(HTTP_TIMEOUT)
 _QBT_RETRYABLE_HTTP_STATUS = frozenset((408, 425, 429, 500, 502, 503, 504))
@@ -92,11 +93,21 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
-    return _qbt_get_deadline()
+    global _qbt_search_deadline
+    _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
+    return _qbt_search_deadline
 
 
-def _qbt_sleep(attempt: int) -> None:
-    _qbt_time.sleep(min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0))
+def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    if deadline is None:
+        deadline = _qbt_get_deadline()
+    remaining = deadline - _qbt_time.monotonic()
+    if remaining <= 0:
+        return False
+    delay = min(max(RETRY_DELAY, 0.0) * (attempt + 1), 1.0, remaining)
+    if delay > 0:
+        _qbt_time.sleep(delay)
+    return _qbt_time.monotonic() < deadline
 
 
 class _QBTEmptyResponse:
@@ -147,6 +158,58 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
     return _qbt_cast(_QBTResponseContext, _qbt_cast(object, _QBTEmptyResponse(url)))
 
 
+def _qbt_response_limit(limit: object = None) -> int:
+    value = MAX_RESPONSE_BYTES if limit is None else limit
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return max(0, int(MAX_RESPONSE_BYTES))
+
+
+def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
+    """Read at most the configured response limit from an HTTP response."""
+    return response.read(_qbt_response_limit(limit))
+
+
+class _QBTBoundedResponse:
+    """Response proxy that bounds the existing no-argument read() call sites."""
+
+    def __init__(self, response: _QBTResponse) -> None:
+        self._qbt_response = response
+
+    def __enter__(self) -> "_QBTBoundedResponse":
+        self._qbt_response = self._qbt_response.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: _QBTTracebackType | None,
+    ) -> bool:
+        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+
+    def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
+        if size is None:
+            return _qbt_read_response(self._qbt_response)
+        try:
+            requested = int(size)
+        except (TypeError, ValueError):
+            return _qbt_read_response(self._qbt_response)
+        if requested < 0:
+            return _qbt_read_response(self._qbt_response)
+        return _qbt_read_response(
+            self._qbt_response,
+            min(requested, _qbt_response_limit()),
+        )
+
+    def close(self) -> None:
+        self._qbt_response.close()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._qbt_response, name)
+
+
 class _QBTTransientHTTPError(Exception):
     pass
 
@@ -176,8 +239,8 @@ def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
                 pass
         except Exception:
             pass
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return ""
     return ""
 
 
@@ -210,7 +273,10 @@ def _qbt_safe_urlopen(
             if status >= 400:
                 response.close()
                 return _qbt_empty_response(url)
-            return response
+            return _qbt_cast(
+                _QBTResponseContext,
+                _qbt_cast(object, _QBTBoundedResponse(response)),
+            )
         except _qbt_urllib_error.HTTPError as error:
             if error.code not in _QBT_RETRYABLE_HTTP_STATUS:
                 try:
@@ -235,8 +301,8 @@ def _qbt_safe_urlopen(
                 except Exception:
                     pass
             return _qbt_empty_response(url)
-        if attempt + 1 < attempts:
-            _qbt_sleep(attempt)
+        if attempt + 1 < attempts and not _qbt_sleep(attempt):
+            return _qbt_empty_response(url)
     return _qbt_empty_response(url)
 
 
@@ -267,30 +333,60 @@ def _qbt_run_parallel(
     deadline: float | None = None,
 ) -> list[_QBTJobResult]:
     """Run bounded worker jobs, preserving completed work after failures."""
-    jobs = list(jobs)
-    if not jobs:
-        return []
     if deadline is None:
         deadline = _qbt_get_deadline()
-    executor = _QBTThreadPoolExecutor(max_workers=MAX_WORKERS)
-    futures: list[_QBTFuture[_QBTJobResult]] = []
-    for job in jobs:
-        if isinstance(job, tuple):
-            futures.append(executor.submit(worker, *job))
-        else:
-            futures.append(executor.submit(worker, job))
+    if deadline - _qbt_time.monotonic() <= 0:
+        return []
+    worker_limit = max(1, int(MAX_WORKERS))
+    job_iterator = iter(jobs)
+    initial_jobs: list[object] = []
+    for _ in range(worker_limit):
+        try:
+            initial_jobs.append(next(job_iterator))
+        except StopIteration:
+            break
+    if not initial_jobs or deadline - _qbt_time.monotonic() <= 0:
+        return []
+    executor = _QBTThreadPoolExecutor(max_workers=len(initial_jobs))
+    pending: set[_QBTFuture[_QBTJobResult]] = set()
     results: list[_QBTJobResult] = []
     try:
-        remaining = max(0.0, deadline - _qbt_time.monotonic())
-        for future in _qbt_as_completed(futures, timeout=remaining):
-            try:
-                results.append(future.result())
-            except Exception:
-                pass
-    except _qbt_FuturesTimeoutError:
-        for future in futures:
-            _ = future.cancel()
+        for job in initial_jobs:
+            if deadline - _qbt_time.monotonic() <= 0:
+                break
+            if isinstance(job, tuple):
+                pending.add(executor.submit(worker, *job))
+            else:
+                pending.add(executor.submit(worker, job))
+        while pending:
+            remaining = deadline - _qbt_time.monotonic()
+            if remaining <= 0:
+                break
+            done, pending = _qbt_wait(
+                pending,
+                timeout=remaining,
+                return_when=_qbt_FIRST_COMPLETED
+            )
+            if not done:
+                break
+            for future in done:
+                try:
+                    results.append(future.result())
+                except Exception:
+                    pass
+                if deadline - _qbt_time.monotonic() <= 0:
+                    continue
+                try:
+                    job = next(job_iterator)
+                except StopIteration:
+                    continue
+                if isinstance(job, tuple):
+                    pending.add(executor.submit(worker, *job))
+                else:
+                    pending.add(executor.submit(worker, job))
     finally:
+        for future in pending:
+            _ = future.cancel()
         try:
             _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:
@@ -302,6 +398,7 @@ __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
     "_qbt_run_parallel",
+    "_qbt_read_response",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -385,8 +482,72 @@ class elitetorrent:
         """Unused: results already carry ready-to-use magnet links."""
         print(download_file(info["link"]))
 
+    def parse_result(self, url: str) -> SearchResults | None:
+        data = retrieve_url(url).replace("\n", "")
+        info: TorrentInfo = {
+            "title": None,
+            "link": [],
+            "size": "0",
+            "quality": None,
+            "language": None,
+            "date": -1,
+            "seeds": -1,
+            "leech": -1,
+            "formatted_name": "",
+        }
+        m_title = re.search(r"<h1>Descargar .+ por torrent</h1>", data)
+        info["title"] = m_title.group(0) if m_title else None
+        info["link"] = re.findall(r"i=[-A-Za-z0-9+/]+\={0,3}\"", data)
+        m = re.search(r"Tama.?o:</b> [0-9\.]+[\ GM]+B", data)
+        info["size"] = m.group(0).split("</b>")[1].strip() if m else "0"
+        m = re.search(r"Calidad:</b> [0-9\.a-z\-]+", data)
+        info["quality"] = m.group(0).removeprefix("Calidad:</b>").strip() if m else None
+        m = re.search(r"Idioma:</b>[a-zA-Zñ\ ]+", data)
+        info["language"] = m.group(0).removeprefix("Idioma:</b>").strip() if m else None
+        m = re.search(r"Fecha:</b>[\ 0-9\-]+", data)
+        info["date"] = m.group(0).replace(" ", "").removeprefix("Fecha:</b>") if m else -1
+        m = re.search(r"<b>Semillas</b>:[\ 0-9]*", data)
+        info["seeds"] = m.group(0).split(":")[-1].strip() if m else -1
+        m = re.search(r"<b>Clientes</b>:[\ 0-9]*", data)
+        info["leech"] = m.group(0).split(":")[-1].strip() if m else -1
+
+        format_info(info)
+        if info["title"] is None or not isinstance(info["link"], str):
+            return None
+
+        pub_date = info["date"]
+        if isinstance(pub_date, str):
+            # there are 2 format dates: YYYY-MM-DD or DD-MM-YYYY
+            if int(pub_date.split("-")[0]) > 1000:
+                parsed_date = datetime.strptime(pub_date, "%Y-%m-%d")
+            else:
+                parsed_date = datetime.strptime(pub_date, "%d-%m-%Y")
+            pub_date = round(datetime.timestamp(parsed_date))
+
+        seeds = info["seeds"]
+        leech = info["leech"]
+        return {
+            "seeds": int(seeds)
+            if isinstance(seeds, str) and seeds
+            else seeds
+            if isinstance(seeds, int)
+            else -1,
+            "leech": int(leech)
+            if isinstance(leech, str) and leech
+            else leech
+            if isinstance(leech, int)
+            else -1,
+            "name": info["formatted_name"],
+            "size": info["size"],
+            "desc_link": url,
+            "engine_url": self.url,
+            "link": info["link"],
+            "pub_date": pub_date,
+        }
+
     def search(self, what: str, cat: str = "all") -> None:
-        search_url = "{}/?s={}".format(self.url, what.replace("%20", "+"))
+        query = what.replace("%20", "+")
+        search_url = "{}/?s={}".format(self.url, query)
         html = retrieve_url(search_url)
 
         # Get number of pages
@@ -395,9 +556,9 @@ class elitetorrent:
             pages = cast(list[str], re.findall(r'<a.*?class="pagina.*?</a>', html))
             if len(pages) > 0:
                 last_page = pages[-1]
-                last_page = cast(list[str], re.findall(r"page/.*?/", last_page))[0]
-                last_page = last_page.replace("/", "").replace("page", "")
-                number_pages = int(last_page)
+                page_match = re.search(r"page/(\d+)/", last_page)
+                if page_match is not None:
+                    number_pages = int(page_match.group(1))
 
         # Only one page but there are results
         elif "Resultado de buscar" in html:
@@ -410,10 +571,11 @@ class elitetorrent:
         number_pages = min(self.pages_limit, number_pages)
 
         links: list[str] = []
+        seen_links: set[str] = set()
 
         for page in range(1, min(number_pages, MAX_PAGES) + 1):
             # Page urls look like: {url}/page/{n}/?s={query}
-            url = "{}/page/{}/?s={}".format(self.url, page, what.replace("%20", "+"))
+            url = "{}/page/{}/?s={}".format(self.url, page, query)
             html = retrieve_url(url).replace("\n", "")  # Replace newline to help the regex
             # I hate regex, check if selected category is films or tv, if its 'all' get both
             pattern = (
@@ -424,71 +586,16 @@ class elitetorrent:
             # Collect every matching result link on the page.
             items = cast(list[str], re.findall(pattern, html))
             for result_link in items:
-                if result_link not in links:
+                if len(links) >= MAX_DETAILS:
+                    break
+                if result_link not in seen_links:
+                    seen_links.add(result_link)
                     links.append(result_link)
+            if len(links) >= MAX_DETAILS:
+                break
 
-        for i in links:
-            # Visiting individual results to get its attributes makes it so slow
-            data = retrieve_url(i).replace("\n", "")
-            info: TorrentInfo = {
-                "title": None,
-                "link": [],
-                "size": "0",
-                "quality": None,
-                "language": None,
-                "date": -1,
-                "seeds": -1,
-                "leech": -1,
-                "formatted_name": "",
-            }
-            m_title = re.search(r"<h1>Descargar .+ por torrent</h1>", data)
-            info["title"] = m_title.group(0) if m_title else None
-            info["link"] = re.findall(r"i=[-A-Za-z0-9+/]+\={0,3}\"", data)
-            m = re.search(r"Tama.?o:</b> [0-9\.]+[\ GM]+B", data)
-            info["size"] = m.group(0).split("</b>")[1].strip() if m else "0"
-            m = re.search(r"Calidad:</b> [0-9\.a-z\-]+", data)
-            info["quality"] = m.group(0).removeprefix("Calidad:</b>").strip() if m else None
-            m = re.search(r"Idioma:</b>[a-zA-Zñ\ ]+", data)
-            info["language"] = m.group(0).removeprefix("Idioma:</b>").strip() if m else None
-            m = re.search(r"Fecha:</b>[\ 0-9\-]+", data)
-            info["date"] = m.group(0).replace(" ", "").removeprefix("Fecha:</b>") if m else -1
-            m = re.search(r"<b>Semillas</b>:[\ 0-9]*", data)
-            info["seeds"] = m.group(0).split(":")[-1].strip() if m else -1
-            m = re.search(r"<b>Clientes</b>:[\ 0-9]*", data)
-            info["leech"] = m.group(0).split(":")[-1].strip() if m else -1
-
-            format_info(info)
-            if info["title"] is None or not isinstance(info["link"], str):
-                continue  # decoding has failed, skip
-
-            pub_date = info["date"]
-            if isinstance(pub_date, str):
-                # there are 2 format dates: YYYY-MM-DD or DD-MM-YYYY
-                if int(pub_date.split("-")[0]) > 1000:
-                    parsed_date = datetime.strptime(pub_date, "%Y-%m-%d")
-                else:
-                    parsed_date = datetime.strptime(pub_date, "%d-%m-%Y")
-                pub_date = round(datetime.timestamp(parsed_date))
-
-            seeds = info["seeds"]
-            leech = info["leech"]
-            item: SearchResults = {
-                "seeds": int(seeds)
-                if isinstance(seeds, str) and seeds
-                else seeds
-                if isinstance(seeds, int)
-                else -1,
-                "leech": int(leech)
-                if isinstance(leech, str) and leech
-                else leech
-                if isinstance(leech, int)
-                else -1,
-                "name": info["formatted_name"],
-                "size": info["size"],
-                "desc_link": i,
-                "engine_url": self.url,
-                "link": info["link"],
-                "pub_date": pub_date,
-            }
-            # Prints in this format: link|name|size|seeds|leech|engine_url|desc_link|pub_date
-            _qbt_prettyPrinter(item)
+        jobs = [(link,) for link in links]
+        for item in _qbt_run_parallel(self.parse_result, jobs, _qbt_new_deadline()):
+            if item is not None:
+                # Prints in this format: link|name|size|seeds|leech|engine_url|desc_link|pub_date
+                _qbt_prettyPrinter(item)

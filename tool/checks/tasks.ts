@@ -3,6 +3,24 @@ import type { CheckScope, CheckTask } from "./types";
 const BUN = process.execPath;
 
 export const CHECK_TASKS: Record<CheckScope, CheckTask[]> = {
+  checkStrict: [
+    { label: "Bun tests", command: [BUN, "test"] },
+    {
+      label: "Static checks",
+      command: [BUN, "tool/entry.ts", "check", "--", "--fast", "--strict"],
+    },
+  ],
+  staticStrict: [
+    { label: "TypeScript", command: [BUN, "run", "typecheck"] },
+    { label: "ESLint", command: [BUN, "run", "lint"] },
+    { label: "Prettier", command: [BUN, "run", "format:check"] },
+    { label: "Python checks", command: [BUN, "tool/checks/command.ts", "python"] },
+    { label: "Plugin quality", command: [BUN, "tool/checks/plugin_quality.ts"] },
+    {
+      label: "Generated files",
+      command: [BUN, "tool/entry.ts", "gen", "--", "--check", "--strict"],
+    },
+  ],
   check: [
     { label: "Bun tests", command: [BUN, "test"] },
     { label: "Static checks", command: [BUN, "tool/entry.ts", "check", "--", "--fast"] },
@@ -12,6 +30,7 @@ export const CHECK_TASKS: Record<CheckScope, CheckTask[]> = {
     { label: "ESLint", command: [BUN, "run", "lint"] },
     { label: "Prettier", command: [BUN, "run", "format:check"] },
     { label: "Python checks", command: [BUN, "tool/checks/command.ts", "python"] },
+    { label: "Plugin quality", command: [BUN, "tool/checks/plugin_quality.ts"] },
     { label: "Generated files", command: [BUN, "tool/entry.ts", "gen", "--", "--check"] },
   ],
   python: [

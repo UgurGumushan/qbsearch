@@ -14,12 +14,13 @@ bun run setup
 
 ## `bun run check`
 
-Run deterministic checks. --fast is the pre-commit hook subset; --full (default) adds bun test.
+Run deterministic checks. --fast is the pre-commit hook subset; --full (default) adds bun test. --strict enforces metadata warnings as failures.
 
 ```sh
 bun run check
 bun run check -- --fast
 bun run check -- --full
+bun run check -- --strict
 ```
 
 ## `bun run gen`

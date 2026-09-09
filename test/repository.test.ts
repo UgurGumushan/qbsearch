@@ -34,7 +34,7 @@ test("Bun tracks every standalone plugin source", async () => {
 
 test("catalog and generated plugin documentation are current", async () => {
   const catalog = await loadCatalog(CATALOG_PATH);
-  expect(await validateCatalog(catalog)).toEqual([]);
+  expect((await validateCatalog(catalog)).errors).toEqual([]);
   expect(await readFile(DOCS_PATH, "utf8")).toBe(renderPluginDocs(catalog));
 });
 

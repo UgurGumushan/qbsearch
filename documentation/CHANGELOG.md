@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.7
+
+- Improve plugin search bounds, duplicate handling, parser resilience, and
+  deadline-aware networking while preserving standalone Python 3.9 support.
+- Add deterministic plugin quality checks and maintenance evidence validation.
+- Make the README installation-focused and consolidate contributor guidance.
+- Remove 12 engines after unsuccessful live probes: anidex, calidadtorrent,
+  cloudtorrents, glotorrents, goggames, kickasstorrents, magnetdl, mejortorrent,
+  redetorrent, rockbox, torrentgalaxy, and yggtracker. The catalog now contains
+  49 engines. Observed failures included HTTP errors, access blocks, connection
+  failures, and timeouts; these do not establish permanent site failure.
+- Refresh generated catalog documentation, plugin sources, and probe fixtures.
+
 ## 0.1.6
 
 - Triaged the weekly live sweep: retired goggames, marked three dead sites as
