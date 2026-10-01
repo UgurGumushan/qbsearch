@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.9
+
+- Put the latest ZIP download, platform installation steps, and all 49 plugin
+  downloads directly in the README, grouped by category with catalog statuses.
+- Correct the Python prerequisite, remove a retired troubleshooting command,
+  and use shell installer commands that work from an extracted release archive.
+- Allow bounded functional-capture tests to finish on slower CI runners and
+  narrow the parser harness loader type explicitly for Python 3.9 checks.
+
 ## 0.1.8
 
 - Restore Elitetorrent encoded magnet extraction and Solid Torrents parsing for
