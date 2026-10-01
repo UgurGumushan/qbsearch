@@ -321,3 +321,16 @@ Fifteen license labels remain explicitly unresolved. The separated-date
 promotion/removal work above is pending; today's deterministic checks and archive
 build earn no additional live recovery credit. At this maintenance checkpoint, changes were committed locally
 through the normal pre-commit hook; release publication was still pending.
+
+## Release 0.1.8 CI follow-up — 2026-10-01
+
+The release workflow passed its strict gate and published `v0.1.8` at commit
+`6e8cf74`. Downloaded versioned and latest ZIPs are identical and their 119 entries
+match repository sources, including 49 engines, 49 icons, and six license notices.
+
+A parallel standalone CI run hit Bun's default five-second timeout in two
+functional-capture tests that launch multiple Python subprocesses. The timeout
+interrupted mock cleanup and produced a subsequent misleading fetch error. These
+full-pair tests now allow 30 seconds on slower runners while preserving the
+individual replay, request, URL, and capture limits. This follow-up changes only
+test timing and evidence; it does not change the published engine/archive files.
