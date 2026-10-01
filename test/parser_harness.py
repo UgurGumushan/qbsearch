@@ -117,7 +117,10 @@ def replay(path: Path) -> dict[str, object]:
     ):
         raise ValueError("plugin source changed after response capture")
     spec = importlib.util.spec_from_file_location(str(plugin), plugin_path)
-    if spec is None or spec.loader is None:
+    if spec is None:
+        raise ValueError("cannot load plugin")
+    loader = cast(object, spec.loader)
+    if loader is None:
         raise ValueError("cannot load plugin")
     module = importlib.util.module_from_spec(spec)
     with (
@@ -129,7 +132,7 @@ def replay(path: Path) -> dict[str, object]:
         redirect_stdout(output),
     ):
         # Python 3.9's abstract Loader stub omits the concrete exec_module API.
-        cast(ModuleLoader, cast(object, spec.loader)).exec_module(module)
+        cast(ModuleLoader, loader).exec_module(module)
         vars(module).update({"MAX_PAGES": limits["maxPages"], "MAX_DETAILS": limits["maxDetails"]})
         # Missing fixture responses still exercise retries, without artificial sleeps.
         vars(module)["RETRY_DELAY"] = 0

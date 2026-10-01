@@ -334,3 +334,10 @@ interrupted mock cleanup and produced a subsequent misleading fetch error. These
 full-pair tests now allow 30 seconds on slower runners while preserving the
 individual replay, request, URL, and capture limits. This follow-up changes only
 test timing and evidence; it does not change the published engine/archive files.
+
+The next CI run passed all 85 tests on Python 3.9 and 3.11. Python 3.9's Linux
+stdlib stubs also exposed a partially unknown `ModuleSpec.loader` type in the
+harness's null guard. The harness now narrows the spec first, casts its loader to
+`object`, checks for absence, and invokes the existing explicit loader protocol.
+This preserves runtime behavior and removes the platform-specific static warning
+without suppressing diagnostics. Published engine files remain unchanged.
