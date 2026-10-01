@@ -8,6 +8,7 @@ size, and pages are walked concurrently in threads.
 from __future__ import annotations
 
 import re
+from _thread import LockType
 from html.parser import HTMLParser
 from typing import ClassVar, cast
 
@@ -33,6 +34,7 @@ try:
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
     from typing import cast as _qbt_cast
+    from typing import final as _qbt_final
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
@@ -86,10 +88,11 @@ class _QBTResponseContext(_QBTResponse, _QBTProtocol):
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool: ...
+    ) -> bool | None: ...
 
 
 _qbt_urlopen_typed = _qbt_cast(_QBTCallable[..., _QBTResponseContext], _qbt_urlopen)
+_qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
@@ -168,7 +171,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 def _qbt_response_limit(limit: object = None) -> int:
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
-        return max(0, int(value))
+        return max(0, _qbt_int(value))
     except (TypeError, ValueError):
         return max(0, int(MAX_RESPONSE_BYTES))
 
@@ -178,14 +181,16 @@ def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
     return response.read(_qbt_response_limit(limit))
 
 
+@_qbt_final
 class _QBTBoundedResponse:
     """Response proxy that bounds the existing no-argument read() call sites."""
 
-    def __init__(self, response: _QBTResponse) -> None:
-        self._qbt_response = response
+    def __init__(self, response: _QBTResponseContext) -> None:
+        self._qbt_context: _QBTResponseContext = response
+        self._qbt_response: _QBTResponse = response
 
-    def __enter__(self) -> "_QBTBoundedResponse":
-        self._qbt_response = self._qbt_response.__enter__()
+    def __enter__(self) -> _QBTBoundedResponse:
+        self._qbt_response = self._qbt_context.__enter__()
         return self
 
     def __exit__(
@@ -193,14 +198,14 @@ class _QBTBoundedResponse:
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool:
-        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+    ) -> bool | None:
+        return self._qbt_context.__exit__(exc_type, exc_value, traceback)
 
     def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
         if size is None:
             return _qbt_read_response(self._qbt_response)
         try:
-            requested = int(size)
+            requested = _qbt_int(size)
         except (TypeError, ValueError):
             return _qbt_read_response(self._qbt_response)
         if requested < 0:
@@ -214,7 +219,7 @@ class _QBTBoundedResponse:
         self._qbt_response.close()
 
     def __getattr__(self, name: str) -> object:
-        return getattr(self._qbt_response, name)
+        return _qbt_cast(object, getattr(self._qbt_response, name))
 
 
 class _QBTTransientHTTPError(Exception):
@@ -369,11 +374,7 @@ def _qbt_run_parallel(
             remaining = deadline - _qbt_time.monotonic()
             if remaining <= 0:
                 break
-            done, pending = _qbt_wait(
-                pending,
-                timeout=remaining,
-                return_when=_qbt_FIRST_COMPLETED
-            )
+            done, pending = _qbt_wait(pending, timeout=remaining, return_when=_qbt_FIRST_COMPLETED)
             if not done:
                 break
             for future in done:
@@ -404,8 +405,8 @@ def _qbt_run_parallel(
 __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
-    "_qbt_run_parallel",
     "_qbt_read_response",
+    "_qbt_run_parallel",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -448,15 +449,15 @@ class xxxclubto:
             headers: dict[str, str],
             seen_detail_links: set[str],
             seen_result_links: set[str],
-            state_lock: object,
+            state_lock: LockType,
         ) -> None:
             HTMLParser.__init__(self)
             self.url: str = url
             self.headers: dict[str, str] = headers
             self.headers["Referer"] = url
-            self.seen_detail_links = seen_detail_links
-            self.seen_result_links = seen_result_links
-            self.state_lock = state_lock
+            self.seen_detail_links: set[str] = seen_detail_links
+            self.seen_result_links: set[str] = seen_result_links
+            self.state_lock: LockType = state_lock
             self.row: dict[str, str] = {}
             self.column: int = 0
             self.foundResults: bool = False
@@ -469,7 +470,7 @@ class xxxclubto:
             self.magnet_regex: str = r'href=["\'](magnet:[^"\']+)["\']'
             self.shouldSkipResult: bool = False
 
-        def _claim(self, values: set[str], value: str, limit=None) -> bool:
+        def _claim(self, values: set[str], value: str, limit: int | None = None) -> bool:
             if not value:
                 return False
             with self.state_lock:
@@ -555,6 +556,11 @@ class xxxclubto:
                     self.shouldSkipResult = False
                 return
 
+    def __init__(self) -> None:
+        self._seen_detail_links: set[str] = set()
+        self._seen_result_links: set[str] = set()
+        self._state_lock: LockType = _qbt_Lock()
+
     def download_torrent(self, info: str) -> None:
         print(download_file(info))
 
@@ -619,8 +625,8 @@ class xxxclubto:
 
     def search(self, what: str, cat: str = "all") -> None:
         category = self.supported_categories[cat]
-        self._seen_detail_links: set[str] = set()
-        self._seen_result_links: set[str] = set()
+        self._seen_detail_links = set()
+        self._seen_result_links = set()
         self._state_lock = _qbt_Lock()
         batch_size = max(1, int(MAX_WORKERS))
         for start in range(1, MAX_PAGES + 1, batch_size):

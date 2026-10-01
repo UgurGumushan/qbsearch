@@ -3,14 +3,14 @@ import { runParallel } from "../core/run";
 import type { CheckScope } from "./types";
 
 function usage(): string {
-  return `Usage: bun run check
+  return `Usage: bun tool/checks/cli.ts SCOPE
 
 Run independent repository checks in parallel.
 
 Scopes:
   check    Run the test suite and all static checks
-  static   Run TypeScript, ESLint, Prettier, and Python checks (bun run static-check)
-  python   Run Ruff and BasedPyright checks (bun run python:check)
+  static   Run static and generated-file checks (public command: bun run check -- --fast)
+  python   Run Ruff and BasedPyright checks
 `;
 }
 

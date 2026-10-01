@@ -14,7 +14,7 @@ export const CHECK_TASKS: Record<CheckScope, CheckTask[]> = {
     { label: "TypeScript", command: [BUN, "run", "typecheck"] },
     { label: "ESLint", command: [BUN, "run", "lint"] },
     { label: "Prettier", command: [BUN, "run", "format:check"] },
-    { label: "Python checks", command: [BUN, "tool/checks/command.ts", "python"] },
+    { label: "Python checks", command: [BUN, "tool/checks/cli.ts", "python"] },
     { label: "Plugin quality", command: [BUN, "tool/checks/plugin_quality.ts"] },
     {
       label: "Generated files",
@@ -29,7 +29,7 @@ export const CHECK_TASKS: Record<CheckScope, CheckTask[]> = {
     { label: "TypeScript", command: [BUN, "run", "typecheck"] },
     { label: "ESLint", command: [BUN, "run", "lint"] },
     { label: "Prettier", command: [BUN, "run", "format:check"] },
-    { label: "Python checks", command: [BUN, "tool/checks/command.ts", "python"] },
+    { label: "Python checks", command: [BUN, "tool/checks/cli.ts", "python"] },
     { label: "Plugin quality", command: [BUN, "tool/checks/plugin_quality.ts"] },
     { label: "Generated files", command: [BUN, "tool/entry.ts", "gen", "--", "--check"] },
   ],

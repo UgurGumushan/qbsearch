@@ -30,6 +30,7 @@ try:
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
     from typing import cast as _qbt_cast
+    from typing import final as _qbt_final
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
@@ -75,10 +76,11 @@ class _QBTResponseContext(_QBTResponse, _QBTProtocol):
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool: ...
+    ) -> bool | None: ...
 
 
 _qbt_urlopen_typed = _qbt_cast(_QBTCallable[..., _QBTResponseContext], _qbt_urlopen)
+_qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
@@ -157,7 +159,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 def _qbt_response_limit(limit: object = None) -> int:
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
-        return max(0, int(value))
+        return max(0, _qbt_int(value))
     except (TypeError, ValueError):
         return max(0, int(MAX_RESPONSE_BYTES))
 
@@ -167,14 +169,16 @@ def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
     return response.read(_qbt_response_limit(limit))
 
 
+@_qbt_final
 class _QBTBoundedResponse:
     """Response proxy that bounds the existing no-argument read() call sites."""
 
-    def __init__(self, response: _QBTResponse) -> None:
-        self._qbt_response = response
+    def __init__(self, response: _QBTResponseContext) -> None:
+        self._qbt_context: _QBTResponseContext = response
+        self._qbt_response: _QBTResponse = response
 
-    def __enter__(self) -> "_QBTBoundedResponse":
-        self._qbt_response = self._qbt_response.__enter__()
+    def __enter__(self) -> _QBTBoundedResponse:
+        self._qbt_response = self._qbt_context.__enter__()
         return self
 
     def __exit__(
@@ -182,14 +186,14 @@ class _QBTBoundedResponse:
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool:
-        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+    ) -> bool | None:
+        return self._qbt_context.__exit__(exc_type, exc_value, traceback)
 
     def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
         if size is None:
             return _qbt_read_response(self._qbt_response)
         try:
-            requested = int(size)
+            requested = _qbt_int(size)
         except (TypeError, ValueError):
             return _qbt_read_response(self._qbt_response)
         if requested < 0:
@@ -203,7 +207,7 @@ class _QBTBoundedResponse:
         self._qbt_response.close()
 
     def __getattr__(self, name: str) -> object:
-        return getattr(self._qbt_response, name)
+        return _qbt_cast(object, getattr(self._qbt_response, name))
 
 
 class _QBTTransientHTTPError(Exception):
@@ -358,11 +362,7 @@ def _qbt_run_parallel(
             remaining = deadline - _qbt_time.monotonic()
             if remaining <= 0:
                 break
-            done, pending = _qbt_wait(
-                pending,
-                timeout=remaining,
-                return_when=_qbt_FIRST_COMPLETED
-            )
+            done, pending = _qbt_wait(pending, timeout=remaining, return_when=_qbt_FIRST_COMPLETED)
             if not done:
                 break
             for future in done:
@@ -393,8 +393,8 @@ def _qbt_run_parallel(
 __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
-    "_qbt_run_parallel",
     "_qbt_read_response",
+    "_qbt_run_parallel",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -427,11 +427,12 @@ class thepiratebay:
         if not collection:
             return
         seen_hashes: set[str] = set()
-        for torrent in collection:
-            if not isinstance(torrent, dict):
+        for raw_torrent in cast(list[object], collection):
+            if not isinstance(raw_torrent, dict):
                 continue
-            info_hash = torrent.get("info_hash")
-            name = torrent.get("name")
+            torrent = cast(TpbEntry, cast(object, raw_torrent))
+            info_hash = cast(object, torrent.get("info_hash"))
+            name = cast(object, torrent.get("name"))
             if (
                 not isinstance(info_hash, str)
                 or not info_hash
@@ -442,9 +443,7 @@ class thepiratebay:
                 continue
             seen_hashes.add(info_hash.lower())
             data: SearchResults = {
-                "link": "magnet:?xt=urn:btih:{}&dn={}&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2710%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2780%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2730%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=http%3A%2F%2Fp4p.arenabg.com%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.tiny-vps.com%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce".format(
-                    info_hash, urllib.parse.quote(name if isinstance(name, str) else str(name))
-                ),
+                "link": f"magnet:?xt=urn:btih:{info_hash}&dn={urllib.parse.quote(name if isinstance(name, str) else str(name))}&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2710%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2780%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2730%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=http%3A%2F%2Fp4p.arenabg.com%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.tiny-vps.com%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce",
                 "name": name if isinstance(name, str) else str(name),
                 "size": torrent.get("size", 0),
                 "seeds": torrent.get("seeders", 0),
@@ -464,7 +463,7 @@ class thepiratebay:
         url = f"{self.api_url}q.php?q={what}&cat=0"
         # Getting JSON from API
         try:
-            collection_value: object = json.loads(retrieve_url(url))
+            collection_value = cast(object, json.loads(retrieve_url(url)))
         except (TypeError, ValueError):
             return
         if not isinstance(collection_value, list):

@@ -32,6 +32,7 @@ try:
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
     from typing import cast as _qbt_cast
+    from typing import final as _qbt_final
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
@@ -77,10 +78,11 @@ class _QBTResponseContext(_QBTResponse, _QBTProtocol):
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool: ...
+    ) -> bool | None: ...
 
 
 _qbt_urlopen_typed = _qbt_cast(_QBTCallable[..., _QBTResponseContext], _qbt_urlopen)
+_qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
@@ -159,7 +161,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 def _qbt_response_limit(limit: object = None) -> int:
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
-        return max(0, int(value))
+        return max(0, _qbt_int(value))
     except (TypeError, ValueError):
         return max(0, int(MAX_RESPONSE_BYTES))
 
@@ -169,14 +171,16 @@ def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
     return response.read(_qbt_response_limit(limit))
 
 
+@_qbt_final
 class _QBTBoundedResponse:
     """Response proxy that bounds the existing no-argument read() call sites."""
 
-    def __init__(self, response: _QBTResponse) -> None:
-        self._qbt_response = response
+    def __init__(self, response: _QBTResponseContext) -> None:
+        self._qbt_context: _QBTResponseContext = response
+        self._qbt_response: _QBTResponse = response
 
-    def __enter__(self) -> "_QBTBoundedResponse":
-        self._qbt_response = self._qbt_response.__enter__()
+    def __enter__(self) -> _QBTBoundedResponse:
+        self._qbt_response = self._qbt_context.__enter__()
         return self
 
     def __exit__(
@@ -184,14 +188,14 @@ class _QBTBoundedResponse:
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool:
-        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+    ) -> bool | None:
+        return self._qbt_context.__exit__(exc_type, exc_value, traceback)
 
     def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
         if size is None:
             return _qbt_read_response(self._qbt_response)
         try:
-            requested = int(size)
+            requested = _qbt_int(size)
         except (TypeError, ValueError):
             return _qbt_read_response(self._qbt_response)
         if requested < 0:
@@ -205,7 +209,7 @@ class _QBTBoundedResponse:
         self._qbt_response.close()
 
     def __getattr__(self, name: str) -> object:
-        return getattr(self._qbt_response, name)
+        return _qbt_cast(object, getattr(self._qbt_response, name))
 
 
 class _QBTTransientHTTPError(Exception):
@@ -360,11 +364,7 @@ def _qbt_run_parallel(
             remaining = deadline - _qbt_time.monotonic()
             if remaining <= 0:
                 break
-            done, pending = _qbt_wait(
-                pending,
-                timeout=remaining,
-                return_when=_qbt_FIRST_COMPLETED
-            )
+            done, pending = _qbt_wait(pending, timeout=remaining, return_when=_qbt_FIRST_COMPLETED)
             if not done:
                 break
             for future in done:
@@ -395,8 +395,8 @@ def _qbt_run_parallel(
 __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
-    "_qbt_run_parallel",
     "_qbt_read_response",
+    "_qbt_run_parallel",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -491,7 +491,7 @@ class pirateiro:
                 raise ParseError("Error, please fill a bug report!")
 
     def search(self, what: str, cat: str = "all"):
-        _qbt_new_deadline()
+        _ = _qbt_new_deadline()
         what = what.replace("%20", "+")
         parser = self.HTMLParser(self.url)
         cat_str = "" if cat == "all" else f"&category={self.supported_categories[cat]}"

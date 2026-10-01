@@ -38,7 +38,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/master/ali213.py",
       "license": "Unknown",
-      "notes": "HTTPS endpoint hangs (connection timeout) as of 2026-09-06; HTTP only redirects to it."
+      "notes": "Two focused remote probes on 2026-10-01 returned HTTP 200 after redirecting to so.ali213.net, with 3 result markers for minecraft. The changed search page and download chain remain unverified; retain unavailable pending parser validation."
     },
     {
       "id": "animetosho",
@@ -90,7 +90,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/bitsearch.py",
       "license": "MIT",
-      "notes": "Unavailable in recent maintenance sweeps; keep non-active until remote service recovers."
+      "notes": "Two focused remote probes on 2026-10-01 redirected to bitsearch.eu and returned HTTP 200 with 80 result markers for inception. Parser output remains unverified; retain unavailable pending functional validation."
     },
     {
       "id": "bt4gprx",
@@ -389,7 +389,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/pirateiro.py",
       "license": "Unknown",
-      "notes": "pirateiro.io no longer resolves (NXDOMAIN) and the pirateiro.com mirror is unreachable as of 2026-09-06."
+      "notes": "Two focused remote probes on 2026-10-01 reached the inception search page with HTTP 200 but found zero result markers. The earlier DNS failure is no longer reproduced; retain unavailable pending functional validation."
     },
     {
       "id": "rutor",
@@ -454,7 +454,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/solidtorrents.py",
       "license": "MIT",
-      "notes": "Unavailable in recent maintenance sweeps; keep non-active until remote service recovers."
+      "notes": "Two focused remote probes on 2026-10-01 redirected to Bitsearch at bitsearch.eu and returned HTTP 200 with 81 result markers for ubuntu. This does not validate the Solid Torrents parser; retain unavailable pending recovery work."
     },
     {
       "id": "subsplease",
@@ -584,7 +584,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/traht.py",
       "license": "MIT",
-      "notes": "Intermittent availability observed; keep non-active and confirm stability before promoting."
+      "notes": "Two focused remote probes on 2026-10-01 returned HTTP 200 with an empty response body for inception. Retain intermittent pending evidence of usable search results."
     },
     {
       "id": "uniondht",

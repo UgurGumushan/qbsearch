@@ -124,10 +124,10 @@ Run this cycle when triaging a maintenance batch:
    const fs = require("fs");
    const plugins = JSON.parse(fs.readFileSync("catalog/plugins.json", "utf8")).plugins;
    const buckets = { unavailable: [], intermittent: [], retired: [] };
-   for (const [id, plugin] of Object.entries(plugins)) {
+   for (const plugin of plugins) {
      const status = plugin.status ?? "active";
      if (buckets[status]) {
-       buckets[status].push(id);
+       buckets[status].push(plugin.id);
      }
    }
    console.log("non_active:", JSON.stringify(buckets, null, 2));

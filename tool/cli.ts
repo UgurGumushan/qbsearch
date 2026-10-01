@@ -106,7 +106,7 @@ export async function runCommandLine(rawArgs: string[]): Promise<number> {
   const args = stripArgumentSeparator(rawArgs.slice(1));
   switch (command) {
     case "setup":
-      return setup();
+      return setup(args);
     case "check":
       return runCheckCommand(args);
     case "gen":

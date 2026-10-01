@@ -5,8 +5,7 @@
 [tool.ruff]
 target-version = "py39"
 line-length = 100
-# external/ is a vendored snapshot of the upstream author repos (see
-# documentation/ATTRIBUTIONS.md); it is provenance, not maintained code.
+# Ignore optional local upstream snapshots and generated/tooling artifacts.
 exclude = ["external", "node_modules", "working", ".opencode"]
 
 [tool.ruff.lint]

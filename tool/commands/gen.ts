@@ -56,7 +56,7 @@ Examples:
 
   // CLI docs are cheap and always consistent with the router table.
   if (only === "cli") {
-    if (!write && rawArgs.includes("--check")) {
+    if (!write) {
       const expected = renderCliDocs();
       const current = (await Bun.file(CLI_DOCS_PATH).exists())
         ? await Bun.file(CLI_DOCS_PATH).text()

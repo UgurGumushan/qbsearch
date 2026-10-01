@@ -85,6 +85,8 @@
     "query": "inception",
     "siteUrl": "https://www.elitetorrent.com",
     "urls": [
+      "https://www.elitetorrent.com/?s=inception",
+      "https://www.elitetorrent.com/page/1/?s=inception",
       "https://www.elitetorrent.com/(https://www.elitetorrent.com/series/.*?/|https://www.elitetorrent.com/peliculas/.*?/)",
       "https://www.elitetorrent.com/0/.*?/"
     ]

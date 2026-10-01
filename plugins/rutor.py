@@ -15,6 +15,7 @@ import re
 import socket
 import sys
 import time
+from _thread import LockType
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from html import unescape
@@ -44,6 +45,7 @@ try:
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
     from typing import cast as _qbt_cast
+    from typing import final as _qbt_final
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
@@ -89,10 +91,11 @@ class _QBTResponseContext(_QBTResponse, _QBTProtocol):
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool: ...
+    ) -> bool | None: ...
 
 
 _qbt_urlopen_typed = _qbt_cast(_QBTCallable[..., _QBTResponseContext], _qbt_urlopen)
+_qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
@@ -171,7 +174,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 def _qbt_response_limit(limit: object = None) -> int:
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
-        return max(0, int(value))
+        return max(0, _qbt_int(value))
     except (TypeError, ValueError):
         return max(0, int(MAX_RESPONSE_BYTES))
 
@@ -181,14 +184,16 @@ def _qbt_read_response(response: _QBTResponse, limit: object = None) -> bytes:
     return response.read(_qbt_response_limit(limit))
 
 
+@_qbt_final
 class _QBTBoundedResponse:
     """Response proxy that bounds the existing no-argument read() call sites."""
 
-    def __init__(self, response: _QBTResponse) -> None:
-        self._qbt_response = response
+    def __init__(self, response: _QBTResponseContext) -> None:
+        self._qbt_context: _QBTResponseContext = response
+        self._qbt_response: _QBTResponse = response
 
-    def __enter__(self) -> "_QBTBoundedResponse":
-        self._qbt_response = self._qbt_response.__enter__()
+    def __enter__(self) -> _QBTBoundedResponse:
+        self._qbt_response = self._qbt_context.__enter__()
         return self
 
     def __exit__(
@@ -196,14 +201,14 @@ class _QBTBoundedResponse:
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: _QBTTracebackType | None,
-    ) -> bool:
-        return self._qbt_response.__exit__(exc_type, exc_value, traceback)
+    ) -> bool | None:
+        return self._qbt_context.__exit__(exc_type, exc_value, traceback)
 
     def read(self, size: object = None, *_args: object, **_kwargs: object) -> bytes:
         if size is None:
             return _qbt_read_response(self._qbt_response)
         try:
-            requested = int(size)
+            requested = _qbt_int(size)
         except (TypeError, ValueError):
             return _qbt_read_response(self._qbt_response)
         if requested < 0:
@@ -217,7 +222,7 @@ class _QBTBoundedResponse:
         self._qbt_response.close()
 
     def __getattr__(self, name: str) -> object:
-        return getattr(self._qbt_response, name)
+        return _qbt_cast(object, getattr(self._qbt_response, name))
 
 
 class _QBTTransientHTTPError(Exception):
@@ -372,11 +377,7 @@ def _qbt_run_parallel(
             remaining = deadline - _qbt_time.monotonic()
             if remaining <= 0:
                 break
-            done, pending = _qbt_wait(
-                pending,
-                timeout=remaining,
-                return_when=_qbt_FIRST_COMPLETED
-            )
+            done, pending = _qbt_wait(pending, timeout=remaining, return_when=_qbt_FIRST_COMPLETED)
             if not done:
                 break
             for future in done:
@@ -407,8 +408,8 @@ def _qbt_run_parallel(
 __all__ = [
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
-    "_qbt_run_parallel",
     "_qbt_read_response",
+    "_qbt_run_parallel",
     "_qbt_safe_urlopen",
     "retrieve_url",
 ]
@@ -417,43 +418,16 @@ __all__ = [
 # END GENERATED QBITT SAFETY PREAMBLE
 
 
-
-
-
-
-
-
-
 class _RutorResponse(Protocol):
     def geturl(self) -> str: ...
 
-    def read(self) -> bytes: ...
+    def read(self, size: int = -1) -> bytes: ...
 
 
 class _RutorResponseContext(Protocol):
     def __enter__(self) -> _RutorResponse: ...
 
     def __exit__(self, *args: object) -> bool: ...
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 try:
@@ -541,9 +515,7 @@ RUTOR_MONTHS = (
 def date_normalize(date_str: str) -> int:
     # Map Russian month abbreviations (Янв, Фев, ...) to month numbers.
     date_str = next(
-        date_str.replace(m, f"{i:02d}")
-        for i, m in enumerate(RUTOR_MONTHS, 1)
-        if m in date_str
+        date_str.replace(m, f"{i:02d}") for i, m in enumerate(RUTOR_MONTHS, 1) if m in date_str
     )
     return int(time.mktime(time.strptime(date_str, "%d %m %y")))
 
@@ -631,7 +603,7 @@ class Rutor:
 
     def __init__(self) -> None:
         self._seen_links: set[str] = set()
-        self._seen_links_lock = Lock()
+        self._seen_links_lock: LockType = Lock()
 
     def search(self, what: str, cat: str = "all") -> None:
         self._catch_errors(self._search, what, cat)
@@ -657,11 +629,7 @@ class Rutor:
 
     def draw(self, html: str) -> None:
         for tor in RE_TORRENTS.finditer(html):
-            link = (
-                tor.group("mag_link")
-                if config.magnet
-                else self.url_dl + tor.group("tor_id")
-            )
+            link = tor.group("mag_link") if config.magnet else self.url_dl + tor.group("tor_id")
             with self._seen_links_lock:
                 if link in self._seen_links:
                     continue
@@ -762,7 +730,7 @@ class Rutor:
                 with cast(_RutorResponseContext, self.session.open(url, data, HTTP_TIMEOUT)) as r:
                     # check if the response is from the correct domain
                     if r.geturl().startswith((self.url, self.url_dl)):
-                        return r.read()
+                        return r.read(MAX_RESPONSE_BYTES)
                     raise EngineError(f"{url} is blocked. Try another proxy.")
 
             except HTTPError as err:
@@ -775,7 +743,7 @@ class Rutor:
                 is_timeout = isinstance(err, TimeoutError) or isinstance(reason, TimeoutError)
                 if attempt + 1 < attempts:
                     logger.debug("Request failed; repeating bounded attempt %s", attempt + 2)
-                    _qbt_sleep(attempt)
+                    _ = _qbt_sleep(attempt)
                     continue
 
                 if is_timeout:
