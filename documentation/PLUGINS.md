@@ -7,7 +7,7 @@ The `status` field describes repository support, not a guarantee that a remote
 site is online at this moment. Live tests contact the sites listed below.
 
 - Categories: adult (5), anime (9), books (2), games (5), general (11), movies (14), software (2), tv (1)
-- Status: active (44), intermittent (1), unavailable (4)
+- Status: active (44), intermittent (2), unavailable (3)
 
 | Plugin | Category | Status | License | Site | Default live query | Install |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -32,7 +32,7 @@ site is online at this moment. Live tests contact the sites listed below.
 | [FitGirl Repacks](../plugins/fitgirl_repacks.py) | games | active | Unknown | [site](https://fitgirl-repacks.site/) | `elden ring (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/fitgirl_repacks.py) |
 | [Online-Fix](../plugins/onlinefix.py) | games | active | Unknown | [site](https://online-fix.me/) | `minecraft (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/onlinefix.py) |
 | [small-games.info](../plugins/smallgames.py) | games | active | Unknown | [site](http://small-games.info/) | `minecraft (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/smallgames.py) |
-| [Bit Search](../plugins/bitsearch.py) | general | unavailable | MIT | [site](https://bitsearch.to) | `inception (Two focused remote probes on 2026-10-01 redirected to bitsearch.eu and returned HTTP 200 with 80 result markers for inception. Parser output remains unverified; retain unavailable pending functional validation.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/bitsearch.py) |
+| [Bit Search](../plugins/bitsearch.py) | general | intermittent | MIT | [site](https://bitsearch.to) | `inception (Recovered to intermittent on 2026-10-01 after two consecutive clean actual-parser validations following an HTTP 429 cooldown. Each fresh two-page capture emitted 40 usable magnet records for both inception and ubuntu; bitsearch.to redirects to bitsearch.eu. Active promotion awaits three additional separated daily passes.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/bitsearch.py) |
 | [btdig](../plugins/btdig.py) | general | active | Unlicense | [site](https://www.btdig.com) | `ubuntu (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/btdig.py) |
 | [Rutor](../plugins/rutor.py) | general | active | Unknown | [site](https://rutor.info/) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/rutor.py) |
 | [SkTorrent](../plugins/sktorrent.py) | general | active | Unknown | [site](https://sktorrent.eu) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/sktorrent.py) |

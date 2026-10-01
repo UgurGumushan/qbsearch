@@ -12,6 +12,7 @@ import re
 from datetime import datetime
 from html.parser import HTMLParser
 from typing import ClassVar
+from urllib.parse import urljoin
 
 from helpers import download_file
 from helpers import retrieve_url as _qbt_helper_retrieve_url
@@ -494,9 +495,21 @@ class bitsearch:
 
             if (
                 self.insideSearchResultList
+                and not self.insideSearchResultItemContainer
                 and tag == self.DIV
                 and self.search_results_item_container_class_name in cssClasses
             ):
+                self.row = {}
+                self.column = 0
+                self.metadata = 0
+                self.insideTorrentInfo = False
+                self.insideName = False
+                self.insideStats = False
+                self.insideSwarm = False
+                self.insideDownload = False
+                self.insideMobileDownload = False
+                self.shouldGetName = False
+                self.shouldGetData = False
                 self.insideSearchResultItemContainer = True
                 return
 
@@ -543,7 +556,7 @@ class bitsearch:
             if self.insideName and tag == self.A:
                 self.shouldGetName = True
                 href = params.get("href") or ""
-                link = f"{self.url}{href}"
+                link = urljoin(self.url, href)
                 self.row["desc_link"] = link
                 return
 
@@ -579,7 +592,7 @@ class bitsearch:
 
             if self.insideDownload and tag == self.A:
                 href = params.get("href") or ""
-                if href.startswith("magnet"):
+                if href.startswith("magnet:?"):
                     self.row["link"] = href
                 return
 
@@ -596,9 +609,12 @@ class bitsearch:
                     self.shouldGetData = False
                     return
                 if self.column == 3:
-                    self.row["pub_date"] = str(
-                        int(datetime.strptime(data.strip(), "%m/%d/%Y").timestamp())
-                    )
+                    try:
+                        self.row["pub_date"] = str(
+                            int(datetime.strptime(data.strip(), "%m/%d/%Y").timestamp())
+                        )
+                    except ValueError:
+                        _ = self.row.pop("pub_date", None)
                     self.shouldGetData = False
                     return
 
@@ -655,16 +671,16 @@ class bitsearch:
             ):
                 self.insideSearchResultItemContainer = False
                 row = self.row
-                link = row["link"]
-                if not link or link not in self.seen_links:
-                    if link:
-                        self.seen_links.add(link)
+                link = row.get("link", "")
+                name = row.get("name", "").strip()
+                if link and name and link not in self.seen_links:
+                    self.seen_links.add(link)
                     res = SearchResults(
                         link=link,
-                        name=row["name"],
-                        size=row["size"],
-                        seeds=stats_int(row["seeds"]),
-                        leech=stats_int(row["leech"]),
+                        name=name,
+                        size=row.get("size", "-1"),
+                        seeds=stats_int(row.get("seeds", -1)),
+                        leech=stats_int(row.get("leech", -1)),
                         engine_url=self.url,
                     )
                     if "desc_link" in row:
