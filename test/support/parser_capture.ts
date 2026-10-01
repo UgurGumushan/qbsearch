@@ -15,11 +15,18 @@ import {
 export const CAPTURE_LIMITS = {
   maxPages: 2,
   maxDetails: 5,
+  maxResults: 40,
   maxResponseBytes: 4 * 1024 * 1024,
   timeoutMs: 20_000,
   maxAttempts: 3,
   deadlineMs: 60_000,
 } as const;
+
+const FUNCTIONAL_QUERIES: Record<ParserPlugin, readonly string[]> = {
+  bitsearch: ["inception", "ubuntu"],
+  elitetorrent: ["inception", "matrix"],
+  solidtorrents: ["ubuntu", "inception"],
+};
 
 interface ResponseEvidence {
   requestedUrl: string;
@@ -70,7 +77,7 @@ export async function captureParserCase(
       query: encodeURIComponent(query),
       category: "all",
       maxPages: CAPTURE_LIMITS.maxPages,
-      maxDetails: CAPTURE_LIMITS.maxDetails,
+      maxDetails: plugin === "elitetorrent" ? CAPTURE_LIMITS.maxDetails : CAPTURE_LIMITS.maxResults,
       responses,
       sourceSha256,
     };
@@ -108,9 +115,13 @@ export async function captureParserCase(
   };
   const encoded = encodeURIComponent(query).replaceAll("%20", "+");
   const site = contract.siteUrl;
-  if (plugin === "bitsearch") {
+  if (plugin === "bitsearch" || plugin === "solidtorrents") {
     const first = await get(`${site}/search?q=${encoded}&page=1`);
-    const count = Number(/Found\s+<span[^>]*>(\d+)<\/span>/.exec(first)?.[1] ?? 0);
+    const count = Number(
+      /Found\s+<span[^>]*>(\d+)<\/span>/.exec(first)?.[1] ??
+        (plugin === "solidtorrents" ? /<b>(\d+)<\/b>/.exec(first)?.[1] : undefined) ??
+        0,
+    );
     for (
       let page = 2;
       page <= Math.min(Math.ceil(count / 20), CAPTURE_LIMITS.maxPages);
@@ -176,7 +187,7 @@ export async function runFunctionalPass(
   await mkdir(directory, { recursive: true });
   const cases: FunctionalCase[] = [];
   let rateLimited = false;
-  for (const query of plugin === "bitsearch" ? ["inception", "ubuntu"] : ["inception", "matrix"]) {
+  for (const query of FUNCTIONAL_QUERIES[plugin]) {
     const item: FunctionalCase = { query };
     if (rateLimited) {
       item.error = "skipped after HTTP 429; wait for the service's retry window";

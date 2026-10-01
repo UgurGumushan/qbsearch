@@ -35,7 +35,7 @@ def replay(path: Path) -> dict[str, object]:
     query = case.get("query", "inception")
     category = case.get("category", "all")
     action = case.get("action", "search")
-    if plugin not in ("elitetorrent", "bitsearch"):
+    if plugin not in ("elitetorrent", "bitsearch", "solidtorrents"):
         raise ValueError("unsupported fixture plugin")
     if not isinstance(query, str) or not isinstance(category, str):
         raise TypeError("query and category must be strings")

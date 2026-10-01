@@ -144,7 +144,7 @@ Run this cycle when triaging a maintenance batch:
 4. Record each status change in `documentation/MAINTENANCE_LOG.md` before you edit
    `catalog/plugins.json`.
 
-For Elitetorrent and Bitsearch, gather actual-parser evidence with the bounded
+For Elitetorrent, Bitsearch, and Solid Torrents, gather actual-parser evidence with the bounded
 capture/replay helper described in [test/README.md](test/README.md#functional-recovery-evidence).
 A clean functional pass must produce usable records for both public queries.
 Retain failed passes in the log, respect remote rate limits, and reset the clean-run

@@ -7,7 +7,7 @@ The `status` field describes repository support, not a guarantee that a remote
 site is online at this moment. Live tests contact the sites listed below.
 
 - Categories: adult (5), anime (9), books (2), games (5), general (11), movies (14), software (2), tv (1)
-- Status: active (44), intermittent (2), unavailable (3)
+- Status: active (44), intermittent (3), unavailable (2)
 
 | Plugin | Category | Status | License | Site | Default live query | Install |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -37,7 +37,7 @@ site is online at this moment. Live tests contact the sites listed below.
 | [Rutor](../plugins/rutor.py) | general | active | Unknown | [site](https://rutor.info/) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/rutor.py) |
 | [SkTorrent](../plugins/sktorrent.py) | general | active | Unknown | [site](https://sktorrent.eu) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/sktorrent.py) |
 | [Snowfl](../plugins/snowfl.py) | general | active | Unknown | [site](https://snowfl.com/) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/snowfl.py) |
-| [Solid Torrents](../plugins/solidtorrents.py) | general | unavailable | MIT | [site](https://solidtorrents.to) | `ubuntu (Two focused remote probes on 2026-10-01 redirected to Bitsearch at bitsearch.eu and returned HTTP 200 with 81 result markers for ubuntu. This does not validate the Solid Torrents parser; retain unavailable pending recovery work.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/solidtorrents.py) |
+| [Solid Torrents](../plugins/solidtorrents.py) | general | intermittent | MIT | [site](https://solidtorrents.to) | `ubuntu (Recovered to intermittent on 2026-10-01 after two consecutive clean actual-parser passes through solidtorrents.to, each emitting 40 usable magnet records for ubuntu and inception from two pages. The endpoint redirects to bitsearch.eu and shares Bitsearch's backend; active promotion awaits three additional separated daily passes.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/solidtorrents.py) |
 | [The Pirate Bay](../plugins/thepiratebay.py) | general | active | Unknown | [site](https://thepiratebay.org/) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/thepiratebay.py) |
 | [Torrent Downloads](../plugins/torrentdownloads.py) | general | active | MIT | [site](https://torrentdownloads.pro) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentdownloads.py) |
 | [TorrentDownload](../plugins/torrentdownload.py) | general | active | Unknown | [site](https://www.torrentdownload.info/) | `inception (Active in catalog; include in standard release validation and verify on maintenance sweeps.)` | [download](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentdownload.py) |

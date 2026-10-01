@@ -63,7 +63,7 @@ requests on every run, so use a focused `--plugin` selection while iterating.
 ## Functional recovery evidence
 
 The supported `test -- --live` command is a smoke probe; it does not execute
-Python parsers. To gather functional evidence for Elitetorrent or Bitsearch,
+Python parsers. To gather functional evidence for Elitetorrent, Bitsearch, or Solid Torrents,
 invoke the internal capture/replay helper from the repository root:
 
 ```sh
@@ -88,10 +88,14 @@ if (!report.clean) process.exitCode = 1;
 '
 ```
 
-Use `"elitetorrent"` for its `inception`/`matrix` pair; Bitsearch uses
-`inception`/`ubuntu`. `QBSEARCH_PYTHON` selects the offline replay interpreter.
+Use `"elitetorrent"` for its `inception`/`matrix` pair or `"solidtorrents"` for
+`ubuntu`/`inception`; Bitsearch uses `inception`/`ubuntu`. Solid Torrents captures
+always start at its own catalog URL and retain the redirect evidence.
+`QBSEARCH_PYTHON` selects the offline replay interpreter.
 Each case is capped at two search pages, five detail pages, 4 MiB per response,
 three attempts per URL, 20 seconds per attempt, and a 60-second capture deadline.
+Listing-only engines replay with a 40-result budget; Elitetorrent retains its
+five-detail budget. Those budgets become the offline engine's `MAX_DETAILS` limit.
 Replay rejects a capture if its plugin source has changed.
 
 HTTP 429 stops retries and subsequent queries even if its response body is

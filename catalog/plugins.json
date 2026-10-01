@@ -449,12 +449,12 @@
       "site_url": "https://solidtorrents.to",
       "category": "general",
       "default_query": "ubuntu",
-      "status": "unavailable",
+      "status": "intermittent",
       "icon": "icons/solidtorrents.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/solidtorrents.py",
       "license": "MIT",
-      "notes": "Two focused remote probes on 2026-10-01 redirected to Bitsearch at bitsearch.eu and returned HTTP 200 with 81 result markers for ubuntu. This does not validate the Solid Torrents parser; retain unavailable pending recovery work."
+      "notes": "Recovered to intermittent on 2026-10-01 after two consecutive clean actual-parser passes through solidtorrents.to, each emitting 40 usable magnet records for ubuntu and inception from two pages. The endpoint redirects to bitsearch.eu and shares Bitsearch's backend; active promotion awaits three additional separated daily passes."
     },
     {
       "id": "subsplease",

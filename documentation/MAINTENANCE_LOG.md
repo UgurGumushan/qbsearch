@@ -21,6 +21,9 @@ Use this file to record evidence-backed plugin status transitions and operationa
 | 2026-10-01 | bitsearch     | unavailable  | unavailable  | inception, ubuntu  | failed  | Functional pass 2 emitted 40 inception records but Ubuntu page 2 returned HTTP 429; the clean-run streak reset. Keep unavailable while gathering two consecutive clean passes.                                                                                          |
 | 2026-10-01 | bitsearch     | unavailable  | unavailable  | inception, ubuntu  | ok      | After cooldown, functional pass 3 emitted 40 usable magnet records per query from two pages; every response returned HTTP 200 on one attempt. New recovery streak: 1.                                                                                                   |
 | 2026-10-01 | bitsearch     | unavailable  | intermittent | inception, ubuntu  | ok      | Functional pass 4 emitted 40 usable magnet records per query from two pages, with HTTP 200 on every request and no retries. Passes 3 and 4 are consecutive clean runs after cooldown against the same engine source, satisfying initial recovery.                       |
+| 2026-10-01 | solidtorrents | unavailable  | unavailable  | ubuntu             | empty   | Fresh Bun captures from solidtorrents.to redirected to bitsearch.eu with HTTP 200; actual-parser replay emitted zero records because the legacy banner and card selectors did not match.                                                                                |
+| 2026-10-01 | solidtorrents | unavailable  | unavailable  | ubuntu, inception  | ok      | After parser repair, functional pass 1 emitted 40 usable magnet records per query from two pages, with HTTP 200 on every request and no retries or unexpected requests.                                                                                                 |
+| 2026-10-01 | solidtorrents | unavailable  | intermittent | ubuntu, inception  | ok      | Functional pass 2 repeated 40 usable records per query against the same engine source after spacing the requests. Two consecutive clean actual-parser passes satisfy initial recovery; the endpoint shares Bitsearch's backend.                                         |
 
 ## Log format
 
@@ -117,3 +120,59 @@ Verify the promotion diff contains only the recovery evidence, Bitsearch status
 and notes, and generated catalog listing. Preserve the qualifying engine source
 and version declarations, pass the pre-commit hook, and finish with a clean tree.
 Delivery remains local commits; publication and release preparation are later decisions.
+
+## Solid Torrents recovery — 2026-10-01
+
+The original engine emitted zero records for `ubuntu`, despite fresh captures
+returning HTTP 200 and redirecting from `solidtorrents.to` to `bitsearch.eu`.
+The repaired standalone parser accepts the current result-count banner and
+cards, retains legacy cards, resolves relative description links, scopes fields
+to individual cards, deduplicates magnets, and enforces page and result budgets.
+Both date formats use UTC; malformed optional metadata does not abort a search.
+The plugin version remains `1.0` and its generated safety preamble is preserved.
+
+Full strict checks passed on Python 3.9 and 3.11 with 61 deterministic tests on
+each interpreter, plus static checks, generated-file audits, and the website
+production build. The plugin quality audit reports zero errors and 39 remaining
+advisory warnings; the explicit pagination bound removed one warning.
+
+The focused marker-required live probe for `ubuntu` passed with 81 result markers
+and one HTTP request. Actual-parser recovery evidence is recorded separately:
+
+| Check             | UTC evidence time(s)           | Ubuntu records | Inception records | Capture report                                                                  |
+| ----------------- | ------------------------------ | -------------- | ----------------- | ------------------------------------------------------------------------------- |
+| Original engine   | Capture at 2026-10-01 13:50:51 | 0              | Not run           | `working/solidtorrents-baseline/replay.json`                                    |
+| Functional pass 1 | 2026-10-01 14:01:51–14:01:54   | 40             | 40                | `working/recovery/solidtorrents-4285abbd-463b-481d-b2c9-0f85d2ddf7b0/pass.json` |
+| Functional pass 2 | 2026-10-01 14:04:09–14:04:12   | 40             | 40                | `working/recovery/solidtorrents-438d9ffa-a175-45aa-877d-ab70e3f617f3/pass.json` |
+
+Each clean pass captured two pages per query through Solid Torrents' own URL.
+All requests redirected to `bitsearch.eu`, returned HTTP 200 on one attempt,
+and replayed successfully on Python 3.9 without unexpected requests. Captures
+and complete result dictionaries remain ignored working files. The qualifying
+engine source SHA-256 is:
+
+```text
+12908f2ba0496da33cc9dc4b9cb17cf7b706520ebd39fc4f3d18889f0b0cb180
+```
+
+Bitsearch's engine source and initial recovery reports remain valid. Solid
+Torrents now qualifies as `intermittent`; its redirect provides no evidence
+of an independent backend or availability separate from Bitsearch.
+
+Promotion to `active` requires three additional clean daily passes using
+`runFunctionalPass("solidtorrents")`, with `ubuntu` and `inception`, against this
+same source. The following dates use Europe/Istanbul and are manual checkpoints:
+
+| Date       | Check                                                   | Outcome |
+| ---------- | ------------------------------------------------------- | ------- |
+| 2026-10-02 | Fresh capture and actual-parser replay for both queries | Pending |
+| 2026-10-03 | Fresh capture and actual-parser replay for both queries | Pending |
+| 2026-10-04 | Fresh capture and actual-parser replay for both queries | Pending |
+
+Apply the same evidence, missed-checkpoint, streak-reset, source-change, and
+promotion gates as the Bitsearch follow-up above. Keep Bitsearch and Solid
+Torrents probes sequential and space functional passes by at least two minutes.
+A shared-backend HTTP 429 pauses both plugins' remote checks until its retry window;
+without a supplied retry window, defer probing to the next daily checkpoint.
+Record evidence before catalog changes and commit each pre-promotion checkpoint
+locally. The final commit is `Promote Solid Torrents after separated functional checks`.

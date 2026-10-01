@@ -1,8 +1,8 @@
 # VERSION: 1.0
 """
 Solid Torrents (https://solidtorrents.to) search engine. Scrapes search pages
-with a stateful HTML parser (size/seeds/leech are picked by column position
-inside the stats div) and paginates at 20 results per page.
+with a bounded HTML parser supporting the redirected search layout and legacy
+result cards. Pagination uses 20 results per page.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import re
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import ClassVar
+from urllib.parse import urljoin
 
 from helpers import download_file
 from helpers import retrieve_url as _qbt_helper_retrieve_url
@@ -416,202 +417,215 @@ __all__ = [
 # END GENERATED QBITT SAFETY PREAMBLE
 
 
-SOLIDTORRENTS_RESULTS_RE = re.compile(r"<b>\d+<\/b>")
+SOLIDTORRENTS_RESULTS_RE = re.compile(
+    r"Found\s+<span\b[^>]*>(\d+)</span>|<b>(\d+)</b>", re.IGNORECASE
+)
+
+
+def _stats_int(value: str) -> int:
+    try:
+        return int(value)
+    except ValueError:
+        return -1
 
 
 class solidtorrents:
     url: str = "https://solidtorrents.to"
     name: str = "Solid Torrents"
     supported_categories: ClassVar[dict[str, str]] = {"all": "all"}
-
-    results_regex: str = r"<b>\d+<\/b>"
+    results_regex: str = SOLIDTORRENTS_RESULTS_RE.pattern
 
     class MyHtmlParser(HTMLParser):
-        def error(self, _message: str):
-            pass
+        """Keep fields scoped to one card, including nested metadata elements."""
 
-        LI: str = "li"
-        DIV: str = "div"
-        H5: str = "h5"
-        A: str = "a"
+        VOID_TAGS: ClassVar[frozenset[str]] = frozenset(
+            {
+                "area",
+                "base",
+                "br",
+                "col",
+                "embed",
+                "hr",
+                "img",
+                "input",
+                "link",
+                "meta",
+                "param",
+                "source",
+                "track",
+                "wbr",
+            }
+        )
 
-        def __init__(self, url: str):
-            HTMLParser.__init__(self)
-            self.magnet_regex: str = r'href=["\']magnet:.+?["\']'
-
+        def __init__(self, url: str) -> None:
+            super().__init__()
             self.url: str = url
             self.row: dict[str, str] = {}
-
-            self.column: int = 0
-
-            self.insideSearchResult: bool = False
-            self.insideInfoDiv: bool = False
-            self.insideName: bool = False
-            self.shouldGetName: bool = False
-            self.insideStatsDiv: bool = False
-            self.insideStatsColumn: bool = False
-            self.insideLinksDiv: bool = False
             self.seen_links: set[str] = set()
+            self._tags: list[str] = []
+            self._main_depth: int = 0
+            self._list_depth: int = 0
+            self._card_depth: int = 0
+            self._heading_depth: int = 0
+            self._group_depth: int = 0
+            self._group_index: int = 0
+            self._column: int = 0
+            self._field_depth: int = 0
+            self._field_key: str = ""
+            self._field_text: list[str] = []
+            self._legacy: bool = False
+
+        def _begin_field(self, key: str, depth: int) -> None:
+            if key and not self._field_depth:
+                self._field_key = key
+                self._field_depth = depth
+                self._field_text = []
 
         @override
-        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag in self.VOID_TAGS:
+                return
+            self._tags.append(tag)
+            depth = len(self._tags)
             params = dict(attrs)
-            cssClasses = params.get("class") or ""
-            if tag == self.LI and "search-result" in cssClasses:
-                self.insideSearchResult = True
+            classes = set((params.get("class") or "").split())
+
+            if not self._card_depth:
+                if tag == "main" and "mx-auto" in classes:
+                    self._main_depth = depth
+                elif self._main_depth and tag == "div" and "space-y-4" in classes:
+                    self._list_depth = depth
+                elif (tag == "li" and "search-result" in classes) or (
+                    self._list_depth and tag == "div" and "bg-white" in classes
+                ):
+                    self._card_depth = depth
+                    self._legacy = tag == "li"
+                    self.row = {}
+                    self._heading_depth = 0
+                    self._group_depth = 0
+                    self._group_index = 0
+                    self._column = 0
+                    self._field_depth = 0
+                    self._field_key = ""
+                    self._field_text = []
                 return
 
-            if self.insideSearchResult and tag == self.DIV and "info" in cssClasses:
-                self.insideInfoDiv = True
+            if tag == "a":
+                href = params.get("href") or ""
+                if href.startswith("magnet:?"):
+                    _ = self.row.setdefault("link", href)
+                elif (self._legacy and self._heading_depth) or (
+                    not self._legacy and self._group_index == 1 and self._group_depth
+                ):
+                    self.row["desc_link"] = urljoin(self.url, href)
+                    self._begin_field("name", depth)
                 return
 
-            if self.insideInfoDiv and tag == self.H5:
-                self.insideName = True
+            if self._legacy:
+                if tag == "h5":
+                    self._heading_depth = depth
+                elif tag == "div" and "stats" in classes:
+                    self._group_depth = depth
+                    self._column = 0
+                elif tag == "div" and self._group_depth and depth == self._group_depth + 1:
+                    self._column += 1
+                    key = {2: "size", 3: "seeds", 4: "leech", 5: "date"}.get(self._column, "")
+                    self._begin_field(key, depth)
                 return
 
-            if self.insideName and tag == self.A:
-                self.shouldGetName = True
-                href = params.get("href")
-                link = f"{self.url}{href}"
-                self.row["desc_link"] = link
-                return
-
-            if self.insideSearchResult and tag == self.DIV and "stats" in cssClasses:
-                self.insideStatsDiv = True
-                return
-
-            if self.insideStatsDiv and tag == self.DIV:
-                self.insideStatsColumn = True
-                self.column += 1
-                return
-
-            if self.insideSearchResult and tag == self.DIV and "links" in cssClasses:
-                self.insideLinksDiv = True
-                return
-
-            if self.insideLinksDiv and tag == self.A and "dl-magnet" in cssClasses:
-                href = params.get("href")
-                if href is not None:
-                    self.row["link"] = href
-                self.insideLinksDiv = False
-                return
-
-        @override
-        def handle_data(self, data: str):
-            if self.shouldGetName:
-                self.row["name"] = data.strip()
-                self.shouldGetName = False
-                return
-
-            if self.insideStatsDiv:
-                if data.rstrip() != "":
-                    if self.column == 2:
-                        self.row["size"] = data.replace(" ", "")
-                    if self.column == 3:
-                        self.row["seeds"] = data
-                    if self.column == 4:
-                        self.row["leech"] = data
-                    if self.column == 5:
-                        try:
-                            month, day, year = data.replace(",", "").lower().split()
-                            months = (
-                                "jan",
-                                "feb",
-                                "mar",
-                                "apr",
-                                "may",
-                                "jun",
-                                "jul",
-                                "aug",
-                                "sep",
-                                "oct",
-                                "nov",
-                                "dec",
-                            )
-                            self.row["pub_date"] = str(
-                                int(
-                                    datetime(
-                                        int(year),
-                                        months.index(month) + 1,
-                                        int(day),
-                                        tzinfo=timezone.utc,
-                                    ).timestamp()
-                                )
-                            )
-                        except (ValueError, IndexError):
-                            self.row["pub_date"] = "-1"
-                return
+            if tag == "div" and "items-center" in classes and not self._group_depth:
+                self._group_depth = depth
+                self._group_index += 1
+                self._column = 0
+            elif tag == "span" and self._group_depth:
+                if self._group_index == 2 and depth == self._group_depth + 1:
+                    self._column += 1
+                    self._begin_field({2: "size", 3: "date"}.get(self._column, ""), depth)
+                elif self._group_index == 3 and "font-medium" in classes:
+                    self._column += 1
+                    self._begin_field({1: "seeds", 2: "leech"}.get(self._column, ""), depth)
 
         @override
-        def handle_endtag(self, tag: str):
-            if tag == self.H5 and self.insideName:
-                self.insideName = False
-                return
+        def handle_data(self, data: str) -> None:
+            if self._field_depth:
+                self._field_text.append(data)
 
-            if self.insideStatsDiv and not self.insideStatsColumn:
-                self.insideStatsDiv = False
-                self.insideInfoDiv = False
+        @override
+        def handle_endtag(self, tag: str) -> None:
+            try:
+                index = len(self._tags) - 1 - self._tags[::-1].index(tag)
+            except ValueError:
                 return
+            depth = index + 1
+            if self._field_depth and depth <= self._field_depth:
+                value = "".join(self._field_text).strip()
+                if value:
+                    self.row[self._field_key] = value
+                self._field_depth = 0
+                self._field_text = []
+            if self._heading_depth and depth <= self._heading_depth:
+                self._heading_depth = 0
+            if self._group_depth and depth <= self._group_depth:
+                self._group_depth = 0
+            if self._card_depth and depth <= self._card_depth:
+                self._emit_result()
+                self._card_depth = 0
+            if self._list_depth and depth <= self._list_depth:
+                self._list_depth = 0
+            if self._main_depth and depth <= self._main_depth:
+                self._main_depth = 0
+            del self._tags[index:]
 
-            if self.insideStatsColumn and tag == self.DIV:
-                self.insideStatsColumn = False
+        def _emit_result(self) -> None:
+            link = self.row.get("link", "")
+            name = " ".join(self.row.get("name", "").split())
+            if (
+                not link
+                or not name
+                or link in self.seen_links
+                or len(self.seen_links) >= MAX_DETAILS
+            ):
                 return
+            result = SearchResults(
+                link=link,
+                name=name,
+                size=self.row.get("size", "-1").replace(" ", ""),
+                seeds=_stats_int(self.row.get("seeds", "-1")),
+                leech=_stats_int(self.row.get("leech", "-1")),
+                engine_url=self.url,
+            )
+            if self.row.get("desc_link"):
+                result["desc_link"] = self.row["desc_link"]
+            date = self.row.get("date")
+            if date:
+                try:
+                    format_string = "%b %d, %Y" if self._legacy else "%m/%d/%Y"
+                    parsed = datetime.strptime(date, format_string).replace(tzinfo=timezone.utc)
+                    result["pub_date"] = int(parsed.timestamp())
+                except ValueError:
+                    pass
+            self.seen_links.add(link)
+            _qbt_prettyPrinter(result)
 
-            if tag == self.LI and self.insideSearchResult:
-                link = self.row.get("link")
-                if link and link not in self.seen_links:
-                    self.row["engine_url"] = self.url
-                    try:
-                        seeds = int(self.row.get("seeds", "-1"))
-                    except ValueError:
-                        seeds = -1
-                    try:
-                        leech = int(self.row.get("leech", "-1"))
-                    except ValueError:
-                        leech = -1
-                    result = SearchResults(
-                        link=link,
-                        name=self.row.get("name", ""),
-                        size=self.row.get("size", "Unknown"),
-                        seeds=seeds,
-                        leech=leech,
-                        engine_url=self.row["engine_url"],
-                        desc_link=self.row.get("desc_link", "-1"),
-                    )
-                    if self.row.get("pub_date", "-1") != "-1":
-                        result["pub_date"] = int(self.row["pub_date"])
-                    self.seen_links.add(link)
-                    _qbt_prettyPrinter(result)
-                self.insideSearchResult = False
-                self.column = 0
-                return
-
-    def download_torrent(self, info: str):
+    def download_torrent(self, info: str) -> None:
         print(download_file(info))
 
-    def search(self, what: str, _cat: str = "all"):
+    def search(self, what: str, _cat: str = "all") -> None:
+        _ = _qbt_new_deadline()
         parser = self.MyHtmlParser(self.url)
-        what = what.replace("%20", "+")
-        what = what.replace(" ", "+")
-        page = 1
-
-        page_url = f"{self.url}/search?q={what}&page={page}"
-        retrievedHtml = retrieve_url(page_url)
-        results_match = SOLIDTORRENTS_RESULTS_RE.search(retrievedHtml)
-        if results_match is not None:
-            results = int(results_match.group().replace("<b>", "").replace("</b>", ""))
-            pages = min(math.ceil(results / 20), MAX_PAGES)
-        else:
-            pages = 0
-
-        page += 1
-
-        if pages > 0:
-            parser.feed(retrievedHtml)
-
-            while page <= pages and len(parser.seen_links) < MAX_DETAILS:
-                page_url = f"{self.url}/search?q={what}&page={page}"
-                retrievedHtml = retrieve_url(page_url)
-                parser.feed(retrievedHtml)
-                page += 1
+        query = what.replace("%20", "+").replace(" ", "+")
+        first = retrieve_url(f"{self.url}/search?q={query}&page=1")
+        match = SOLIDTORRENTS_RESULTS_RE.search(first)
+        if match is not None:
+            count = int(match.group(1) or match.group(2))
+            pages = min(math.ceil(count / 20), MAX_PAGES)
+            if pages > 0:
+                parser.feed(first)
+                for page in range(2, min(pages, MAX_PAGES) + 1):
+                    if len(parser.seen_links) >= MAX_DETAILS:
+                        break
+                    html = retrieve_url(f"{self.url}/search?q={query}&page={page}")
+                    if not html:
+                        break
+                    parser.feed(html)
         parser.close()

@@ -46,6 +46,33 @@ test("failed captures preserve partial responses and rate-limit evidence", async
   }
 });
 
+test("Solid Torrents captures its own URLs and bounds modern and legacy listings", async () => {
+  for (const banner of ['Found <span class="font-semibold">999</span>', "<b>999</b>"]) {
+    const directory = await mkdtemp(resolve(tmpdir(), "qbsearch-solid-capture-"));
+    const requested: string[] = [];
+    const fetch = mockFetch((input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      requested.push(url);
+      return new Response(banner);
+    });
+    try {
+      const capture = await captureParserCase("solidtorrents", "ubuntu", directory);
+      expect(requested).toEqual([
+        "https://solidtorrents.to/search?q=ubuntu&page=1",
+        "https://solidtorrents.to/search?q=ubuntu&page=2",
+      ]);
+      const fixture = (await Bun.file(capture.path).json()) as ParserCase;
+      expect(fixture.plugin).toBe("solidtorrents");
+      expect(fixture.maxPages).toBe(2);
+      expect(fixture.maxDetails).toBe(CAPTURE_LIMITS.maxResults);
+      expect(Object.keys(fixture.responses)).toEqual(requested);
+    } finally {
+      fetch.mockRestore();
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+});
+
 test("a rate-limited recovery pass stops subsequent queries and cannot qualify as clean", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "qbsearch-pass-"));
   let requests = 0;
