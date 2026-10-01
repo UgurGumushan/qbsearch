@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.8
 
 - Restore Elitetorrent encoded magnet extraction and Solid Torrents parsing for
   its current redirected listing; preserve standalone Python 3.9 compatibility.
@@ -20,7 +20,7 @@
   package their exact license notices. Document fifteen unresolved dispositions.
 - Refresh generated documentation and record current recovery failures and
   manual follow-up dates. Retain all 49 engines pending the two-date removal
-  policy; no release is published by this maintenance batch.
+  policy.
 
 ## 0.1.7
 

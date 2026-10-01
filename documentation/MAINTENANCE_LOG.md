@@ -319,5 +319,5 @@ ignored `working/maintenance-complete-{py39,py311,website}.log` artifacts.
 Catalog totals remain 44 active, three intermittent, and two unavailable.
 Fifteen license labels remain explicitly unresolved. The separated-date
 promotion/removal work above is pending; today's deterministic checks and archive
-build earn no additional live recovery credit. Changes are committed locally
-through the normal pre-commit hook; no release publication is part of this batch.
+build earn no additional live recovery credit. At this maintenance checkpoint, changes were committed locally
+through the normal pre-commit hook; release publication was still pending.
