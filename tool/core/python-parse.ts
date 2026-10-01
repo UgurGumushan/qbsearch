@@ -1,4 +1,19 @@
 /** Single Python-source parser for qBittorrent standalone engines. */
+const PYTHON_KEYWORDS = new Set(
+  "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield".split(
+    " ",
+  ),
+);
+
+export function validPluginIdentifier(id: string): boolean {
+  return /^[a-z_][a-z0-9_]*$/.test(id) && !PYTHON_KEYWORDS.has(id);
+}
+
+/** JSON's quoted string syntax is also valid for Python string literals. */
+export function pythonStringLiteral(value: string): string {
+  return JSON.stringify(value);
+}
+
 export interface ClassBody {
   lines: string[];
   indent: string;

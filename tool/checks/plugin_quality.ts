@@ -1,6 +1,14 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ROOT } from "../core/repo";
+import {
+  maskPythonSource,
+  scanPythonCalls,
+  boundedPythonRead,
+  boundedPythonRange,
+  boundedPythonWhile,
+  type PythonCall,
+} from "../core/python-analysis";
 
 const PLUGINS_DIR = join(ROOT, "plugins");
 const PREAMBLE_END = "# END GENERATED QBITT SAFETY PREAMBLE";
@@ -85,13 +93,6 @@ function lineOffsets(source: string): number[] {
   return offsets;
 }
 
-interface PythonCall {
-  args: string;
-  end: number;
-  name: string;
-  start: number;
-}
-
 interface ImportAliases {
   executorNames: Set<string>;
   executorRoots: Set<string>;
@@ -122,102 +123,6 @@ const NETWORK_METHODS = new Set([
   "put",
   "request",
 ]);
-
-function maskPythonSource(source: string): string {
-  const characters = source.split("");
-  let quote: string | null = null;
-  let triple = false;
-  let comment = false;
-  for (let index = 0; index < characters.length; index += 1) {
-    const character = characters[index];
-    if (comment) {
-      if (character === "\n") {
-        comment = false;
-      } else {
-        characters[index] = " ";
-      }
-      continue;
-    }
-    if (quote) {
-      if (character === "\\") {
-        if (characters[index + 1] !== "\n") {
-          characters[index] = " ";
-        }
-        if (index + 1 < characters.length && characters[index + 1] !== "\n") {
-          characters[index + 1] = " ";
-        }
-        index += 1;
-      } else if (
-        characters.slice(index, index + (triple ? 3 : 1)).join("") === quote.repeat(triple ? 3 : 1)
-      ) {
-        for (let offset = 0; offset < (triple ? 3 : 1); offset += 1) {
-          characters[index + offset] = " ";
-        }
-        index += triple ? 2 : 0;
-        quote = null;
-        triple = false;
-      } else if (character !== "\n") {
-        characters[index] = " ";
-      }
-      continue;
-    }
-    if (character === "#") {
-      characters[index] = " ";
-      comment = true;
-      continue;
-    }
-    if (character === "'" || character === '"') {
-      quote = character;
-      triple = characters.slice(index, index + 3).join("") === character.repeat(3);
-      characters[index] = " ";
-      if (triple) {
-        characters[index + 1] = " ";
-        characters[index + 2] = " ";
-        index += 2;
-      }
-    }
-  }
-  return characters.join("");
-}
-
-function closingParen(source: string, openIndex: number): number {
-  let depth = 0;
-  for (let index = openIndex; index < source.length; index += 1) {
-    if (source[index] === "(") {
-      depth += 1;
-    } else if (source[index] === ")") {
-      depth -= 1;
-      if (depth === 0) {
-        return index;
-      }
-    }
-  }
-  return source.length;
-}
-
-function scanCalls(source: string): PythonCall[] {
-  const masked = maskPythonSource(source);
-  const calls: PythonCall[] = [];
-  const pattern = /(?:[A-Za-z_]\w*\.)*[A-Za-z_]\w*\s*\(/g;
-  for (const match of masked.matchAll(pattern)) {
-    const matchIndex = match.index;
-    const name = match[0].replace(/\s*\($/, "").trim();
-    const nameStart = matchIndex + match[0].indexOf(name);
-    const prefix = masked.slice(Math.max(0, nameStart - 8), nameStart);
-    if (/\bdef\s*$/.test(prefix)) {
-      continue;
-    }
-    const openIndex = masked.indexOf("(", nameStart);
-    const closeIndex = closingParen(masked, openIndex);
-    calls.push({
-      args: source.slice(openIndex + 1, closeIndex),
-      end: Math.min(source.length, closeIndex + 1),
-      name,
-      start: nameStart,
-    });
-  }
-  return calls;
-}
 
 function importAliases(source: string): ImportAliases {
   const aliases: ImportAliases = {
@@ -303,7 +208,7 @@ function isDirectTransport(name: string, aliases: ImportAliases): boolean {
 }
 
 function hasTimeout(call: PythonCall): boolean {
-  if (/\btimeout\s*=\s*(?!None\b)/.test(call.args)) {
+  if (/\btimeout\s*=\s*(?!None\b)/.test(maskPythonSource(call.args))) {
     return true;
   }
   return leafName(call.name) === "urlopen" && topLevelArgumentCount(call.args) >= 3;
@@ -330,37 +235,6 @@ function topLevelArgumentCount(argumentsText: string): number {
 
 function isDeadlineAwareSleep(call: PythonCall): boolean {
   return /\b(?:_qbt_)?(?:deadline|remaining)\w*\b/i.test(call.args);
-}
-
-function functionBody(lines: string[], lineIndex: number): string {
-  const loopIndent = /^\s*/.exec(lines[lineIndex])?.[0].length ?? 0;
-  let functionIndex = -1;
-  let functionIndent = Number.POSITIVE_INFINITY;
-  for (let index = lineIndex; index >= 0; index -= 1) {
-    const match = /^(\s*)(?:async\s+)?def\s+\w+\s*\(/.exec(lines[index]);
-    const indent = match?.[1].length ?? Number.POSITIVE_INFINITY;
-    if (match && indent < loopIndent) {
-      functionIndex = index;
-      functionIndent = indent;
-      break;
-    }
-  }
-  if (functionIndex < 0) {
-    return "";
-  }
-  const start = functionIndex < 0 ? 0 : functionIndex;
-  let end = lines.length;
-  for (let index = start + 1; index < lines.length; index += 1) {
-    const text = lines[index];
-    if (text.trim() && !text.trimStart().startsWith("#")) {
-      const indent = /^\s*/.exec(text)?.[0].length ?? 0;
-      if (indent <= functionIndent) {
-        end = index;
-        break;
-      }
-    }
-  }
-  return lines.slice(start, end).join("\n");
 }
 
 function loopBlock(lines: string[], lineIndex: number): { end: number; text: string } {
@@ -414,17 +288,23 @@ function helperAssignmentMetrics(body: string): {
 export function auditPluginQuality(id: string, source: string): PluginQualityReport {
   const body = withoutGeneratedPreamble(source);
   const issues: PluginQualityIssue[] = [];
-  const aliases = importAliases(body);
-  const calls = scanCalls(body);
+  const aliases = importAliases(maskPythonSource(body));
+  const calls = scanPythonCalls(body);
   const directTransportCalls = calls.filter((call) => isDirectTransport(call.name, aliases));
   const networkCalls = calls.filter(
     (call) => isDirectTransport(call.name, aliases) || NETWORK_HELPERS.has(call.name),
   );
-  const lines = body.split(/\r?\n/);
+  const lines = maskPythonSource(body).split(/\r?\n/);
   const offsets = lineOffsets(body);
   const maskedBody = maskPythonSource(body);
-  const dynamicLoopPattern =
-    /(?:for\s+[^\n]+\s+in\s+range\(\s*[A-Za-z_][\w.]*|while\s+(?!True\b)[^\n:]+)/g;
+  const rangeLoops = calls.filter(
+    (call) =>
+      call.name === "range" &&
+      /\bfor\b[^\n]*\bin\s*$/.test(
+        maskedBody.slice(maskedBody.lastIndexOf("\n", call.start) + 1, call.start),
+      ),
+  );
+  const whileLoops = [...maskedBody.matchAll(/^ *while\s+(?!True\b)[^\n:]+:/gm)];
 
   for (const call of directTransportCalls) {
     if (hasTimeout(call)) {
@@ -488,10 +368,12 @@ export function auditPluginQuality(id: string, source: string): PluginQualityRep
     const blockHasNetwork = [...networkLines].some((lineNumberValue) =>
       blockLineNumbers.has(lineNumberValue),
     );
-    const scope = functionBody(lines, index) || block.text;
+    const range = rangeLoops.find((call) => lineNumber(body, call.start) === index + 1);
+    const rangeBound = range !== undefined && boundedPythonRange(body, range);
+    const scope = line + "\n" + block.text;
     if (paginationPattern.test(line)) {
       paginationLoops += 1;
-      if (!/\bMAX_PAGES\b/.test(scope)) {
+      if (!rangeBound && !/\bMAX_PAGES\b/.test(scope)) {
         unboundedPaginationLoops += 1;
         addIssue(
           issues,
@@ -505,7 +387,7 @@ export function auditPluginQuality(id: string, source: string): PluginQualityRep
     }
     if (detailPattern.test(line) && blockHasNetwork) {
       detailLoops += 1;
-      if (!/\bMAX_DETAILS\b/.test(scope)) {
+      if (!rangeBound && !/\bMAX_DETAILS\b/.test(scope)) {
         unboundedDetailLoops += 1;
         addIssue(
           issues,
@@ -551,7 +433,10 @@ export function auditPluginQuality(id: string, source: string): PluginQualityRep
     if (call.name.endsWith("._create_unverified_context")) {
       addTlsIssue(call.start, "Do not create an unverified TLS context.");
     }
-    if (isDirectTransport(call.name, aliases) && /\bverify\s*=\s*False\b/.test(call.args)) {
+    if (
+      isDirectTransport(call.name, aliases) &&
+      /\bverify\s*=\s*False\b/.test(maskPythonSource(call.args))
+    ) {
       addTlsIssue(call.start, "Do not disable TLS verification on network calls.");
     }
   }
@@ -591,30 +476,47 @@ export function auditPluginQuality(id: string, source: string): PluginQualityRep
     );
   }
 
-  for (const match of body.matchAll(/\.read\s*\(/g)) {
-    addIssue(
-      issues,
-      source,
-      "unbounded-read",
-      "warning",
-      "Prefer a bounded response-body read for direct HTTP responses.",
-      sourceIndex(source, body, match.index),
-    );
+  const readCalls = calls.filter((call) => call.name.endsWith(".read"));
+  for (const call of readCalls) {
+    if (!boundedPythonRead(body, call)) {
+      addIssue(
+        issues,
+        source,
+        "unbounded-read",
+        "warning",
+        "Cannot establish a bounded response-body read.",
+        sourceIndex(source, body, call.start),
+      );
+    }
   }
-
-  for (const match of body.matchAll(dynamicLoopPattern)) {
-    addIssue(
-      issues,
-      source,
-      "dynamic-loop",
-      "warning",
-      "Review dynamic pagination or result loops for MAX_PAGES/MAX_DETAILS bounds.",
-      sourceIndex(source, body, match.index),
-    );
+  for (const call of rangeLoops) {
+    if (!boundedPythonRange(body, call)) {
+      addIssue(
+        issues,
+        source,
+        "dynamic-loop",
+        "warning",
+        "Cannot establish a bound for this range loop.",
+        sourceIndex(source, body, call.start),
+      );
+    }
+  }
+  for (const match of whileLoops) {
+    const index = lineNumber(body, match.index) - 1;
+    if (!boundedPythonWhile(body, match.index, loopBlock(lines, index).text)) {
+      addIssue(
+        issues,
+        source,
+        "dynamic-loop",
+        "warning",
+        "Review the while-loop bound and progress on every iteration.",
+        sourceIndex(source, body, match.index),
+      );
+    }
   }
 
   const metrics: PluginQualityMetrics = {
-    dynamicLoops: [...body.matchAll(dynamicLoopPattern)].length,
+    dynamicLoops: rangeLoops.length + whileLoops.length,
     directTransportCalls: directTransportCalls.length,
     directTransportWithoutTimeouts: directTransportCalls.filter((call) => !hasTimeout(call)).length,
     rawThreads: rawThreadCalls.length,
@@ -633,7 +535,7 @@ export function auditPluginQuality(id: string, source: string): PluginQualityRep
     deadHelperAssignments: helperMetrics.dead,
     lines: body.split("\n").length,
     networkCalls: networkCalls.length,
-    responseReads: [...body.matchAll(/\.read\s*\(/g)].length,
+    responseReads: readCalls.length,
     sleeps,
     warnings: issues.filter((issue) => issue.severity === "warning").length,
   };

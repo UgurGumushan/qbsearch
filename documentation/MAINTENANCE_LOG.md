@@ -176,3 +176,33 @@ A shared-backend HTTP 429 pauses both plugins' remote checks until its retry win
 without a supplied retry window, defer probing to the next daily checkpoint.
 Record evidence before catalog changes and commit each pre-promotion checkpoint
 locally. The final commit is `Promote Solid Torrents after separated functional checks`.
+
+## Maintenance quality and scaffold audit — 2026-10-01
+
+The quality audit now analyzes executable source instead of matching strings and
+comments, recognizes byte-bounded response wrappers and explicit sizes, and follows
+local range limits without accepting unrelated or rebound variables. Negative
+server-controlled read sizes and range starts remain unproven. The checker retains
+unknown bounds rather than suppressing engine IDs. All 12 read advisories and 25 of
+the 27 loop advisories from the 39-warning baseline have been resolved by establishing
+existing bounds or removing text-only matches; no engine source changed in this phase.
+
+The report is now 49 engines, zero errors, and two advisory warnings. Its 41 real
+range/while loops include literal-start ranges that the previous metric missed.
+
+| Engine        | Remaining advisory                     | Manual disposition                                                                                                                                                                                                                         |
+| ------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| maxitorrent   | Path-name loop in `montar_torrent`     | For a nonempty input, the body replaces the name with one slash-separated component, removing the loop's slash condition. No HTTP occurs in this loop. Retain the warning because lexical analysis cannot prove the string transformation. |
+| tokyotoshokan | Pagination through `handle_more_pages` | The visited-page set is capped by `MAX_PAGES`; the helper adds visited pages and the caller breaks when its size does not grow. Retain the warning because progress crosses a helper boundary.                                             |
+
+Both scaffold flavors now validate identifiers and HTTP(S) site URLs, quote source
+literals safely, reject malformed command options before writes, and use generated
+retry/deadline helpers. They deduplicate results, enforce `MAX_DETAILS`, skip invalid
+rows, preserve subsequent valid rows, and use unknown peer counts consistently. HTML
+scaffolds accept magnet and torrent-file anchors rather than navigation links.
+
+New deterministic checks exercise Python 3.9 syntax and offline execution of both
+hardened templates, wrapper retries, malformed rows, result caps, source quoting,
+argument rejection without writes, and conservative warning analysis. Standalone
+template Ruff lint/format and BasedPyright checks pass. Bitsearch and Solid Torrents
+source hashes and pending daily checks are unchanged.

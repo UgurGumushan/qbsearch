@@ -4,6 +4,115 @@ import { auditPluginQuality } from "../tool/checks/plugin_quality";
 const preamble = `# BEGIN GENERATED QBITT SAFETY PREAMBLE\n# END GENERATED QBITT SAFETY PREAMBLE\n`;
 
 describe("plugin quality audit", () => {
+  test("bounded reads follow wrapper aliases but not rebinding or unknown sizes", () => {
+    const source = `${preamble}
+def search():
+    with _qbt_safe_urlopen(url) as response:
+        alias = response
+        alias.read()
+        response.read(-1)
+        alias = other
+        alias.read()
+        other.read(MAX_RESPONSE_BYTES)
+        other.read(-1)
+        other.read(server_size)
+`;
+    const report = auditPluginQuality("reads", source);
+    expect(
+      report.issues.filter((issue) => issue.kind === "unbounded-read").map((issue) => issue.line),
+    ).toEqual([10, 12, 13]);
+    expect(report.metrics.responseReads).toBe(6);
+  });
+
+  test("read bounds cannot leak across functions or shadowed arguments", () => {
+    const report = auditPluginQuality(
+      "scope",
+      `${preamble}
+def first():
+    response = _qbt_safe_urlopen(url)
+    response.read()
+def second(response):
+    response.read()
+def third(MAX_RESPONSE_BYTES):
+    response.read(MAX_RESPONSE_BYTES)
+`,
+    );
+    expect(report.issues.filter((issue) => issue.kind === "unbounded-read")).toHaveLength(2);
+  });
+
+  test("negative server sizes do not establish raw read or two-sided range bounds", () => {
+    const report = auditPluginQuality(
+      "negative",
+      `${preamble}
+def search():
+    raw.read(min(server_size, MAX_RESPONSE_BYTES))
+    raw.read(max(0, min(server_size, MAX_RESPONSE_BYTES)))
+    for page in range(min(server_start, MAX_PAGES), MAX_PAGES):
+        pass
+    for page in range(1, min(server_stop, MAX_PAGES), -1):
+        pass
+`,
+    );
+    expect(report.issues.filter((issue) => issue.kind === "unbounded-read")).toHaveLength(1);
+    expect(report.issues.filter((issue) => issue.kind === "dynamic-loop")).toHaveLength(2);
+  });
+
+  test("strings and comments do not create calls, loops, or timeout evidence", () => {
+    const report = auditPluginQuality(
+      "text",
+      `${preamble}
+message = "while searching: for page in range(total): response.read()"
+# response.read(); while True: pass
+urlopen("timeout=3")
+`,
+    );
+    expect(report.metrics.dynamicLoops).toBe(0);
+    expect(report.metrics.responseReads).toBe(0);
+    expect(report.issues.map((issue) => issue.kind)).toEqual(["direct-network"]);
+  });
+
+  test("range bounds use preceding local assignments and ignore unrelated or rebound limits", () => {
+    const report = auditPluginQuality(
+      "bounds",
+      `${preamble}
+def search():
+    limit = min(server_count, MAX_PAGES)
+    for page in range(limit):
+        pass
+    limit = server_count
+    for page in range(limit):
+        pass
+    unused = MAX_PAGES
+    for page in range(server_count):
+        pass
+    for page in range(1, MAX_PAGES + 1, max(1, int(MAX_WORKERS))):
+        pass
+`,
+    );
+    expect(report.issues.filter((issue) => issue.kind === "dynamic-loop")).toHaveLength(2);
+  });
+
+  test("while bounds require unconditional progress and remain warnings when uncertain", () => {
+    for (const body of ["        page += 1", "        page = page + 1"]) {
+      const report = auditPluginQuality(
+        "while",
+        `${preamble}\ndef search():\n    page = 1\n    while page <= MAX_PAGES:\n${body}\n`,
+      );
+      expect(report.issues.filter((issue) => issue.kind === "dynamic-loop")).toHaveLength(0);
+    }
+    for (const body of [
+      "        pass",
+      "        if ready:\n            page += 1",
+      "        continue\n        page += 1",
+    ]) {
+      const report = auditPluginQuality(
+        "while",
+        `${preamble}\ndef search():\n    page = 1\n    while page <= MAX_PAGES:\n${body}\n`,
+      );
+      expect(report.issues.filter((issue) => issue.kind === "dynamic-loop")).toHaveLength(1);
+    }
+  });
+
   test("accepts bounded transport and parallel helpers", () => {
     const report = auditPluginQuality(
       "safe",
