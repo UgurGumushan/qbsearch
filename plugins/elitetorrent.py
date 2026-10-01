@@ -11,7 +11,9 @@ import base64
 import codecs
 import re
 from datetime import datetime
+from html.parser import HTMLParser
 from typing import ClassVar, TypedDict, cast
+from urllib.parse import parse_qs, urlsplit
 
 from helpers import download_file
 from helpers import retrieve_url as _qbt_helper_retrieve_url
@@ -30,6 +32,7 @@ try:
     from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
     from types import TracebackType as _QBTTracebackType
+    from typing import TYPE_CHECKING
     from typing import Callable as _QBTCallable
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
@@ -38,6 +41,14 @@ try:
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
+
+if TYPE_CHECKING:
+    from typing_extensions import override
+else:
+
+    def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        return function
+
 
 HTTP_TIMEOUT = 20.0
 MAX_ATTEMPTS = 3
@@ -412,7 +423,7 @@ MAX_DEPTH = 10  # Safety cap on how many Base64+ROT13 layers to peel off.
 
 class TorrentInfo(TypedDict):
     title: str | None
-    link: list[str] | str | None
+    link: str | None
     size: str
     quality: str | None
     language: str | None
@@ -428,7 +439,7 @@ def deobfuscate_magnet(obfuscated: str) -> str | None:
         for _ in range(MAX_DEPTH):
             decoded_bytes = base64.b64decode(encoded)
             decoded_value = codecs.decode(decoded_bytes.decode(encoding="utf-8"), "rot_13")
-            if "magnet" in decoded_value:
+            if decoded_value.startswith("magnet:?"):
                 return decoded_value
             encoded = decoded_bytes
     except Exception:
@@ -436,19 +447,32 @@ def deobfuscate_magnet(obfuscated: str) -> str | None:
     return None
 
 
+class MagnetParser(HTMLParser):
+    """Read encoded query values without depending on link order or quoting."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.link: str | None = None
+
+    @override
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a" or self.link is not None:
+            return
+        href = dict(attrs).get("href") or ""
+        try:
+            # The site's legacy Base64 values may contain literal plus signs.
+            query = urlsplit(href).query.replace("+", "%2B")
+            values = parse_qs(query).get("i", [])
+        except ValueError:
+            return
+        for value in values:
+            decoded = deobfuscate_magnet(value)
+            if decoded is not None:
+                self.link = decoded
+                break
+
+
 def format_info(info: TorrentInfo) -> None:
-    links = info["link"]
-    if isinstance(links, list):
-        # The site normally includes a second matching attribute; accept the
-        # first one as a safe fallback when a page contains only one.
-        encoded_link = links[1] if len(links) > 1 else links[0] if links else None
-        info["link"] = (
-            deobfuscate_magnet(encoded_link.lstrip("i=").rstrip('"'))
-            if encoded_link is not None
-            else None
-        )
-    else:
-        info["link"] = None
 
     title = info["title"] or ""
     if title.startswith("<h1>") and title.endswith("</h1>"):
@@ -486,7 +510,7 @@ class elitetorrent:
         data = retrieve_url(url).replace("\n", "")
         info: TorrentInfo = {
             "title": None,
-            "link": [],
+            "link": None,
             "size": "0",
             "quality": None,
             "language": None,
@@ -497,7 +521,10 @@ class elitetorrent:
         }
         m_title = re.search(r"<h1>Descargar .+ por torrent</h1>", data)
         info["title"] = m_title.group(0) if m_title else None
-        info["link"] = re.findall(r"i=[-A-Za-z0-9+/]+\={0,3}\"", data)
+        parser = MagnetParser()
+        parser.feed(data)
+        parser.close()
+        info["link"] = parser.link
         m = re.search(r"Tama.?o:</b> [0-9\.]+[\ GM]+B", data)
         info["size"] = m.group(0).split("</b>")[1].strip() if m else "0"
         m = re.search(r"Calidad:</b> [0-9\.a-z\-]+", data)

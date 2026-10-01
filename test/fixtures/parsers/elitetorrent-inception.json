@@ -1,0 +1,23 @@
+{
+  "plugin": "elitetorrent",
+  "query": "inception",
+  "category": "all",
+  "maxPages": 2,
+  "maxDetails": 5,
+  "responses": {
+    "https://www.elitetorrent.com/?s=inception": "<h3>Resultado de buscar : \"inception\" ( Total 1 torrents )</h3><ul class=\"miniboxs miniboxs-ficha\"><li>\n<div class=imagen>\n<a href=\"https://www.elitetorrent.com/peliculas/origen-inception-br-screener/\" title=\"Origen (Inception) (BR-Screener)\" alt=\"Origen (Inception) (BR-Screener)\">\n\n</a>\n<span class=\"marca estreno\" id=idiomacio><i></i></span>\n<span class=\"marca estreno\" style=\"right: 0px;left: auto;max-width: 60%;\"><i>---</i></span>\n<div class=voto1 title=\"Peso de pelicula\" style=\"background-color:rgb(98,170,0)\"><span class=dig1>2 GBs</span></div>\n</div>\n<div class=meta>\n<a class=nombre href=\"https://www.elitetorrent.com/peliculas/origen-inception-br-screener/\" title=\"Origen \">Origen </a>\n</div>\n</li></ul>",
+    "https://www.elitetorrent.com/page/1/?s=inception": "<h3>Resultado de buscar : \"inception\" ( Total 1 torrents )</h3><ul class=\"miniboxs miniboxs-ficha\"><li>\n<div class=imagen>\n<a href=\"https://www.elitetorrent.com/peliculas/origen-inception-br-screener/\" title=\"Origen (Inception) (BR-Screener)\" alt=\"Origen (Inception) (BR-Screener)\">\n\n</a>\n<span class=\"marca estreno\" id=idiomacio><i></i></span>\n<span class=\"marca estreno\" style=\"right: 0px;left: auto;max-width: 60%;\"><i>---</i></span>\n<div class=voto1 title=\"Peso de pelicula\" style=\"background-color:rgb(98,170,0)\"><span class=dig1>2 GBs</span></div>\n</div>\n<div class=meta>\n<a class=nombre href=\"https://www.elitetorrent.com/peliculas/origen-inception-br-screener/\" title=\"Origen \">Origen </a>\n</div>\n</li></ul>",
+    "https://www.elitetorrent.com/peliculas/origen-inception-br-screener/": "<h1>Descargar origen por torrent</h1>\n<p><b>Fecha:</b> 16-11-2010<br>\n<b>Tamaño:</b> 2 GBs<br>\n<b>Calidad:</b> ---<br>\n<b>Semillas</b>: 2 | <br>\n<b>Clientes</b>: 1</p>\n<a href=\"https://acortame-esto.com/s.php?i=VmtWU1MyUXlSbkpsUm14U1lsZDRZVlpxU2xOT1ZtUlhXa2R3YTJKVldrbFdSM0JYVjIxS1ZWWnFVbGhpVjNNeFdsY3hVMlJYU2tsaVIwWm9Wa2Q0ZDFZeWVHOVpWVEZJVkc1U1UxZEdTbkpaYkZaaFRURnJlVTFWT1dsaVZrb3dWVEl4YjFSV1dqWmlTRTVWVW0xU2FGcEVSbmRYVms1MVlrWndXRkpZUW5wV1JWcHJZekZaZUZKWVpGaGhNVXBPV1d4a1UyTkdaSE5hUm1Sc1ZtMTRXVmRZYjNkUVVUMDk=&st=et\" target=_blank rel=nofollow class=\"enlace_torrent degradado1\">Descargar el .torrent</a>\n<a href=\"https://acortame-esto.com/s.php?i=VjJ4amQwMVZNVWRpUm14VVlsUldVVmxYY0hObFZtUjFZak5vYVUxWVFsbFZiRkpoWVZVeGRGVlliR0ZTYkVveldXdGtUMlJIVmtoaVIzUlRaVzE0TVZkVVNURlNNa1pZVm14b1ZtSnVRbkJVVkVwdlkyeFNjbUZGT1U1aVZWcEtWbTAxZDJGc1NYaGpSRXBhWWxoQ1ZGbHFSbmRrUm1SeFYyMTBhRlp1UVhoWGJHTjRWR3MwZVZSc2FGTldSM2hUV1d4YVdtVldjRVpoUlhSb1VsaFJNVlpzYUhOVlJrcHpZMGM1V2sxSGFFeFpWM2gyWld4a2RHSkdjRlpOVmxreFZrUkdUMlZ0U2taTldFWm9VbXRLVkZaWWNFZFRSbXQzV2taa2JGWXdOVEJWYlRWeldWWlZlRlpxVmxWTlZUVTJXV3RWZUdOWFJrZFViWGhZVW01Q01WZFVTakJoTWtaWFkwWm9WMkp0ZUdGV2FrcFBUVlprVjJGRmRHbGhNMEpXVlRGU1YxTXlTbFZXVkVwWVYwaEJkMWx0ZUhkV1ZURlZVbTFHVG1KV1NuaFdSRXB5VGtkU2MySXpiRmRpYkZweFZUQmtiMDVXWkhOVVZFWm9ZbFZhU1ZReFVsZGhNa3B5VTJwS1dHSnRjM2hhUkVaelpGZEtObGRzUWxOU1ZWbDVWMWN3ZUZJeVJrZGlTRkpvVWpKb2NWVXdWbkpQVVQwOQ==&st=et\" target=_blank rel=nofollow class=\"enlace_torrent degradado1\">Descargar por magnet link</a>"
+  },
+  "expected": [
+    {
+      "seeds": 2,
+      "leech": 1,
+      "name": "origen --- (16-11-2010)",
+      "size": "2 GB",
+      "desc_link": "https://www.elitetorrent.com/peliculas/origen-inception-br-screener/",
+      "engine_url": "https://www.elitetorrent.com",
+      "link": "magnet:?xt=urn:btih:reyogbtedolqfbkq4fiuhfcsba4ussmi&amp;dn=Origen+%28Inception%29+%28BR-Screener%29+%28EliteTorrent.net%29&amp;tr=http://tracker.publicbt.com:80/announce"
+    }
+  ]
+}

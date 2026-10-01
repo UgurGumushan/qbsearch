@@ -12,6 +12,7 @@ export interface LiveResponse {
   body: string;
   contentType: string;
   attempts: number;
+  retryAfter?: string;
 }
 
 export interface LivePluginContract {

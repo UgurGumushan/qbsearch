@@ -79,9 +79,9 @@ def ensure_qbitt_python() -> None:
     )
 
 
-def load_qbitt_modules() -> bool:
+def load_qbitt_modules(*, prefer_profile: bool = True) -> bool:
     """Make qBitt's real helpers/novaprinter/socks importable, if available."""
-    if os.path.isdir(QB_NOVA3):
+    if prefer_profile and os.path.isdir(QB_NOVA3):
         sys.path.insert(0, QB_NOVA3)
         return True
     # Fallback: minimal stubs matching qBitt's real modules (3.9-compatible).

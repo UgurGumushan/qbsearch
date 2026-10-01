@@ -207,7 +207,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/iordic/qbittorrent-search-plugins/master/engines/elitetorrent.py",
       "license": "Unknown",
-      "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
+      "notes": "Functional validation on 2026-10-01 replayed fresh Bun captures through the actual engine: inception emitted 1 usable magnet record and matrix emitted 5 within two-page/five-detail limits. Encoded links with trailing &st=et are supported; marker-required probes pass."
     },
     {
       "id": "esmeraldatorrent",

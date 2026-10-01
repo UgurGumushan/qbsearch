@@ -104,7 +104,7 @@ export async function runLiveProbe(args: LiveWorkerArguments): Promise<LiveProbe
     throw new Error(`remote endpoint returned HTTP ${response.status}`);
   }
 
-  const resultMarkers = countResultMarkers(response.body, response.contentType);
+  const resultMarkers = countResultMarkers(response.body, response.contentType, contract);
   if (!args.allowEmpty && resultMarkers === 0) {
     throw new Error("live response contained no result markers (use --allow-empty to accept this)");
   }
