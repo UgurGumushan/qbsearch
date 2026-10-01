@@ -11,7 +11,9 @@ There are two ways to install these engines.
 4. If you want the icon, copy the matching `.ico` file from [`icons/`](../icons/)
    into the same qBittorrent `nova3/engines` directory.
 
-This path does not require Git, Python, or a checkout of the repository.
+This path does not require Git or a checkout of the repository. qBittorrent
+needs a working Python 3.9+ installation to run the plugins. If the Search tab
+is hidden, enable **View → Search Engine**.
 
 ## Install the collection
 
@@ -20,13 +22,13 @@ Quit qBittorrent first. From a repository checkout or an extracted release:
 ### macOS
 
 ```sh
-./install/macos.sh
+sh install/macos.sh
 ```
 
 ### Linux
 
 ```sh
-./install/linux.sh
+sh install/linux.sh
 ```
 
 ### Windows PowerShell
@@ -58,8 +60,7 @@ Launch qBittorrent and open the Search tab. If a plugin is missing:
 - confirm the file is in the active profile's `nova3/engines` directory;
 - check that qBittorrent was fully closed before installation;
 - remove an older duplicate with the same filename;
-- run `bun run test -- --live --install-only --skip-safety` from the checkout to
-  validate all engine metadata and search contracts without network requests.
+- confirm Python is installed and that the plugin is enabled in **Search plugins**.
 
-The live test command is not required for installation and does contact the
-remote services. Use it only when you want to check current site behavior.
+For current site behavior and known reliability issues, see the status and
+maintenance notes in the [plugin catalog](PLUGINS.md).
