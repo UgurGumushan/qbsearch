@@ -144,7 +144,8 @@ Run this cycle when triaging a maintenance batch:
 4. Record each status change in `documentation/MAINTENANCE_LOG.md` before you edit
    `catalog/plugins.json`.
 
-For Elitetorrent, Bitsearch, and Solid Torrents, gather actual-parser evidence with the bounded
+For Elitetorrent, Bitsearch, Solid Torrents, Ali213, Pirateiro, and Traht, gather
+actual-parser and download evidence with the bounded
 capture/replay helper described in [test/README.md](test/README.md#functional-recovery-evidence).
 A clean functional pass must produce usable records for both public queries.
 Retain failed passes in the log, respect remote rate limits, and reset the clean-run
@@ -220,7 +221,13 @@ Build release artifacts with:
 bun run release -- <version>
 ```
 
-This collects installers, plugin files, icons, support JSON, and docs into the distributable zip.
+This collects installers, plugin files, icons, support JSON, docs, and verified
+upstream license notices into the distributable zip.
+
+Audit unresolved licenses against primary upstream grants using
+[the provenance record](documentation/LICENSE_PROVENANCE.md). A missing license
+API, source URL, or ambiguous collection-wide GPL text is not a per-engine grant.
+Keep unresolved entries as `Unknown` and record why.
 
 ## Maintenance backlog
 

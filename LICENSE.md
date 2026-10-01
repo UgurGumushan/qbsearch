@@ -6,6 +6,12 @@ moved out of the plugins (see [documentation/ATTRIBUTIONS.md](documentation/ATTR
 for the author headers that went along) so the engines stay readable; the
 license terms are preserved here.
 
+The per-file table below records original header notices, including historical
+engines. Additional verified upstream repository licenses and exact copyright
+notices are documented in [the 2026-10-01 provenance audit](documentation/LICENSE_PROVENANCE.md).
+The catalog includes those verified grants. `None` in the historical table means
+no original header notice was present; it does not override a documented grant.
+
 ## Full license texts
 
 The engines that shipped complete license text in their header used one of the

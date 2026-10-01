@@ -26,6 +26,18 @@ test("release archives contain canonical documentation and installers", async ()
     expect(names).toContain(`${prefix}documentation/PLUGINS.md`);
     expect(names).toContain(`${prefix}documentation/CHANGELOG.md`);
     expect(names).toContain(`${prefix}documentation/ATTRIBUTIONS.md`);
+    expect(names).toContain(`${prefix}documentation/LICENSE_PROVENANCE.md`);
+    for (const notice of [
+      "LightDestory-GPL-3.0",
+      "iordic-MIT",
+      "Cycloctane-MIT",
+      "tolotp-MIT",
+      "imDMG-MIT",
+      "Douman-MIT",
+    ]) {
+      const path = `documentation/licenses/${notice}.txt`;
+      expect(archive[`${prefix}${path}`]).toEqual(await Bun.file(path).bytes());
+    }
     expect(names).toContain(`${prefix}install/macos.sh`);
     expect(names).toContain(`${prefix}install/linux.sh`);
     expect(names).toContain(`${prefix}install/windows.ps1`);

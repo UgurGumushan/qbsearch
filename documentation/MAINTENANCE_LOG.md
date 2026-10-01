@@ -284,3 +284,40 @@ The Bitsearch/Solid Torrents promotion checks on October 2, 3, and 4 remain pend
 their logged source hashes are unchanged and no additional promotion credit was
 claimed. Their shared backend still requires sequential, two-minute-spaced passes
 and cooldown according to the recorded rate-limit policy.
+
+## License provenance audit — 2026-10-01
+
+All 26 `Unknown` entries were checked against primary upstream sources. Eleven
+now have evidence-backed labels (six GPL-3.0, five MIT), including exact notice
+copies shipped in release ZIPs. Fifteen remain `Unknown` with explicit audit
+reasons. Maxitorrent's mixed upstream collection has a root GPL-2.0 text but no
+confirmed per-engine grant; unavailable source URLs and missing license APIs do
+not establish a license. The evidence table and source/tree hashes are in
+[LICENSE_PROVENANCE.md](LICENSE_PROVENANCE.md). Original header notices and author
+credits remain preserved. This audit changes metadata and packaging, not engines.
+
+## Maintenance batch verification — 2026-10-01
+
+Full `bun run check -- --strict` passed on Python 3.9.6 and 3.11.15 with 85 Bun
+checks on each interpreter, zero test failures, TypeScript/ESLint/Prettier and
+Ruff/BasedPyright passing, and current generated artifacts. Separate strict
+`gen -- --check` and `plugin -- --validate` audits passed. The website production
+build passed. The final plugin-quality report is 49 engines, zero errors, two
+retained advisory warnings, 95 network calls, 40 dynamic loops, and 12 response
+reads. Pirateiro's replacement parser removed one formerly counted range loop;
+the two warning dispositions in the quality-audit section remain unchanged.
+
+The local `working/qbsearch-0.1.8-dev.zip` development archive contains 49 engine
+files, 49 icons, six exact upstream license notices, and 119 total entries.
+Its manifest IDs/count match the catalog, every packaged source matches the
+repository byte-for-byte, and all 49 engine IDs and version values are preserved
+relative to release baseline `fb7ace9`. Bitsearch/Solid Torrents source hashes
+still match their initial recovery reports. Archive verification is recorded in
+`working/maintenance-archive-verification.json`; full interpreter/build logs are
+ignored `working/maintenance-complete-{py39,py311,website}.log` artifacts.
+
+Catalog totals remain 44 active, three intermittent, and two unavailable.
+Fifteen license labels remain explicitly unresolved. The separated-date
+promotion/removal work above is pending; today's deterministic checks and archive
+build earn no additional live recovery credit. Changes are committed locally
+through the normal pre-commit hook; no release publication is part of this batch.

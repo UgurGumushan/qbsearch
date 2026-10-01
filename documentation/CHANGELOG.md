@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+- Restore Elitetorrent encoded magnet extraction and Solid Torrents parsing for
+  its current redirected listing; preserve standalone Python 3.9 compatibility.
+- Verify initial Bitsearch and Solid Torrents recovery with actual-parser replay.
+  Keep both intermittent until separated-day promotion checks are complete.
+- Repair Pirateiro desktop row parsing, global result caps, and escaped magnet
+  resolution. Its listing smoke probe passes; live detail downloads remain
+  unverified because of timeouts.
+- Add bounded Bun capture and offline actual-engine/download replay for Ali213,
+  Pirateiro, and Traht, with binary torrent metadata validation, Windows-1251
+  decoding, source hashes, and preserved HTTP 429/cooldown evidence.
+- Improve conservative plugin-quality analysis, resolving 37 of 39 advisory
+  warnings; retain two manually reviewed warnings for unproven loop progress.
+- Harden JSON/HTML scaffolds and option validation, retry-helper use, duplicate
+  handling, malformed-row tolerance, and result limits.
+- Audit all 26 unresolved upstream licenses; verify eleven catalog labels and
+  package their exact license notices. Document fifteen unresolved dispositions.
+- Refresh generated documentation and record current recovery failures and
+  manual follow-up dates. Retain all 49 engines pending the two-date removal
+  policy; no release is published by this maintenance batch.
+
 ## 0.1.7
 
 - Improve plugin search bounds, duplicate handling, parser resilience, and

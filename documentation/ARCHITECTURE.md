@@ -15,8 +15,10 @@ and docs cannot drift apart.
   join + inventory agreement check).
 - `tool/core/python-parse.ts` — the only Python-source parser (`#VERSION:`,
   engine class/alias, `name`/`url`, search method).
+- `tool/core/python-analysis.ts` — conservative executable-source analysis for
+  response sizes, local range bounds, and loop progress.
 - `tool/commands/` — thin CLI adapters over the workers below.
-- `tool/generators/` — pure renderers (watch manifest, CLI docs).
+- `tool/generators/` — pure renderers (watch manifest, CLI docs, standalone plugin templates).
 
 Domain workers live in matching directories (`tool/catalog/`, `tool/harden/`,
 `tool/icons/`, `tool/checks/`, `tool/release/`) and share

@@ -29,6 +29,7 @@ export async function archiveSources(catalogEntries: CatalogEntry[]): Promise<st
     resolve(ROOT, "CONTRIBUTING.md"),
     resolve(DOCUMENTATION_DIR, "CHANGELOG.md"),
     resolve(DOCUMENTATION_DIR, "ATTRIBUTIONS.md"),
+    resolve(DOCUMENTATION_DIR, "LICENSE_PROVENANCE.md"),
     resolve(ROOT, "LICENSE.md"),
     SCREENSHOT_PATH,
     resolve(ROOT, "catalog", "plugins.json"),
@@ -41,6 +42,14 @@ export async function archiveSources(catalogEntries: CatalogEntry[]): Promise<st
     files.push(resolve(ROOT, entry.icon));
   }
   files.push(...(await supportFiles()));
+  const licenseDirectory = resolve(DOCUMENTATION_DIR, "licenses");
+  const notices = await readdir(licenseDirectory, { withFileTypes: true });
+  files.push(
+    ...notices
+      .filter((notice) => notice.isFile() && extname(notice.name) === ".txt")
+      .map((notice) => join(licenseDirectory, notice.name))
+      .sort(),
+  );
   const existingFiles: string[] = [];
   for (const file of files) {
     if (await isFile(file)) {

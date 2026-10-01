@@ -77,4 +77,6 @@ procedures, and maintenance workflows.
 
 This project includes engines from multiple upstream projects. See
 [`documentation/ATTRIBUTIONS.md`](documentation/ATTRIBUTIONS.md) and [`LICENSE.md`](LICENSE.md)
-for source and per-engine licensing.
+for source and per-engine licensing. The
+[upstream license provenance audit](documentation/LICENSE_PROVENANCE.md) records
+verified grants and entries whose terms remain unresolved.

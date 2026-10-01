@@ -11,7 +11,7 @@
       "icon": "icons/academictorrents.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/academictorrents.py",
-      "license": "Unknown",
+      "license": "GPL-3.0",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -38,7 +38,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/hannsen/qbittorrent_search_plugins/master/ali213.py",
       "license": "Unknown",
-      "notes": "Two focused remote probes on 2026-10-01 returned HTTP 200 after redirecting to so.ali213.net, with 3 result markers for minecraft. The changed search page and download chain remain unverified; retain unavailable pending parser validation."
+      "notes": "Actual-parser pairs on 2026-10-01 emitted zero records for minecraft and elden ring despite HTTP 200 search/game pages. Current resource buttons no longer expose the legacy download chain; bounded replacement-resource request timed out. Keep unavailable pending the separated-date recovery/removal follow-up in MAINTENANCE_LOG.md."
     },
     {
       "id": "animetosho",
@@ -206,7 +206,7 @@
       "icon": "icons/elitetorrent.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/iordic/qbittorrent-search-plugins/master/engines/elitetorrent.py",
-      "license": "Unknown",
+      "license": "MIT",
       "notes": "Functional validation on 2026-10-01 replayed fresh Bun captures through the actual engine: inception emitted 1 usable magnet record and matrix emitted 5 within two-page/five-detail limits. Encoded links with trailing &st=et are supported; marker-required probes pass."
     },
     {
@@ -271,7 +271,7 @@
       "icon": "icons/mikan.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/Cycloctane/qBittorrent-plugins/master/engines/mikan.py",
-      "license": "Unknown",
+      "license": "MIT",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -323,7 +323,7 @@
       "icon": "icons/nekobt.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/tolotp/qbittorrent-search-plugins-de-busqueda/refs/heads/main/Plugins/nekobt.py",
-      "license": "Unknown",
+      "license": "MIT",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -388,8 +388,8 @@
       "icon": "icons/pirateiro.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/pirateiro.py",
-      "license": "Unknown",
-      "notes": "Two focused remote probes on 2026-10-01 reached the inception search page with HTTP 200 but found zero result markers. The earlier DNS failure is no longer reproduced; retain unavailable pending functional validation."
+      "license": "GPL-3.0",
+      "notes": "Desktop table parser repaired and required-results inception smoke probe passes. Actual-parser download captures on 2026-10-01 timed out at detail pages, so functional recovery remains unverified; keep unavailable. Interrupted checks do not count toward removal. See MAINTENANCE_LOG.md."
     },
     {
       "id": "rutor",
@@ -401,7 +401,7 @@
       "icon": "icons/rutor.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/imDMG/qBt_SE/master/engines/rutor.py",
-      "license": "Unknown",
+      "license": "MIT",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -440,7 +440,7 @@
       "icon": "icons/snowfl.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/snowfl.py",
-      "license": "Unknown",
+      "license": "GPL-3.0",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -492,7 +492,7 @@
       "icon": "icons/thepiratebay.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/thepiratebay.py",
-      "license": "Unknown",
+      "license": "GPL-3.0",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -518,7 +518,7 @@
       "icon": "icons/tokyotoshokan.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BrunoReX/qBittorrent-Search-Plugin-TokyoToshokan/master/tokyotoshokan.py",
-      "license": "Unknown",
+      "license": "MIT",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -557,7 +557,7 @@
       "icon": "icons/torrentdownload.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/torrentdownload.py",
-      "license": "Unknown",
+      "license": "GPL-3.0",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
@@ -584,7 +584,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/traht.py",
       "license": "MIT",
-      "notes": "Two focused remote probes on 2026-10-01 returned HTTP 200 with an empty response body for inception. Retain intermittent pending evidence of usable search results."
+      "notes": "Actual-parser inception/matrix pairs on 2026-10-01 received empty HTTP 200 browse responses and emitted zero records. Public form route without page is also empty; no usable anonymous replacement established. Retain intermittent pending the separated-date follow-up in MAINTENANCE_LOG.md."
     },
     {
       "id": "uniondht",
@@ -622,7 +622,7 @@
       "icon": "icons/yourbittorrent.ico",
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/LightDestory/qBittorrent-Search-Plugins/master/src/engines/yourbittorrent.py",
-      "license": "Unknown",
+      "license": "GPL-3.0",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
