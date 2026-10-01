@@ -7,16 +7,18 @@ export type ParserPlugin =
   "elitetorrent" | "bitsearch" | "solidtorrents" | "ali213" | "pirateiro" | "traht";
 
 export interface ParserCase {
-  plugin: ParserPlugin;
+  plugin: ParserPlugin | "audiobookbay" | "darklibria" | "yts";
   query: string;
   category?: string;
   action?: "search" | "detail" | "download";
   detailUrl?: string;
   maxPages?: number;
   maxDetails?: number;
+  maxWorkers?: number;
   responses: Record<string, string>;
   sourceSha256?: string;
   verifiedDownloads?: string[];
+  responseDelayMs?: number;
 }
 
 export interface ParserReport {
@@ -26,6 +28,8 @@ export interface ParserReport {
   errors: string[];
   downloadRequests: string[];
   output: string[];
+  peakConcurrentRequests?: number;
+  requestConcurrency?: number[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,6 +64,11 @@ export async function replayParserCase(path: string): Promise<ParserReport> {
     errors: value.errors,
     downloadRequests: value.downloadRequests,
     output: value.output,
+    peakConcurrentRequests:
+      typeof value.peakConcurrentRequests === "number" ? value.peakConcurrentRequests : 0,
+    requestConcurrency: Array.isArray(value.requestConcurrency)
+      ? value.requestConcurrency.map((item: unknown) => (typeof item === "number" ? item : 0))
+      : [],
   };
 }
 

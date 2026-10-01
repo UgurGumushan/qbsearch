@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import sys
+import time
 from collections.abc import Callable
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -37,7 +38,17 @@ def replay(path: Path) -> dict[str, object]:
     query = case.get("query", "inception")
     category = case.get("category", "all")
     action = case.get("action", "search")
-    if plugin not in ("elitetorrent", "bitsearch", "solidtorrents", "ali213", "pirateiro", "traht"):
+    if plugin not in (
+        "elitetorrent",
+        "bitsearch",
+        "solidtorrents",
+        "ali213",
+        "pirateiro",
+        "traht",
+        "audiobookbay",
+        "darklibria",
+        "yts",
+    ):
         raise ValueError("unsupported fixture plugin")
     if not isinstance(query, str) or not isinstance(category, str):
         raise TypeError("query and category must be strings")
@@ -62,6 +73,18 @@ def replay(path: Path) -> dict[str, object]:
             raise ValueError(f"invalid {key}")
         limits[key] = limit
 
+    delay_ms = case.get("responseDelayMs", 0)
+    if not isinstance(delay_ms, int) or isinstance(delay_ms, bool) or not 0 <= delay_ms <= 1000:
+        raise ValueError("invalid responseDelayMs")
+
+    worker_limit = case.get("maxWorkers")
+    if worker_limit is not None and (
+        not isinstance(worker_limit, int)
+        or isinstance(worker_limit, bool)
+        or not 1 <= worker_limit <= 16
+    ):
+        raise ValueError("invalid maxWorkers")
+
     raw_downloads = case.get("verifiedDownloads", [])
     if not isinstance(raw_downloads, list) or not all(
         isinstance(url, str) for url in cast(list[object], raw_downloads)
@@ -74,13 +97,26 @@ def replay(path: Path) -> dict[str, object]:
     requests: list[str] = []
     errors: list[str] = []
     lock = Lock()
+    active_requests = 0
+    peak_concurrent_requests = 0
+    request_concurrency: list[int] = []
 
     def retrieve(url: str, *_args: object, **_kwargs: object) -> str:
+        nonlocal active_requests, peak_concurrent_requests
         with lock:
+            active_requests += 1
+            peak_concurrent_requests = max(peak_concurrent_requests, active_requests)
             requests.append(url)
+            request_concurrency.append(active_requests)
             if url not in responses:
                 errors.append(f"unexpected request: {url}")
-        return responses.get(url, "")
+        try:
+            if delay_ms:
+                time.sleep(delay_ms / 1000)
+            return responses.get(url, "")
+        finally:
+            with lock:
+                active_requests -= 1
 
     def printer(row: object) -> None:
         with lock:
@@ -123,6 +159,8 @@ def replay(path: Path) -> dict[str, object]:
     if loader is None:
         raise ValueError("cannot load plugin")
     module = importlib.util.module_from_spec(spec)
+    # Dataclasses resolve postponed annotations through the registered module.
+    sys.modules[str(plugin)] = module
     with (
         patch("socket.socket.connect", forbidden),
         patch("socket.socket.connect_ex", forbidden),
@@ -134,6 +172,8 @@ def replay(path: Path) -> dict[str, object]:
         # Python 3.9's abstract Loader stub omits the concrete exec_module API.
         cast(ModuleLoader, loader).exec_module(module)
         vars(module).update({"MAX_PAGES": limits["maxPages"], "MAX_DETAILS": limits["maxDetails"]})
+        if worker_limit is not None:
+            vars(module)["MAX_WORKERS"] = worker_limit
         # Missing fixture responses still exercise retries, without artificial sleeps.
         vars(module)["RETRY_DELAY"] = 0
         factory = cast(Callable[[], SearchEngine], getattr(module, str(plugin)))
@@ -166,6 +206,8 @@ def replay(path: Path) -> dict[str, object]:
         "errors": errors,
         "downloadRequests": download_requests,
         "output": output.getvalue().splitlines(),
+        "peakConcurrentRequests": peak_concurrent_requests,
+        "requestConcurrency": request_concurrency,
     }
 
 

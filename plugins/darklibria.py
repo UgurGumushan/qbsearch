@@ -28,15 +28,18 @@ from novaprinter import SearchResults, prettyPrinter
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
 # Slim stdlib-only helpers for standalone engines (rendered by `bun run gen`).
 try:
+    import os as _qbt_os
     import socket as _qbt_socket
     import time as _qbt_time
     import urllib.error as _qbt_urllib_error
     from collections.abc import Iterable as _QBTIterable
+    from collections.abc import Iterator as _QBTIterator
     from concurrent.futures import FIRST_COMPLETED as _qbt_FIRST_COMPLETED
     from concurrent.futures import Future as _QBTFuture
     from concurrent.futures import ThreadPoolExecutor as _QBTThreadPoolExecutor
     from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
+    from threading import local as _qbt_local
     from types import TracebackType as _QBTTracebackType
     from typing import TYPE_CHECKING
     from typing import Callable as _QBTCallable
@@ -47,6 +50,19 @@ try:
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
+
+
+def _qbt_default_workers() -> int:
+    """Use available CPU cores for I/O overlap, with a hard per-engine ceiling."""
+    default = min(16, max(4, _qbt_os.cpu_count() or 1))
+    value = _qbt_os.environ.get("QBSEARCH_MAX_WORKERS")
+    if value is None:
+        return default
+    try:
+        return min(16, max(1, int(value)))
+    except ValueError:
+        return default
+
 
 if TYPE_CHECKING:
     from typing_extensions import override
@@ -59,7 +75,7 @@ else:
 HTTP_TIMEOUT = 20.0
 MAX_ATTEMPTS = 3
 RETRY_DELAY = 0.25
-MAX_WORKERS = 4
+MAX_WORKERS = _qbt_default_workers()
 SEARCH_DEADLINE = 60.0
 MAX_PAGES = 30
 MAX_DETAILS = 100
@@ -348,17 +364,50 @@ def _qbt_prettyPrinter(result: object) -> None:
         printer(result)
 
 
-def _qbt_run_parallel(
+class _QBTWorkerState(_qbt_local):
+    active: bool = False
+
+
+_qbt_worker_state = _QBTWorkerState()
+_QBT_FAILED_JOB = object()
+
+
+def _qbt_call_job(worker: _QBTCallable[..., _QBTJobResult], job: object) -> _QBTJobResult:
+    previous = _qbt_worker_state.active
+    _qbt_worker_state.active = True
+    try:
+        if isinstance(job, tuple):
+            return worker(*job)
+        return worker(job)
+    finally:
+        _qbt_worker_state.active = previous
+
+
+def _qbt_iter_parallel(
     worker: _QBTCallable[..., _QBTJobResult],
     jobs: _QBTIterable[object],
     deadline: float | None = None,
-) -> list[_QBTJobResult]:
-    """Run bounded worker jobs, preserving completed work after failures."""
+    *,
+    ordered: bool = False,
+) -> _QBTIterator[_QBTJobResult]:
+    """Stream completed jobs with bounded threads, buffering, and input consumption."""
     if deadline is None:
         deadline = _qbt_get_deadline()
-    if deadline - _qbt_time.monotonic() <= 0:
-        return []
-    worker_limit = max(1, int(MAX_WORKERS))
+    if deadline <= _qbt_time.monotonic():
+        return
+    # A worker may resolve a page's details, but must not create another pool.
+    if _qbt_worker_state.active:
+        for job in jobs:
+            if deadline <= _qbt_time.monotonic():
+                break
+            try:
+                nested_result = _qbt_call_job(worker, job)
+            except Exception:
+                continue
+            yield nested_result
+        return
+
+    worker_limit = min(16, max(1, int(MAX_WORKERS)))
     job_iterator = iter(jobs)
     initial_jobs: list[object] = []
     for _ in range(worker_limit):
@@ -366,41 +415,63 @@ def _qbt_run_parallel(
             initial_jobs.append(next(job_iterator))
         except StopIteration:
             break
-    if not initial_jobs or deadline - _qbt_time.monotonic() <= 0:
-        return []
+    if not initial_jobs or deadline <= _qbt_time.monotonic():
+        return
+
     executor = _QBTThreadPoolExecutor(max_workers=len(initial_jobs))
-    pending: set[_QBTFuture[_QBTJobResult]] = set()
-    results: list[_QBTJobResult] = []
+    pending: dict[_QBTFuture[_QBTJobResult], int] = {}
+    completed: dict[int, object] = {}
+    next_job = 0
+    next_result = 0
+
+    def submit(job: object) -> None:
+        nonlocal next_job
+        pending[executor.submit(_qbt_call_job, worker, job)] = next_job
+        next_job += 1
+
     try:
         for job in initial_jobs:
-            if deadline - _qbt_time.monotonic() <= 0:
+            if deadline <= _qbt_time.monotonic():
                 break
-            if isinstance(job, tuple):
-                pending.add(executor.submit(worker, *job))
-            else:
-                pending.add(executor.submit(worker, job))
+            submit(job)
         while pending:
             remaining = deadline - _qbt_time.monotonic()
             if remaining <= 0:
                 break
-            done, pending = _qbt_wait(pending, timeout=remaining, return_when=_qbt_FIRST_COMPLETED)
+            done, _ = _qbt_wait(pending, timeout=remaining, return_when=_qbt_FIRST_COMPLETED)
             if not done:
                 break
             for future in done:
+                position = pending.pop(future)
                 try:
-                    results.append(future.result())
+                    result: object = future.result()
                 except Exception:
-                    pass
-                if deadline - _qbt_time.monotonic() <= 0:
-                    continue
+                    result = _QBT_FAILED_JOB
+                if ordered:
+                    completed[position] = result
+                elif result is not _QBT_FAILED_JOB:
+                    yield _qbt_cast(_QBTJobResult, result)
+            if ordered:
+                while next_result in completed:
+                    result = completed.pop(next_result)
+                    next_result += 1
+                    if result is not _QBT_FAILED_JOB:
+                        yield _qbt_cast(_QBTJobResult, result)
+            # Completed ordered results also occupy the window. A slow first job
+            # cannot cause the entire input or response bodies to accumulate.
+            while len(pending) + len(completed) < worker_limit:
+                if deadline <= _qbt_time.monotonic():
+                    break
                 try:
                     job = next(job_iterator)
                 except StopIteration:
-                    continue
-                if isinstance(job, tuple):
-                    pending.add(executor.submit(worker, *job))
-                else:
-                    pending.add(executor.submit(worker, job))
+                    break
+                submit(job)
+        # Preserve completed work if an earlier ordered job exceeded the deadline.
+        for position in sorted(completed):
+            result = completed[position]
+            if result is not _QBT_FAILED_JOB:
+                yield _qbt_cast(_QBTJobResult, result)
     finally:
         for future in pending:
             _ = future.cancel()
@@ -408,10 +479,19 @@ def _qbt_run_parallel(
             _ = executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:
             _ = executor.shutdown(wait=False)
-    return results
+
+
+def _qbt_run_parallel(
+    worker: _QBTCallable[..., _QBTJobResult],
+    jobs: _QBTIterable[object],
+    deadline: float | None = None,
+) -> list[_QBTJobResult]:
+    """Eager compatibility adapter for engines whose workers emit their own results."""
+    return list(_qbt_iter_parallel(worker, jobs, deadline))
 
 
 __all__ = [
+    "_qbt_iter_parallel",
     "_qbt_new_deadline",
     "_qbt_prettyPrinter",
     "_qbt_read_response",
@@ -449,24 +529,38 @@ class darklibria:
         self.pages_count: int = 0
 
     def search(self, what: str, _cat: str = "all") -> None:
+        deadline = _qbt_new_deadline()
         self.torrents_count = 0
+        self.pages_count = 0
         what = parse.quote(parse.unquote(what))
         logger.info(parse.unquote(what))
         first_page = self.handle_page(what, 1)
         if first_page is not None:
             self.set_search_data(first_page)
         pages = range(2, min(self.pages_count, MAX_PAGES) + 1)
-        _ = _qbt_run_parallel(
-            self.handle_page, [(what, page) for page in pages], _qbt_new_deadline()
-        )
+        jobs: list[tuple[str]] = []
+        for parser in _qbt_iter_parallel(
+            self.fetch_page, ((what, page) for page in pages), deadline, ordered=True
+        ):
+            if parser is not None:
+                jobs.extend(self.serial_jobs(parser))
+        _ = _qbt_run_parallel(self.handle_serial, jobs, deadline)
         logger.info("%s torrents", self.torrents_count)
 
     def handle_page(self, what: str, page: int) -> Parser | None:
+        parser = self.fetch_page(what, page)
+        if parser is not None:
+            _ = _qbt_run_parallel(self.handle_serial, self.serial_jobs(parser), _qbt_get_deadline())
+        return parser
+
+    def fetch_page(self, what: str, page: int) -> Parser | None:
         url = self.page_search_url_pattern.format(page=page, what=what)
         data = self.request_get(url)
         if not data:
             return
-        parser = Parser(data)
+        return Parser(data)
+
+    def serial_jobs(self, parser: Parser) -> list[tuple[str]]:
         serials = parser.find_all("tbody", {"style": "vertical-align: center"})
         jobs: list[tuple[str]] = []
         seen_urls: set[str] = set()
@@ -478,8 +572,7 @@ class darklibria:
             if href and href not in seen_urls:
                 seen_urls.add(href)
                 jobs.append((href,))
-        _ = _qbt_run_parallel(self.handle_serial, jobs, _qbt_new_deadline())
-        return parser
+        return jobs
 
     def handle_serial(self, url: str) -> None:
         data = self.request_get(url)

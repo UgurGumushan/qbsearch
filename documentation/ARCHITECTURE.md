@@ -44,6 +44,12 @@ engine carries a generated safety preamble between
 retries, timeouts, thread-pool parallelism, and locked result printing with
 stdlib only (Python 3.9 compatible).
 
+Parallel work uses a hardware-based 4–16 worker default and an optional
+`QBSEARCH_MAX_WORKERS` environment override. Streaming helpers bound pending
+work and ordered response buffering; nested calls reuse their existing worker.
+See [search performance](PERFORMANCE.md) for engine behavior, configuration,
+measured gains, and live-test limitations.
+
 Authoring flow: `plugin -- --new <id>` scaffolds a slim engine with a
 `# QBSEARCH-PREAMBLE-ANCHOR` line; `gen -- --write --only harden` inserts the
 preamble there (or replaces it in place for existing engines).

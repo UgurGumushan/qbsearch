@@ -90,7 +90,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/bitsearch.py",
       "license": "MIT",
-      "notes": "Recovered to intermittent on 2026-10-01 after two consecutive clean actual-parser validations following an HTTP 429 cooldown. Each fresh two-page capture emitted 40 usable magnet records for both inception and ubuntu; bitsearch.to redirects to bitsearch.eu. Active promotion awaits three additional separated daily passes."
+      "notes": "Original recovery to intermittent on 2026-10-01 followed two clean actual-parser pairs after an HTTP 429 cooldown. The new generated runtime requires fresh source evidence: one current-source pair emitted 40 usable records per query for inception and ubuntu. A later shared-backend HTTP 429 paused both plugins; complete initial recovery before separated daily promotion checks. See MAINTENANCE_LOG.md."
     },
     {
       "id": "bt4gprx",
@@ -454,7 +454,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/solidtorrents.py",
       "license": "MIT",
-      "notes": "Recovered to intermittent on 2026-10-01 after two consecutive clean actual-parser passes through solidtorrents.to, each emitting 40 usable magnet records for ubuntu and inception from two pages. The endpoint redirects to bitsearch.eu and shares Bitsearch's backend; active promotion awaits three additional separated daily passes."
+      "notes": "Original recovery to intermittent on 2026-10-01 followed two clean actual-parser pairs. After the generated runtime changed, one fresh pair emitted 40 usable records per query for ubuntu and inception; a subsequent smoke probe returned HTTP 429 and reset its streak. The bitsearch.eu backend is shared with Bitsearch. Re-establish two clean initial pairs before separated daily promotion checks; see MAINTENANCE_LOG.md."
     },
     {
       "id": "subsplease",

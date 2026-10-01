@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.10
+
+- Scale parallel search work from four workers to a hardware-based 4–16 worker
+  default, with a `QBSEARCH_MAX_WORKERS` environment override clamped to 1–16.
+- Stream completed results, preserve page and seed ordering where required,
+  bound queued work and response buffering, and prevent nested pools from
+  multiplying active requests.
+- Parallelize AudioBook Bay detail resolution and known pagination, overlap
+  YTS API pages, and restructure Darklibria's page/detail scheduling.
+- Add deterministic concurrency and actual-parser regression checks. Controlled
+  benchmarks retain identical output and request counts while improving
+  AudioBook Bay, YTS, and Darklibria throughput by 7.89×, 3.58×, and 2.40×.
+- Document worker configuration, benchmark assumptions, all-plugin live
+  outcomes, and current-source recovery follow-ups. Keep Bitsearch and Solid
+  Torrents intermittent after the shared backend returned HTTP 429.
+- Include the performance guide and current maintenance evidence in the ZIP.
+
 ## 0.1.9
 
 - Put the latest ZIP download, platform installation steps, and all 49 plugin

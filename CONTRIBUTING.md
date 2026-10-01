@@ -97,6 +97,12 @@ violations across every plugin. Live checks remain necessary for endpoint
 behavior, but remote availability is not used as a deterministic performance
 gate.
 
+For the worker policy, streaming APIs, and measured workloads, see
+[search performance](documentation/PERFORMANCE.md). Use ordered streaming when
+page order or seed ranking matters. Keep mutable parsers on the consuming
+thread, and collect nested detail work into a separate phase so it can use the
+worker limit without multiplying pools.
+
 ### Add a new plugin
 
 1. Scaffold the engine file:

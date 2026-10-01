@@ -24,6 +24,12 @@ Use this file to record evidence-backed plugin status transitions and operationa
 | 2026-10-01 | solidtorrents | unavailable  | unavailable  | ubuntu             | empty   | Fresh Bun captures from solidtorrents.to redirected to bitsearch.eu with HTTP 200; actual-parser replay emitted zero records because the legacy banner and card selectors did not match.                                                                                |
 | 2026-10-01 | solidtorrents | unavailable  | unavailable  | ubuntu, inception  | ok      | After parser repair, functional pass 1 emitted 40 usable magnet records per query from two pages, with HTTP 200 on every request and no retries or unexpected requests.                                                                                                 |
 | 2026-10-01 | solidtorrents | unavailable  | intermittent | ubuntu, inception  | ok      | Functional pass 2 repeated 40 usable records per query against the same engine source after spacing the requests. Two consecutive clean actual-parser passes satisfy initial recovery; the endpoint shares Bitsearch's backend.                                         |
+| 2026-10-01 | bitsearch     | intermittent | intermittent | inception, ubuntu  | ok      | After the generated runtime changed, one fresh actual-parser pair at 18:10:50–18:10:52 UTC emitted 40 usable records per query. Current-source initial recovery streak: one. Old-source evidence cannot qualify the new engine.                                         |
+| 2026-10-01 | solidtorrents | intermittent | intermittent | ubuntu, inception  | ok      | One fresh actual-parser pair at 18:12:52–18:12:54 UTC emitted 40 usable records per query, using the current generated runtime and HTTP 200 redirects to bitsearch.eu.                                                                                                  |
+| 2026-10-01 | solidtorrents | intermittent | intermittent | ubuntu             | failed  | The subsequent marker-required smoke probe returned HTTP 429. Its clean-run streak reset, and both shared-backend plugins stopped remote checks. The CLI retained no retry window; resume no earlier than the October 2 checkpoint.                                     |
+| 2026-10-01 | yts           | active       | active       | inception          | ok      | Fresh API data at 18:17:21–18:17:22 UTC replayed through the optimized Python 3.9 engine and emitted three usable HTTP torrent result dictionaries without parser errors. Downloads were not exercised.                                                                 |
+| 2026-10-01 | audiobookbay  | active       | active       | the hobbit         | failed  | Fresh capture at 18:17:22–18:18:22 UTC reached the homepage with HTTP 200, then exhausted the bounded capture deadline while resolving subsequent requests. No complete live parser result qualifies; controlled offline performance fixtures pass.                     |
+| 2026-10-01 | darklibria    | active       | active       | the hobbit         | empty   | Focused required-markers probe found no markers. A fresh HTTP 200 search response at 18:18:22–18:18:23 UTC replayed successfully but emitted zero actual-parser records. Controlled two-page concurrency fixtures pass.                                                 |
 
 ## Log format
 
@@ -62,6 +68,10 @@ Bitsearch's source hash matches both qualifying initial-recovery reports. The
 plugin quality audit still reports 40 existing advisory warnings and zero errors.
 
 ## Bitsearch promotion follow-up
+
+The original follow-up below is superseded by the performance checkpoint at
+the end of this log. Use that checkpoint's current source hashes and revised
+pending dates.
 
 Initial recovery completed on 2026-10-01. Bitsearch is `intermittent`; promotion to
 `active` requires three additional clean functional passes on separated days.
@@ -122,6 +132,9 @@ and version declarations, pass the pre-commit hook, and finish with a clean tree
 Delivery remains local commits; publication and release preparation are later decisions.
 
 ## Solid Torrents recovery — 2026-10-01
+
+The performance checkpoint at the end of this log supersedes the source hash
+and pending promotion dates in this historical recovery record.
 
 The original engine emitted zero records for `ubuntu`, despite fresh captures
 returning HTTP 200 and redirecting from `solidtorrents.to` to `bitsearch.eu`.
@@ -341,3 +354,105 @@ harness's null guard. The harness now narrows the spec first, casts its loader t
 `object`, checks for absence, and invokes the existing explicit loader protocol.
 This preserves runtime behavior and removes the platform-specific static warning
 without suppressing diagnostics. Published engine files remain unchanged.
+
+## Performance checkpoint — 2026-10-01
+
+The shared generated runtime now chooses 4–16 workers from the available CPU
+count and accepts the inherited `QBSEARCH_MAX_WORKERS` override (clamped to
+1–16). It streams completed work, bounds ordered buffering and lazy job
+consumption, and prevents nested pools from multiplying active work. AudioBook
+Bay's details and known pages and YTS's known API pages now overlap. Darklibria
+resolves remaining-page details in a separate pool phase so few-page searches
+still use the available worker budget. Seed/page ordering, result fields,
+standalone Python compatibility, and all 49 version declarations are preserved.
+
+Controlled actual-parser benchmarks compare against `v0.1.9` commit
+`af27a5d3cdd87b4c9c1624b763294b459a38048b`, with identical output and URL
+multisets. Five-run median improvements on Python 3.9.6 are 7.89× for AudioBook
+Bay, 3.58× for YTS, and 2.40× for Darklibria. The shared 64-job workload is
+3.92× faster. First-result latency and buffered allocation measurements are
+recorded in [search performance](PERFORMANCE.md), with the workload assumptions.
+Raw benchmarks and logs are ignored `working/performance/` artifacts.
+
+The original all-49 required-markers sweep at 17:45–17:47 UTC reported 25 passed
+and 24 failed (`working/live/20261001T174507Z/report.json`). After the shared
+runtime changed, the 47 probes outside the shared Bitsearch backend repeated
+23 passes and the same 24 failures. The five HTTP 522 endpoints were DivxTotal,
+DonTorrent, EsmeraldaTorrent, NaranjaTorrent, and TomaDivx. Tokyo Toshokan
+returned HTTP 403; 18 responses lacked generic result markers. The later
+48-probe report includes Solid Torrents' HTTP 429 and records 23 passes and
+25 failures, alongside the two actual-parser pairs:
+`working/performance/live-20261001T181050Z/report.json`.
+
+The two fresh actual-parser pairs used Python 3.9.6, two search pages per query,
+and a 40-result budget. They produced 40 usable records per query without
+unexpected requests, retries, or source-hash changes. Capture paths are:
+
+- Bitsearch: `working/performance/live-20261001T181050Z/recovery/bitsearch-0946cad9-7ba2-4648-abc6-415b490a72c0/pass.json`
+- Solid Torrents: `working/performance/live-20261001T181050Z/recovery/solidtorrents-d841fd73-a7e5-4ff5-b3e7-9db7b365a53c/pass.json`
+
+The subsequent Solid Torrents smoke probe returned HTTP 429. Both plugins'
+remote checks stopped. That CLI probe retained no `Retry-After`, so further
+shared-backend requests are deferred to October 2. The extra smoke probe earns
+no recovery credit. Use the functional pair alone for future checkpoints to
+avoid duplicating requests after a qualifying capture.
+
+The generated preamble changes invalidate the older source hashes in the
+historical recovery sections. Current qualifying sources are:
+
+| Plugin         | Current SHA-256                                                    | Initial recovery state                                                     |
+| -------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Bitsearch      | `ce6d28770a7096b9191048e709ac53a3942753918533bd492cf6909d9e8a8d3c` | One clean current-source pair; needs a second consecutive clean pair       |
+| Solid Torrents | `fc451872f0ccd45ef1bea917c4b1aa7e5a80efb95aa75b1095e8665470dc693b` | Streak reset by HTTP 429; needs two consecutive clean current-source pairs |
+
+Both stay `intermittent`. Catalog notes and generated plugin documentation now
+describe the incomplete current-source recovery. The following manual dates
+supersede the October 2–4 promotion tables above:
+
+| Date (Europe/Istanbul) | Check                                                                                                           | Outcome |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------- | ------- |
+| 2026-10-02             | Resume initial recovery after cooldown; obtain Bitsearch's second clean pair and two clean Solid Torrents pairs | Pending |
+| 2026-10-03             | First additional daily functional pair, conditional on initial recovery completing October 2                    | Pending |
+| 2026-10-04             | Second additional daily functional pair                                                                         | Pending |
+| 2026-10-05             | Third additional daily functional pair; consider promotion only after all gates pass                            | Pending |
+
+Keep the backend checks sequential and allow at least two minutes after one
+functional pass finishes before another starts. Respect a supplied retry window
+on HTTP 429; without one, defer both plugins to the next daily checkpoint. A
+failed daily pair resets its streak, missed dates earn no credit, and further
+engine changes require new initial recovery evidence. These are pending manual
+checks; no background schedule has been installed.
+
+Fresh search-parser captures for YTS, AudioBook Bay, and Darklibria are saved in
+`working/performance/functional/`. YTS emitted three usable results for
+`inception`; AudioBook Bay's `the hobbit` capture timed out, and Darklibria's
+HTTP 200 `the hobbit` response emitted no records. These outcomes neither
+demonstrate live speed gains nor justify catalog status promotions. Offline
+benchmarks verify scheduling and output preservation independently of remote
+availability.
+
+Final full strict checks passed with 90 deterministic tests on Python 3.9.6
+and 3.11.15. The Python 3.9 run initially observed an unexpected HTTP 200 in
+the unchanged localhost HTTP 429 test; that test passed in isolation, and the
+complete strict gate passed when rerun independently. No production transport
+change was made for that transient test outcome. The website production build,
+generated-file audit, and whitespace check passed. Plugin quality reports zero
+errors and the same two existing advisory warnings. All 49 source files parse
+with Python 3.9 syntax, pass installability checks, and retain their version
+declarations. Catalog totals remain 44 active, three intermittent, and two
+unavailable.
+
+## Release 0.1.10 preparation — 2026-10-01
+
+Release 0.1.10 packages the parallel-search changes and their performance guide.
+The archive source list now includes `PERFORMANCE.md` and `MAINTENANCE_LOG.md`
+so the new worker configuration and recovery evidence are available in the
+extracted collection. The ZIP contains all 49 engines, 49 icons, six upstream
+license notices, and 121 entries including the manifest. No engine version
+declaration or catalog status changes as part of release preparation.
+
+Full strict checks passed again on Python 3.9.6 with all 90 tests, following the
+archive-source change. The previously completed Python 3.11.15 gate and website
+build also passed; GitHub's main and tag workflows repeat the release checks.
+Release notes are in `documentation/releases/v0.1.10.md`. Local packaging and
+verification artifacts remain ignored under `working/`.

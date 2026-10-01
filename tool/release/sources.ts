@@ -30,6 +30,8 @@ export async function archiveSources(catalogEntries: CatalogEntry[]): Promise<st
     resolve(DOCUMENTATION_DIR, "CHANGELOG.md"),
     resolve(DOCUMENTATION_DIR, "ATTRIBUTIONS.md"),
     resolve(DOCUMENTATION_DIR, "LICENSE_PROVENANCE.md"),
+    resolve(DOCUMENTATION_DIR, "PERFORMANCE.md"),
+    resolve(DOCUMENTATION_DIR, "MAINTENANCE_LOG.md"),
     resolve(ROOT, "LICENSE.md"),
     SCREENSHOT_PATH,
     resolve(ROOT, "catalog", "plugins.json"),
