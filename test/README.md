@@ -67,7 +67,25 @@ Python parsers. To gather functional evidence for Elitetorrent or Bitsearch,
 invoke the internal capture/replay helper from the repository root:
 
 ```sh
-bun -e 'import {runFunctionalPass} from "./test/support/parser_capture"; const {path,report}=await runFunctionalPass("bitsearch"); console.log(JSON.stringify({path,clean:report.clean,cases:report.cases.map(c=>({query:c.query,records:c.replay?.records.length,error:c.error}))},null,2)); if(!report.clean)process.exitCode=1;'
+QBSEARCH_PYTHON=/usr/bin/python3 bun -e '
+import {runFunctionalPass} from "./test/support/parser_capture";
+const {path, report} = await runFunctionalPass("bitsearch");
+console.log(JSON.stringify({
+  path,
+  startedAt: report.startedAt,
+  finishedAt: report.finishedAt,
+  localDate: report.localDate,
+  clean: report.clean,
+  cases: report.cases.map(({query, capture, replay, error}) => ({
+    query,
+    sourceSha256: capture?.sourceSha256,
+    records: replay?.records.length,
+    responses: capture?.responses,
+    error,
+  })),
+}, null, 2));
+if (!report.clean) process.exitCode = 1;
+'
 ```
 
 Use `"elitetorrent"` for its `inception`/`matrix` pair; Bitsearch uses
@@ -75,6 +93,10 @@ Use `"elitetorrent"` for its `inception`/`matrix` pair; Bitsearch uses
 Each case is capped at two search pages, five detail pages, 4 MiB per response,
 three attempts per URL, 20 seconds per attempt, and a 60-second capture deadline.
 Replay rejects a capture if its plugin source has changed.
+
+HTTP 429 stops retries and subsequent queries even if its response body is
+interrupted or exceeds the byte limit. The capture retains its status and
+`Retry-After` header with an empty body when that body cannot be read safely.
 
 Full responses and JSON reports stay under `working/recovery/`. Commit only the
 minimized fixtures and maintenance-log evidence. A clean pass requires usable

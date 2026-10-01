@@ -33,6 +33,31 @@ Use this file to record evidence-backed plugin status transitions and operationa
 
 Remote probes inspect endpoint responses and generic result markers; they do not execute the Python search parser. An `ok` probe alone does not establish functional recovery or justify a status promotion.
 
+## Maintenance branch review — 2026-10-01
+
+Reviewed `5070272`, `a7bd076`, and `5927b73` against release baseline `fb7ace9`.
+The review covered standalone Python 3.9 compatibility, result dictionaries,
+parser boundaries and deduplication, HTTP budgets and rate limits, generated
+preambles and response-context cleanup, and deterministic check failure propagation.
+
+The review found that an interrupted HTTP 429 body triggered up to six requests
+across the two recovery queries, while an oversized body allowed the second query
+to proceed. Both paths lost the response status and retry-window evidence. Offline
+regression tests reproduced these failures. The HTTP worker now retains status
+and `Retry-After` when a 429 body cannot be read safely, makes only one request,
+and stops subsequent queries. An unreadable body is stored as empty; ordinary
+response byte limits continue to reject oversized responses.
+
+This correction changes only test infrastructure. Bitsearch's source hash and
+initial recovery evidence remain valid. Daily promotion checks are still pending;
+the review and offline tests do not count as additional functional passes.
+
+Verification passed on Python 3.9.6 and 3.11.15: full strict checks with 54 tests
+on each interpreter, static checks, generated-file audits, and the website production
+build. All 49 catalog IDs and plugin version values match the release baseline;
+Bitsearch's source hash matches both qualifying initial-recovery reports. The
+plugin quality audit still reports 40 existing advisory warnings and zero errors.
+
 ## Bitsearch promotion follow-up
 
 Initial recovery completed on 2026-10-01. Bitsearch is `intermittent`; promotion to
@@ -45,22 +70,50 @@ The earlier HTTP 429 failure remains recorded above and did not count toward rec
 | 2026-10-03             | Fresh inception/ubuntu capture and actual-parser replay | Pending |
 | 2026-10-04             | Fresh inception/ubuntu capture and actual-parser replay | Pending |
 
-Run the internal helper documented in [test/README.md](../test/README.md#functional-recovery-evidence)
-once on each listed date. It records timestamps, redirects, response limits, actual
-result dictionaries, and failures in `working/recovery/`. These are follow-up dates,
-not an installed background schedule. Each pass must produce usable records for both
-queries, without unexpected requests, against the same engine source:
+On each listed date, confirm the current source hash with
+`shasum -a 256 plugins/bitsearch.py`, then run the internal helper documented in
+[test/README.md](../test/README.md#functional-recovery-evidence) with Python 3.9.
+It records timestamps, redirects, response limits, actual result dictionaries,
+and failures in `working/recovery/`. These are manual follow-up dates, not an
+installed background schedule. Each pass must report `clean: true`, produce
+valid nonempty records for both queries without unexpected requests, and use
+the same engine source:
 
 ```text
 87cf63ef182f3e3caed0c19f88d55cf41fd19ee3cc9a243f2af5b0134810d9ab
 ```
 
-Record each outcome here and in the evidence table. Wait for a rate-limit retry window
-before further requests. A failed daily pass resets the clean-pass count; move the
-remaining checks to the following days until three separated clean passes succeed.
-Engine changes invalidate prior evidence and require a new initial recovery streak.
+Record each outcome here and in the evidence table, including UTC start/finish
+timestamps, Istanbul date, source hash, result counts, capture paths, and any
+failure or rate-limit evidence. Result counts may vary; both queries must have
+usable records. Commit each pre-promotion day's evidence locally as
+`Record Bitsearch recovery check for YYYY-MM-DD`; include the last qualifying
+pass in the promotion commit. Full captures remain ignored working files.
+
+Count at most one qualifying pass per Istanbul calendar day, with all three
+dates later than 2026-10-01. A failed daily pass resets the clean-pass count;
+move the remaining checks to later dates until three clean daily passes succeed.
+A missed checkpoint earns no credit; reschedule it without treating absence
+as a failed run. On HTTP 429, stop that checkpoint and respect `Retry-After`;
+without a supplied retry window, defer further probing to the next daily checkpoint.
+Engine changes invalidate prior evidence: establish two fresh consecutive clean
+initial-recovery passes, then three additional clean passes on separate days.
 
 After three qualifying daily passes, append the status-transition evidence before
 editing the catalog, set Bitsearch to `active`, regenerate catalog documentation,
 run the strict checks on Python 3.9 and 3.11 and the website build, and commit as
-`Promote Bitsearch after separated functional checks`.
+`Promote Bitsearch after separated functional checks`:
+
+```sh
+bun run gen -- --write --only catalog
+QBSEARCH_PYTHON=/usr/bin/python3 bun run check -- --strict
+QBSEARCH_PYTHON=/Users/ugurgumushan/.local/bin/python3.11 bun run check -- --strict
+bun run gen -- --check
+bun run --cwd packages/website build
+git diff --check
+```
+
+Verify the promotion diff contains only the recovery evidence, Bitsearch status
+and notes, and generated catalog listing. Preserve the qualifying engine source
+and version declarations, pass the pre-commit hook, and finish with a clean tree.
+Delivery remains local commits; publication and release preparation are later decisions.

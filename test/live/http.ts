@@ -85,7 +85,15 @@ export async function fetchTextWithRetry(
         redirect: "follow",
         signal: controller.signal,
       });
-      const body = await readText(response, options.maxResponseBytes);
+      let body = "";
+      try {
+        body = await readText(response, options.maxResponseBytes);
+      } catch (error) {
+        // A known rate limit still stops requests when its body cannot be read.
+        if (response.status !== 429) {
+          throw error;
+        }
+      }
       if (RETRYABLE_STATUS.has(response.status) && attempt < maxAttempts) {
         await pause(attempt);
         continue;
