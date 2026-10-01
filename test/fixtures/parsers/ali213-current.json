@@ -1,0 +1,11 @@
+{
+  "plugin": "ali213",
+  "query": "minecraft",
+  "maxDetails": 1,
+  "capturedAt": "2026-10-01T15:04:16.285Z",
+  "notes": "Minimized actual search entry and current resource buttons; these buttons have no legacy downUrl chain.",
+  "responses": {
+    "http://down.ali213.net/search?kw=minecraft&submit=": "<p class=\"downAddress\"><a href=\"http://down.ali213.net/pcgame/wdsjdxc2.html\" target=\"_blank\"><i></i>下载地址</a>大小：<em>8.9G</em>",
+    "http://down.ali213.net/pcgame/wdsjdxc2.html": "<div class=\"common_down_l_one\"><h4><a rel=\"0\" name=\"download\" id=\"game591BoxOpen\"><em class=\"sbg\"></em><p>点击查找</p><i>资源地址</i></a></h4><span>由</span><font>7015861</font><em>网友推荐</em></div><div class=\"common_down_l_one mt10\"><h4><a rel=\"1\" name=\"download\" id=\"dddBoxOpen\"><em class=\"sbg\"></em><p>点击查找</p><i>资源地址</i></a></h4><span>由</span><font>k2333</font><em>网友推荐</em></div><div class=\"common_down_l_one mt10\"><h4><a rel=\"2\" name=\"download\" id=\"cdromBoxOpen\"><em class=\"sbg\"></em><p>点击查找</p><i>资源地址</i></a></h4><span>由</span><font>rainyday12</font><em>网友推荐</em></div><div class=\"common_down_l_one mt10\"><h4><a rel=\"3\" name=\"download\" id=\"game691BoxOpen\"><em class=\"sbg\"></em><p>点击查找</p><i>资源地址</i></a></h4><span>由</span><font>88992190</font><em>网友推荐</em></div><div class=\"common_down_l_one mt10\"><h4 class=\"panner1\"><a rel=\"4\" name=\"download\" id=\"game791BoxOpen\"><em class=\"sbg\"></em><p>点击查找</p><i>资源地址</i></a></h4><span>由</span><font>17000765</font><em>网友推荐</em></div>\n                            "
+  }
+}

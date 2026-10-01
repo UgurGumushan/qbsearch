@@ -63,7 +63,7 @@ requests on every run, so use a focused `--plugin` selection while iterating.
 ## Functional recovery evidence
 
 The supported `test -- --live` command is a smoke probe; it does not execute
-Python parsers. To gather functional evidence for Elitetorrent, Bitsearch, or Solid Torrents,
+Python parsers. To gather functional evidence for Elitetorrent, Bitsearch, Solid Torrents, Ali213, Pirateiro, or Traht,
 invoke the internal capture/replay helper from the repository root:
 
 ```sh
@@ -89,13 +89,17 @@ if (!report.clean) process.exitCode = 1;
 ```
 
 Use `"elitetorrent"` for its `inception`/`matrix` pair or `"solidtorrents"` for
-`ubuntu`/`inception`; Bitsearch uses `inception`/`ubuntu`. Solid Torrents captures
+`ubuntu`/`inception`; Bitsearch uses `inception`/`ubuntu`. Ali213 uses
+`minecraft`/`elden ring`, Pirateiro uses `inception`/`ubuntu`, and Traht uses
+`inception`/`matrix`. Solid Torrents captures
 always start at its own catalog URL and retain the redirect evidence.
 `QBSEARCH_PYTHON` selects the offline replay interpreter.
 Each case is capped at two search pages, five detail pages, 4 MiB per response,
 three attempts per URL, 20 seconds per attempt, and a 60-second capture deadline.
+The three newer capture paths discover URLs from actual-engine replay, with an
+additional 32-URL/eight-round resolution cap.
 Listing-only engines replay with a 40-result budget; Elitetorrent retains its
-five-detail budget. Those budgets become the offline engine's `MAX_DETAILS` limit.
+five-detail budget. Ali213, Pirateiro, and Traht retain a five-result budget. Those budgets become the offline engine's `MAX_DETAILS` limit.
 Replay rejects a capture if its plugin source has changed.
 
 HTTP 429 stops retries and subsequent queries even if its response body is
@@ -104,6 +108,10 @@ interrupted or exceeds the byte limit. The capture retains its status and
 
 Full responses and JSON reports stay under `working/recovery/`. Commit only the
 minimized fixtures and maintenance-log evidence. A clean pass requires usable
-magnet result dictionaries for both queries; generic marker counts alone do not
-qualify. Record failed passes too. Catalog promotions follow the clean-run policy
+result dictionaries for both queries. Magnets must contain a valid BTIH; HTTP
+results must pass the actual download method and resolve to a valid magnet or
+structurally valid torrent metadata fetched by Bun. Download replays only accept
+separately verified URLs and never create a file or fetch with Python. Metadata
+validation does not inspect the torrent payload or prove cryptographic integrity.
+Generic marker counts alone do not qualify. Record failed passes too. Catalog promotions follow the clean-run policy
 in `CONTRIBUTING.md`, including separated passes for promotion to active.

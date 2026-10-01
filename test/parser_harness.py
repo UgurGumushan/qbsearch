@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import sys
 from collections.abc import Callable
+from contextlib import redirect_stdout
 from pathlib import Path
 from threading import Lock
 from types import ModuleType
@@ -35,11 +37,13 @@ def replay(path: Path) -> dict[str, object]:
     query = case.get("query", "inception")
     category = case.get("category", "all")
     action = case.get("action", "search")
-    if plugin not in ("elitetorrent", "bitsearch", "solidtorrents"):
+    if plugin not in ("elitetorrent", "bitsearch", "solidtorrents", "ali213", "pirateiro", "traht"):
         raise ValueError("unsupported fixture plugin")
     if not isinstance(query, str) or not isinstance(category, str):
         raise TypeError("query and category must be strings")
-    if action not in ("search", "detail") or (action == "detail" and plugin != "elitetorrent"):
+    if action not in ("search", "detail", "download") or (
+        action == "detail" and plugin != "elitetorrent"
+    ):
         raise ValueError("unsupported fixture action")
     raw_responses = case.get("responses")
     if not isinstance(raw_responses, dict):
@@ -58,6 +62,14 @@ def replay(path: Path) -> dict[str, object]:
             raise ValueError(f"invalid {key}")
         limits[key] = limit
 
+    raw_downloads = case.get("verifiedDownloads", [])
+    if not isinstance(raw_downloads, list) or not all(
+        isinstance(url, str) for url in cast(list[object], raw_downloads)
+    ):
+        raise TypeError("verifiedDownloads must be a list of URLs")
+    verified_downloads = set(cast(list[str], raw_downloads))
+    download_requests: list[str] = []
+    output = io.StringIO()
     records: list[dict[str, object]] = []
     requests: list[str] = []
     errors: list[str] = []
@@ -82,9 +94,20 @@ def replay(path: Path) -> dict[str, object]:
             errors.append("network or download attempted during offline replay")
         raise RuntimeError("network and downloads are forbidden during offline replay")
 
+    def download(url: str) -> str:
+        if action != "download":
+            forbidden()
+        with lock:
+            download_requests.append(url)
+            if url not in verified_downloads:
+                errors.append(f"unverified torrent download: {url}")
+                return ""
+        # Bun validates real metadata separately. No file is written or installed here.
+        return f"/offline/verified.torrent {url}"
+
     # Always use stubs, even on a machine with a real qBittorrent profile.
     _ = load_qbitt_modules(prefer_profile=False)
-    vars(sys.modules["helpers"]).update({"retrieve_url": retrieve, "download_file": forbidden})
+    vars(sys.modules["helpers"]).update({"retrieve_url": retrieve, "download_file": download})
     vars(sys.modules["novaprinter"])["prettyPrinter"] = printer
     plugin_path = Path(__file__).resolve().parent.parent / "plugins" / f"{plugin}.py"
     source_hash = case.get("sourceSha256")
@@ -103,14 +126,26 @@ def replay(path: Path) -> dict[str, object]:
         patch("socket.create_connection", forbidden),
         patch("socket.getaddrinfo", forbidden),
         patch("urllib.request.urlopen", forbidden),
+        redirect_stdout(output),
     ):
         # Python 3.9's abstract Loader stub omits the concrete exec_module API.
         cast(ModuleLoader, cast(object, spec.loader)).exec_module(module)
         vars(module).update({"MAX_PAGES": limits["maxPages"], "MAX_DETAILS": limits["maxDetails"]})
+        # Missing fixture responses still exercise retries, without artificial sleeps.
+        vars(module)["RETRY_DELAY"] = 0
         factory = cast(Callable[[], SearchEngine], getattr(module, str(plugin)))
         engine = factory()
         try:
-            if action == "detail":
+            if action == "download":
+                detail_url = case.get("detailUrl")
+                if not isinstance(detail_url, str):
+                    raise ValueError("download action requires detailUrl")
+                method = getattr(engine, "download_torrent", None)
+                if callable(method):
+                    cast(Callable[[str], None], method)(detail_url)
+                else:
+                    print(download(detail_url))
+            elif action == "detail":
                 detail_url = case.get("detailUrl")
                 if not isinstance(detail_url, str):
                     raise ValueError("detail action requires detailUrl")
@@ -121,7 +156,14 @@ def replay(path: Path) -> dict[str, object]:
                 engine.search(query, category)
         except Exception as error:
             errors.append(f"{type(error).__name__}: {error}")
-    return {"plugin": plugin, "records": records, "requests": requests, "errors": errors}
+    return {
+        "plugin": plugin,
+        "records": records,
+        "requests": requests,
+        "errors": errors,
+        "downloadRequests": download_requests,
+        "output": output.getvalue().splitlines(),
+    }
 
 
 def main() -> int:
@@ -130,7 +172,13 @@ def main() -> int:
             raise ValueError("expected one parser-case JSON path")
         report = replay(Path(sys.argv[1]))
     except Exception as error:
-        report = {"records": [], "requests": [], "errors": [f"{type(error).__name__}: {error}"]}
+        report = {
+            "records": [],
+            "requests": [],
+            "downloadRequests": [],
+            "output": [],
+            "errors": [f"{type(error).__name__}: {error}"],
+        }
     print(json.dumps(report))
     return 1 if report["errors"] else 0
 

@@ -3,18 +3,20 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
-export type ParserPlugin = "elitetorrent" | "bitsearch" | "solidtorrents";
+export type ParserPlugin =
+  "elitetorrent" | "bitsearch" | "solidtorrents" | "ali213" | "pirateiro" | "traht";
 
 export interface ParserCase {
   plugin: ParserPlugin;
   query: string;
   category?: string;
-  action?: "search" | "detail";
+  action?: "search" | "detail" | "download";
   detailUrl?: string;
   maxPages?: number;
   maxDetails?: number;
   responses: Record<string, string>;
   sourceSha256?: string;
+  verifiedDownloads?: string[];
 }
 
 export interface ParserReport {
@@ -22,6 +24,8 @@ export interface ParserReport {
   records: Record<string, unknown>[];
   requests: string[];
   errors: string[];
+  downloadRequests: string[];
+  output: string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -41,7 +45,11 @@ export async function replayParserCase(path: string): Promise<ParserReport> {
     !Array.isArray(value.requests) ||
     !value.requests.every((item: unknown) => typeof item === "string") ||
     !Array.isArray(value.errors) ||
-    !value.errors.every((item: unknown) => typeof item === "string")
+    !value.errors.every((item: unknown) => typeof item === "string") ||
+    !Array.isArray(value.downloadRequests) ||
+    !value.downloadRequests.every((item: unknown) => typeof item === "string") ||
+    !Array.isArray(value.output) ||
+    !value.output.every((item: unknown) => typeof item === "string")
   ) {
     throw new Error(`invalid parser report: ${result.output}`);
   }
@@ -50,6 +58,8 @@ export async function replayParserCase(path: string): Promise<ParserReport> {
     records: value.records,
     requests: value.requests,
     errors: value.errors,
+    downloadRequests: value.downloadRequests,
+    output: value.output,
   };
 }
 
@@ -64,17 +74,28 @@ export async function replayParserFixture(fixture: ParserCase): Promise<ParserRe
   }
 }
 
-export function assertUsableParserResults(report: ParserReport): void {
+export function usableMagnet(link: string): boolean {
+  try {
+    return (
+      link.startsWith("magnet:?") &&
+      new URL(link).searchParams
+        .getAll("xt")
+        .some((xt) => /^urn:btih:(?:[a-f\d]{40}|[a-z2-7]{32})$/i.test(xt))
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function assertUsableParserResults(report: ParserReport, allowHttp = false): void {
   if (report.code !== 0 || report.errors.length > 0 || report.records.length === 0) {
     throw new Error(`parser replay failed: ${JSON.stringify(report)}`);
   }
   for (const row of report.records) {
     if (
       typeof row.link !== "string" ||
-      !row.link.startsWith("magnet:?") ||
-      !/^urn:btih:(?:[a-f\d]{40}|[a-z2-7]{32})$/i.test(
-        new URL(row.link).searchParams.get("xt") ?? "",
-      ) ||
+      (!usableMagnet(row.link) &&
+        !(allowHttp && /^https?:\/\//.test(row.link) && new URL(row.link).hostname)) ||
       typeof row.name !== "string" ||
       !row.name.trim() ||
       (typeof row.size !== "string" && typeof row.size !== "number") ||

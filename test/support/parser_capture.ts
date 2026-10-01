@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { ROOT } from "../../tool/core/repo";
-import { fetchTextWithRetry } from "../live/http";
+import { fetchTextWithRetry, fetchBytesWithRetry } from "../live/http";
 import { inspectLivePlugin } from "../live/plugin_contract";
 import { elitetorrentResultLinks } from "../live/result_links";
 import {
@@ -11,6 +11,8 @@ import {
   type ParserPlugin,
   type ParserReport,
 } from "./parser_replay";
+import { captureEngine, type DownloadProof } from "./capture_engine";
+import { assertTorrentMetadata } from "./torrent_metadata";
 
 export const CAPTURE_LIMITS = {
   maxPages: 2,
@@ -26,15 +28,19 @@ const FUNCTIONAL_QUERIES: Record<ParserPlugin, readonly string[]> = {
   bitsearch: ["inception", "ubuntu"],
   elitetorrent: ["inception", "matrix"],
   solidtorrents: ["ubuntu", "inception"],
+  ali213: ["minecraft", "elden ring"],
+  pirateiro: ["inception", "ubuntu"],
+  traht: ["inception", "matrix"],
 };
 
 interface ResponseEvidence {
   requestedUrl: string;
   finalUrl: string;
-  status: number;
+  status: number | null;
   bytes: number;
   attempts: number;
   retryAfter: string | null;
+  error?: string;
 }
 
 interface CapturedCase {
@@ -42,6 +48,7 @@ interface CapturedCase {
   capturedAt: string;
   responses: ResponseEvidence[];
   sourceSha256: string;
+  downloads: DownloadProof[];
 }
 
 class ParserCaptureError extends Error {
@@ -67,33 +74,54 @@ export async function captureParserCase(
   const sourceSha256 = new Bun.CryptoHasher("sha256").update(contract.source).digest("hex");
   const responses: Record<string, string> = {};
   const evidence: ResponseEvidence[] = [];
+  let downloads: DownloadProof[] = [];
+  const metadata: { url: string; path: string; sha256: string; bytes: number }[] = [];
   await mkdir(directory, { recursive: true });
   const path = resolve(directory, `${plugin}-${encodeURIComponent(query)}.json`);
   let capturedAt = new Date().toISOString();
+  const fixture: ParserCase = {
+    plugin,
+    query: encodeURIComponent(query),
+    category: "all",
+    maxPages: CAPTURE_LIMITS.maxPages,
+    maxDetails:
+      plugin === "bitsearch" || plugin === "solidtorrents"
+        ? CAPTURE_LIMITS.maxResults
+        : CAPTURE_LIMITS.maxDetails,
+    responses,
+    sourceSha256,
+  };
   const save = async (): Promise<CapturedCase> => {
     capturedAt = new Date().toISOString();
-    const fixture: ParserCase = {
-      plugin,
-      query: encodeURIComponent(query),
-      category: "all",
-      maxPages: CAPTURE_LIMITS.maxPages,
-      maxDetails: plugin === "elitetorrent" ? CAPTURE_LIMITS.maxDetails : CAPTURE_LIMITS.maxResults,
-      responses,
-      sourceSha256,
-    };
     await Bun.write(
       path,
-      `${JSON.stringify({ ...fixture, capturedAt, limits: CAPTURE_LIMITS, evidence }, null, 2)}\n`,
+      `${JSON.stringify({ ...fixture, capturedAt, limits: CAPTURE_LIMITS, evidence, downloads, metadata }, null, 2)}\n`,
     );
-    return { path, capturedAt, responses: evidence, sourceSha256 };
+    return { path, capturedAt, responses: evidence, sourceSha256, downloads };
   };
   const get = async (url: string): Promise<string> => {
     let response;
+    let attempts = 0;
     try {
-      response = await fetchTextWithRetry(url, { ...CAPTURE_LIMITS, deadline });
+      response = await fetchTextWithRetry(url, {
+        ...CAPTURE_LIMITS,
+        deadline,
+        onRequest: () => {
+          attempts += 1;
+        },
+      });
     } catch (error) {
+      evidence.push({
+        requestedUrl: url,
+        finalUrl: url,
+        status: null,
+        bytes: 0,
+        attempts,
+        retryAfter: null,
+        error: String(error),
+      });
       throw new ParserCaptureError(
-        error instanceof Error ? error.message : String(error),
+        `${url}: ${error instanceof Error ? error.message : String(error)}`,
         await save(),
       );
     }
@@ -101,7 +129,7 @@ export async function captureParserCase(
       requestedUrl: url,
       finalUrl: response.url,
       status: response.status,
-      bytes: Buffer.byteLength(response.body),
+      bytes: response.bytes ?? Buffer.byteLength(response.body),
       attempts: response.attempts,
       retryAfter: response.retryAfter ?? null,
     });
@@ -132,7 +160,7 @@ export async function captureParserCase(
         break;
       }
     }
-  } else {
+  } else if (plugin === "elitetorrent") {
     const first = await get(`${site}/?s=${encoded}`);
     let pages = first.includes("Resultado de buscar") ? 1 : 0;
     if (first.includes("paginacion")) {
@@ -154,6 +182,69 @@ export async function captureParserCase(
     }
     for (const link of details) {
       await get(link);
+    }
+  } else {
+    let replayIndex = 0;
+    try {
+      downloads = await captureEngine(
+        fixture,
+        get,
+        async (url) => {
+          let response;
+          let attempts = 0;
+          try {
+            response = await fetchBytesWithRetry(url, {
+              ...CAPTURE_LIMITS,
+              deadline,
+              onRequest: () => {
+                attempts += 1;
+              },
+            });
+          } catch (error) {
+            evidence.push({
+              requestedUrl: url,
+              finalUrl: url,
+              status: null,
+              bytes: 0,
+              attempts,
+              retryAfter: null,
+              error: String(error),
+            });
+            throw new Error(`${url}: ${String(error)}`, { cause: error });
+          }
+          evidence.push({
+            requestedUrl: url,
+            finalUrl: response.url,
+            status: response.status,
+            bytes: response.body.byteLength,
+            attempts: response.attempts,
+            retryAfter: response.retryAfter ?? null,
+          });
+          const binaryPath = resolve(
+            directory,
+            `${plugin}-${encodeURIComponent(query)}-metadata-${metadata.length}.bin`,
+          );
+          const sha256 = new Bun.CryptoHasher("sha256").update(response.body).digest("hex");
+          await Bun.write(binaryPath, response.body);
+          metadata.push({ url, path: binaryPath, sha256, bytes: response.body.byteLength });
+          if (response.status >= 400)
+            throw new Error(
+              `${url}: HTTP ${response.status} (Retry-After: ${response.retryAfter ?? "absent"})`,
+            );
+          assertTorrentMetadata(response.body);
+        },
+        async (current, report) => {
+          const replayPath = resolve(
+            directory,
+            `${plugin}-${encodeURIComponent(query)}-replay-${replayIndex++}.json`,
+          );
+          await Bun.write(replayPath, `${JSON.stringify({ fixture: current, report }, null, 2)}\n`);
+          return replayPath;
+        },
+      );
+    } catch (error) {
+      if (error instanceof ParserCaptureError) throw error;
+      throw new ParserCaptureError(String(error), await save());
     }
   }
   return save();
@@ -202,7 +293,7 @@ export async function runFunctionalPass(
         throw new Error("plugin source changed between recovery queries");
       }
       item.replay = await replayParserCase(item.capture.path);
-      assertUsableParserResults(item.replay);
+      assertUsableParserResults(item.replay, ["ali213", "pirateiro", "traht"].includes(plugin));
     } catch (error) {
       if (error instanceof ParserCaptureError) {
         item.capture = error.capture;

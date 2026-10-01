@@ -1,5 +1,6 @@
 import type { LiveResponse } from "./types";
-import { elitetorrentResultLinks } from "./result_links";
+import { elitetorrentResultLinks, pirateiroResultLinks } from "./result_links";
+import { decodeHttpBody } from "./encoding";
 
 const LIVE_REQUEST_TIMEOUT_MS = 20_000;
 const DEFAULT_ATTEMPTS = 3;
@@ -18,45 +19,61 @@ export interface FetchOptions {
   deadline?: number;
 }
 
-async function readText(response: Response, limit?: number): Promise<string> {
-  if (limit === undefined) {
-    return response.text();
-  }
-  if (!response.body) {
-    return "";
-  }
+export interface BinaryResponse extends Omit<LiveResponse, "body"> {
+  body: Uint8Array;
+}
+
+async function readBytes(response: Response, limit?: number): Promise<Uint8Array> {
+  if (!response.body) return new Uint8Array();
   const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  const chunks: string[] = [];
+  const chunks: Uint8Array[] = [];
   let size = 0;
   try {
     for (;;) {
       const chunk = await reader.read();
-      if (chunk.done) {
-        break;
-      }
+      if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > limit) {
+      if (limit !== undefined && size > limit) {
         await reader.cancel();
         throw new RangeError(`response exceeds ${limit} bytes`);
       }
-      chunks.push(decoder.decode(chunk.value, { stream: true }));
+      chunks.push(chunk.value);
     }
-    chunks.push(decoder.decode());
-    return chunks.join("");
+    const body = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      body.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return body;
   } finally {
     reader.releaseLock();
   }
+}
+
+/** Share retries, deadlines, and byte limits with binary torrent captures. */
+export async function fetchTextWithRetry(
+  url: string,
+  options: FetchOptions = {},
+): Promise<LiveResponse> {
+  const response = await fetchBytesWithRetry(url, options);
+  let body = "";
+  try {
+    body = decodeHttpBody(response.body, response.contentType);
+  } catch (error) {
+    if (response.status !== 429) throw error;
+  }
+  return { ...response, body, bytes: response.body.byteLength };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export async function fetchTextWithRetry(
+export async function fetchBytesWithRetry(
   url: string,
   options: FetchOptions = {},
-): Promise<LiveResponse> {
+): Promise<BinaryResponse> {
   const timeoutMs = options.timeoutMs ?? LIVE_REQUEST_TIMEOUT_MS;
   const maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_ATTEMPTS);
   let lastError: unknown = null;
@@ -85,9 +102,9 @@ export async function fetchTextWithRetry(
         redirect: "follow",
         signal: controller.signal,
       });
-      let body = "";
+      let body: Uint8Array = new Uint8Array();
       try {
-        body = await readText(response, options.maxResponseBytes);
+        body = await readBytes(response, options.maxResponseBytes);
       } catch (error) {
         // A known rate limit still stops requests when its body cannot be read.
         if (response.status !== 429) {
@@ -159,6 +176,10 @@ export function countResultMarkers(
 
   if (plugin?.id === "elitetorrent") {
     return elitetorrentResultLinks(body, plugin.siteUrl).length;
+  }
+
+  if (plugin?.id === "pirateiro") {
+    return pirateiroResultLinks(body, plugin.siteUrl).length;
   }
 
   const patterns = [

@@ -1,0 +1,11 @@
+{
+  "plugin": "pirateiro",
+  "query": "ubuntu",
+  "maxPages": 1,
+  "maxDetails": 5,
+  "capturedAt": "2026-10-01T14:50:17.875Z",
+  "notes": "Minimized desktop rows from Bun HTTP capture; navigation and unrelated content omitted.",
+  "responses": {
+    "https://pirateiro.io/search?query=ubuntu&page=1": "<tr class=\"odd\">\n\n\t\t  <td>Other</td>\n\t\t  <td ><a href=\"https://pirateiro.io/torrent/354869\"><h6 class=\"pt-title\">Ubuntu Complete Course</h6></a></td>\n\t\t  <td class=\"titletd\"> <div class=\"badge-div\">\n\t\t\t                    \t\t\t                    <span class=\"badge btn-seed-home badge-pill\">54</span>\n\t\t\t                    <span class=\"badge btn-leech-home badge-pill\">34</span>\n\t\t\t                </div></td>\n\t\t  </tr>\n\t\t  \t\n\t\t\t\t\t\n\t\t  <tr class=\"odd\">\n\n\t\t  <td>Apps</td>\n\t\t  <td ><a href=\"https://pirateiro.io/torrent/20994\"><h6 class=\"pt-title\">Ubuntu desktop 19.04 (64bit)</h6></a></td>\n\t\t  <td class=\"titletd\"> <div class=\"badge-div\">\n\t\t\t                    \t\t\t                    <span class=\"badge btn-seed-home badge-pill\">47</span>\n\t\t\t                    <span class=\"badge btn-leech-home badge-pill\">4</span>\n\t\t\t                </div></td>\n\t\t  </tr>"
+  }
+}

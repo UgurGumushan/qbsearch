@@ -21,3 +21,21 @@ export function elitetorrentResultLinks(body: string, siteUrl: string): string[]
   }
   return [...links];
 }
+
+/** Pirateiro's desktop table holds peer badges beside the title anchor. */
+export function pirateiroResultLinks(body: string, siteUrl: string): string[] {
+  const links = new Set<string>();
+  const origin = new URL(siteUrl).origin;
+  for (const row of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    if (!/<h6\b[^>]*\bclass\s*=\s*["'][^"']*\bpt-title\b[^"']*["']/i.test(row[1])) continue;
+    for (const anchor of row[1].matchAll(/<a\b[^>]*\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+      try {
+        const url = new URL(anchor[1] || anchor[2], siteUrl);
+        if (url.origin === origin && /^\/torrent\/\d+$/.test(url.pathname)) links.add(url.href);
+      } catch {
+        // Malformed result attributes are not markers.
+      }
+    }
+  }
+  return [...links];
+}

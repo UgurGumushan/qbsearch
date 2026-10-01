@@ -1,16 +1,16 @@
 # VERSION: 1.3
 """
-Pirateiro search. Scrapes the paginated HTML search results (9 pages max);
-the listing carries no size and each row's link is its own detail page, whose
-magnet is resolved by download_torrent, following the kickasstorrents
-download-button chain if needed.
+Pirateiro search. Reads bounded, deduplicated desktop HTML result rows.
+The listing carries no size; each result links to a detail page whose magnet
+is resolved by download_torrent, following a bounded download-button chain.
 """
 
 from __future__ import annotations
 
 import re
 import urllib.parse
-from typing import ClassVar, cast
+from html.parser import HTMLParser as _HTMLParser
+from typing import TYPE_CHECKING, ClassVar
 
 from helpers import retrieve_url as _qbt_helper_retrieve_url
 from novaprinter import SearchResults, prettyPrinter
@@ -28,6 +28,7 @@ try:
     from concurrent.futures import wait as _qbt_wait
     from threading import Lock as _qbt_Lock
     from types import TracebackType as _QBTTracebackType
+    from typing import TYPE_CHECKING
     from typing import Callable as _QBTCallable
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
@@ -36,6 +37,14 @@ try:
     from urllib.request import urlopen as _qbt_urlopen
 except ImportError as error:
     raise RuntimeError("qBittorrent safety preamble requires Python stdlib") from error
+
+if TYPE_CHECKING:
+    from typing_extensions import override
+else:
+
+    def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        return function
+
 
 HTTP_TIMEOUT = 20.0
 MAX_ATTEMPTS = 3
@@ -424,71 +433,138 @@ class pirateiro:
     }
     max_pages: int = 10
 
-    class HTMLParser:
+    class HTMLParser(_HTMLParser):
+        """Read desktop result rows without crossing into navigation or mobile cards."""
+
         def __init__(self, url: str):
+            super().__init__(convert_charrefs=True)
             self.url: str = url
             self.noTorrents: bool = False
             self.seen_links: set[str] = set()
+            self.emitted: int = 0
+            self.in_row: bool = False
+            self.row_link: str = ""
+            self.title: list[str] = []
+            self.in_title: bool = False
+            self.peer: str = ""
+            self.peer_text: list[str] = []
+            self.seeds: int = -1
+            self.leech: int = -1
+            self.page_rows: int = 0
 
-        def feed(self, html: str):
-            self.noTorrents = False
-            torrents = self.__findTorrents(html)
-            resultSize = len(torrents)
-            if resultSize == 0:
-                self.noTorrents = True
-                return
-            for torrent in range(min(resultSize, MAX_DETAILS)):
-                link = torrents[torrent][0]
-                if link in self.seen_links:
-                    continue
-                self.seen_links.add(link)
-                data = SearchResults(
-                    link=link,
-                    name=torrents[torrent][1],
-                    size=torrents[torrent][2],
-                    seeds=torrents[torrent][3],
-                    leech=torrents[torrent][4],
-                    engine_url=self.url,
-                    desc_link=torrents[torrent][5],
+        @override
+        def feed(self, data: str):
+            self.page_rows = 0
+            super().feed(data)
+            self.noTorrents = self.page_rows == 0
+
+        @override
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+            params = dict(attrs)
+            classes = (params.get("class") or "").split()
+            if tag == "tr":
+                self.in_row = True
+                self.row_link = ""
+                self.title = []
+                self.in_title = False
+                self.peer = ""
+                self.seeds = self.leech = -1
+            elif self.in_row and tag == "a":
+                link = urllib.parse.urljoin(self.url, params.get("href") or "")
+                parsed = urllib.parse.urlparse(link)
+                if parsed.netloc == urllib.parse.urlparse(self.url).netloc and re.fullmatch(
+                    r"/torrent/\d+", parsed.path
+                ):
+                    self.row_link = link
+            elif self.in_row and tag == "h6" and "pt-title" in classes:
+                self.in_title = True
+            elif self.in_row and tag == "span":
+                if "btn-seed-home" in classes:
+                    self.peer = "seeds"
+                elif "btn-leech-home" in classes:
+                    self.peer = "leech"
+                self.peer_text = []
+
+        @override
+        def handle_data(self, data: str):
+            if self.in_title:
+                self.title.append(data)
+            if self.peer:
+                self.peer_text.append(data)
+
+        @override
+        def handle_endtag(self, tag: str):
+            if tag == "h6":
+                self.in_title = False
+            elif tag == "span" and self.peer:
+                text = "".join(self.peer_text).strip()
+                value = int(text) if text.isdecimal() else -1
+                if self.peer == "seeds":
+                    self.seeds = value
+                else:
+                    self.leech = value
+                self.peer = ""
+            elif tag == "tr" and self.in_row:
+                self.in_row = False
+                name = " ".join("".join(self.title).split())
+                if not self.row_link or not name:
+                    return
+                self.page_rows += 1
+                if self.row_link in self.seen_links or self.emitted >= MAX_DETAILS:
+                    return
+                self.seen_links.add(self.row_link)
+                self.emitted += 1
+                _qbt_prettyPrinter(
+                    SearchResults(
+                        link=self.row_link,
+                        name=name,
+                        size=-1,
+                        seeds=self.seeds,
+                        leech=self.leech,
+                        engine_url=self.url,
+                        desc_link=self.row_link,
+                    )
                 )
-                _qbt_prettyPrinter(data)
 
-        def __findTorrents(self, html: str) -> list[tuple[str, str, int, int, int, str]]:
-            torrents: list[tuple[str, str, int, int, int, str]] = []
-            links = cast(
-                list[tuple[str, str, str, str]],
-                re.findall(
-                    r"<a href=\"(.+?)\".+?<h6.+?>(.+?)</h6>.+?(\d+)</span>.+?(\d+)</span>.+?</a>",
-                    html,
-                ),
-            )
-            for a in links:
-                # Size is not listed (-1); the row's href doubles as its
-                # detail page (link and desc_link are the same).
-                torrents.append((a[0], a[1], -1, int(a[2]), int(a[3]), a[0]))
-            return torrents
+    class DownloadParser(_HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.magnet: str = ""
+            self.next_link: str = ""
+
+        @override
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+            params = dict(attrs)
+            href = params.get("href") or ""
+            if tag != "a":
+                return
+            if href.startswith("magnet:"):
+                values = urllib.parse.parse_qs(urllib.parse.urlparse(href).query).get("xt", [])
+                if any(
+                    re.fullmatch(r"urn:btih:(?:[a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", v) for v in values
+                ):
+                    self.magnet = href
+            elif "btn-down" in (params.get("class") or "").split():
+                self.next_link = href
 
     def download_torrent(self, info: str, depth: int = 0) -> None:
         if depth >= MAX_DETAILS:
             raise ParseError("Too many detail redirects")
-        # The detail page holds the magnet inline, or else a "btn-down"
-        # button whose href may point at a kickasstorrents host; that is
-        # rewritten to katcr and fetched again recursively.
-        torrent_page = retrieve_url(urllib.parse.unquote(info))
-        magnet_match = re.search(r"\"(magnet:.*?)\"", torrent_page)
-        if magnet_match and magnet_match.groups():
-            print(f"{magnet_match.groups()[0]} {info}")
-        else:
-            dl_link = re.search(
-                r"<a class=\"btn-down\".+?href=\"(.+?)\".+>.+?</a>",
-                torrent_page.replace("	", "").replace("\n", "").replace("\r", ""),
-            )
-            if dl_link and dl_link.groups():
-                self.download_torrent(
-                    dl_link.groups()[0].replace("kickasstorrents", "katcr"), depth + 1
-                )
-            else:
-                raise ParseError("Error, please fill a bug report!")
+        if depth == 0:
+            _ = _qbt_new_deadline()
+        page_url = urllib.parse.unquote(info)
+        parser = self.DownloadParser()
+        parser.feed(retrieve_url(page_url))
+        if parser.magnet:
+            print(f"{parser.magnet} {info}")
+            return
+        if parser.next_link:
+            link = urllib.parse.urljoin(page_url, parser.next_link)
+            parsed = urllib.parse.urlparse(link)
+            if parsed.scheme in ("http", "https"):
+                self.download_torrent(link.replace("kickasstorrents", "katcr"), depth + 1)
+                return
+        raise ParseError("Torrent page has no usable magnet or download button")
 
     def search(self, what: str, cat: str = "all"):
         _ = _qbt_new_deadline()
@@ -500,5 +576,5 @@ class pirateiro:
             url = f"{self.url}search?query={what}&page={currPage}{cat_str}"
             html = re.sub(r"\s+", " ", retrieve_url(url)).strip()
             parser.feed(html)
-            if parser.noTorrents:
+            if parser.noTorrents or parser.emitted >= MAX_DETAILS:
                 break

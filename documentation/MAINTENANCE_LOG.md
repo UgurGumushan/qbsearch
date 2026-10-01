@@ -206,3 +206,81 @@ hardened templates, wrapper retries, malformed rows, result caps, source quoting
 argument rejection without writes, and conservative warning analysis. Standalone
 template Ruff lint/format and BasedPyright checks pass. Bitsearch and Solid Torrents
 source hashes and pending daily checks are unchanged.
+
+## Remaining engine recovery and download verification — 2026-10-01
+
+Bun now discovers capture URLs by replaying the actual standalone engine offline.
+This covers Ali213 (`minecraft`, `elden ring`), Pirateiro (`inception`, `ubuntu`),
+and Traht (`inception`, `matrix`). Python consumes a saved URL map and cannot
+perform live network I/O or write a downloaded file. Search and download outputs,
+unexpected requests, source hashes, redirects, statuses, attempts, and response
+byte counts are archived independently. Capture bounds are two search pages,
+five result/detail candidates, 32 distinct URLs, eight discovery rounds, 4 MiB
+per response, three attempts, and 60 seconds per query. HTTP 429 stops the pass.
+
+An HTTP result is usable only if the actual engine's download method resolves it
+to a valid BTIH magnet or Bun retrieves structurally valid v1/v2 torrent metadata.
+The replay's download helper only accepts that separately verified URL. Bencoded
+metadata checks reject HTML, malformed containers, inconsistent lengths/piece
+counts, and oversized/deep structures. This does not download torrent payloads
+or establish their content or cryptographic integrity. The recorded remote cases
+below did not reach a successful download; offline synthetic cases verify the
+success paths. Windows-1251 responses are decoded using the WHATWG index because
+Bun 1.3.14 lacks that decoder.
+
+| Engine    | UTC capture window | Search replay                                                                           | Download outcome                                                              | Artifact                                                                    |
+| --------- | ------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ali213    | 14:49:43–14:50:09  | 0 records for both queries; search plus five game pages per query returned HTTP 200     | No legacy `downUrl` chain on game pages                                       | `working/recovery/ali213-6acf5ca5-1901-49ac-bb40-98d78524d357/pass.json`    |
+| ali213    | 15:04:05–15:04:24  | Fresh post-investigation pair again emitted 0 records; six HTTP 200 responses per query | No downloadable result                                                        | `working/recovery/ali213-b946b3e1-9a01-4cb3-9231-1e67c8853201/pass.json`    |
+| pirateiro | 15:00:21–15:02:21  | Repaired table parser selects five valid detail links per query; listing HTTP 200       | First detail in each query timed out after three attempts; incomplete capture | `working/recovery/pirateiro-56012128-7b7d-45fe-8cdb-f27b98cc16c5/pass.json` |
+| pirateiro | 15:04:39–15:06:39  | Final source again emitted five valid detail links per query; listing HTTP 200          | First detail in each query timed out after three attempts; incomplete capture | `working/recovery/pirateiro-898dc0df-4de6-4cfa-b75c-c570c2dfc883/pass.json` |
+| traht     | 14:59:00–14:59:01  | 0 records for inception/matrix; empty HTTP 200 bodies                                   | No downloadable result                                                        | `working/recovery/traht-1c1748da-013e-417f-b043-4fefa28d3cd6/pass.json`     |
+| traht     | 15:06:24–15:06:25  | Fresh post-investigation pair again emitted 0 records; empty HTTP 200 bodies            | No downloadable result                                                        | `working/recovery/traht-5286c0c2-9ff8-43ac-bfb4-b7090f863407/pass.json`     |
+
+Ali213's current game pages use resource buttons populated by `downloadM.js`;
+the script points to `www.ventacorius.com:880/down/<urlID>-1.html`. A bounded
+request to the Elden Ring URL timed out. Download-manager links in the script
+are not torrent evidence. No usable replacement chain was established, so the
+engine remains unavailable. Its unchanged source SHA-256 is
+`022800cf32181a9e2aae18cd47a9d0e8d5086f6a61af5153c0f6ef4891f4d08e`.
+
+Pirateiro's previous cross-anchor regex mistook navigation for results and applied
+its cap per page. The new HTML parser reads desktop table rows, ignores mobile
+cards/navigation, decodes nested titles/entities, deduplicates links, preserves
+peer badges or unknown counts, and caps results across all pages. Its download
+parser validates BTIH magnets, accepts reordered/single-quoted attributes, and
+bounds the existing button chain. A focused required-results smoke probe for
+`inception` passes with 11 listing markers; this does not verify downloads or earn
+functional recovery credit. The smoke-marker selector now matches table rows.
+The final Pirateiro source SHA-256 is
+`556b8f799512a8fecb6b726e8954be1c84e44386f64a897c1c11a6da6f3dea29`.
+A local helper check also stopped assuming that a timed-out request must have
+reached the server; it counts the client's three attempts and requires failure.
+
+Traht's public homepage still exposes a GET `browse.php?search=` form. Both
+public queries without `page` also returned empty HTTP 200 bodies. No supported
+anonymous replacement route was established. Keep its existing intermittent
+status pending follow-up rather than inferring an authentication requirement.
+The initial Windows-1251 decoder exception was an infrastructure failure and
+has no removal credit. Unchanged source SHA-256:
+`1e725cb5373f25a384901755259cca7b06f46413d53f560c49e540ffca2e58bd`.
+
+### Removal follow-up
+
+No engine was removed in this batch. The authorized removal policy requires
+unsuccessful recovery work followed by complete failed functional pairs on two
+separate Europe/Istanbul dates. Ali213 and Traht have a completed negative pair
+on 2026-10-01; the earliest second date is 2026-10-02. Recheck the supported public
+routes then, preserve failed and successful download evidence, and remove an
+engine only if it remains unrecoverable under that policy. Pirateiro's detail
+timeouts are incomplete observations, so its two-date count has not started.
+Rate limits, interrupted captures, and infrastructure exceptions never count as
+completed negative pairs. If a usable path returns, repair and verify it instead.
+
+Removal must delete the plugin, icon, and catalog entry together, regenerate
+catalog documentation, probe URLs, and plugin sources, then pass the strict gates
+and archive parity checks. The dates are manual follow-ups, not a background job.
+The Bitsearch/Solid Torrents promotion checks on October 2, 3, and 4 remain pending;
+their logged source hashes are unchanged and no additional promotion credit was
+claimed. Their shared backend still requires sequential, two-minute-spaced passes
+and cooldown according to the recorded rate-limit policy.

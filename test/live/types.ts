@@ -13,6 +13,7 @@ export interface LiveResponse {
   contentType: string;
   attempts: number;
   retryAfter?: string;
+  bytes?: number;
 }
 
 export interface LivePluginContract {

@@ -44,14 +44,23 @@ export async function runLiveSafetySuite(): Promise<void> {
   });
 
   try {
-    await fetchTextWithRetry(`http://127.0.0.1:${server.port}/slow`, {
-      timeoutMs: 50,
-      maxAttempts: 3,
-    }).catch(() => undefined);
-    assert(
-      counts.get("/slow") === 3,
-      `expected three timeout attempts, saw ${counts.get("/slow")}`,
-    );
+    // Count attempted requests at the client: a timeout can abort before the
+    // local server receives a connection when the host is busy.
+    let timeoutAttempts = 0;
+    let timeoutFailed = false;
+    try {
+      await fetchTextWithRetry(`http://127.0.0.1:${server.port}/slow`, {
+        timeoutMs: 50,
+        maxAttempts: 3,
+        onRequest: () => {
+          timeoutAttempts += 1;
+        },
+      });
+    } catch {
+      timeoutFailed = true;
+    }
+    assert(timeoutFailed, "expected the slow request to time out");
+    assert(timeoutAttempts === 3, `expected three timeout attempts, saw ${timeoutAttempts}`);
 
     const retried = await fetchTextWithRetry(`http://127.0.0.1:${server.port}/retry`);
     assert(retried.status === 200, `expected retry endpoint to succeed, saw ${retried.status}`);
