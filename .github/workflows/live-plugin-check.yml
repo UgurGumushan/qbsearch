@@ -2,6 +2,17 @@ name: Live plugin check
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "codex/release-*"
+    paths:
+      - "plugins/**"
+      - "test/support/parser_capture.ts"
+      - "test/support/parser_replay.ts"
+      - "test/parser_harness.py"
+      - "test/replay_transport.py"
+      - "test/release_live.ts"
+      - ".github/workflows/live-plugin-check.yml"
   schedule:
     - cron: "17 4 * * 1"
 
@@ -18,6 +29,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        if: github.event_name == 'push'
+        with:
+          python-version: "3.11"
       - name: Install Bun
         env:
           BUN_INSTALL: ${{ runner.temp }}/bun
@@ -28,4 +45,43 @@ jobs:
       - name: Install Bun dependencies
         run: bun install --frozen-lockfile
       - name: Run real remote-service smoke tests
-        run: bun run test -- --live --skip-safety --timeout 120
+        env:
+          QBSEARCH_LIVE_EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p working
+          if [ "$QBSEARCH_LIVE_EVENT" != push ]; then
+            bun run test -- --live --skip-safety --timeout 120 2>&1 | tee working/live-probes.log
+            exit
+          fi
+          baseline_tag="$(git describe --tags --abbrev=0)"
+          plugin_paths="$(git diff --name-only "$baseline_tag" HEAD -- plugins)"
+          plugin_args=()
+          while IFS= read -r plugin_path; do
+            if [[ "$plugin_path" =~ ^plugins/[a-z0-9_]+\.py$ ]] && [ -f "$plugin_path" ]; then
+              plugin_id="${plugin_path#plugins/}"
+              plugin_args+=(--plugin "${plugin_id%.py}")
+            fi
+          done <<< "$plugin_paths"
+          if [ "${#plugin_args[@]}" -eq 0 ]; then
+            printf 'No plugin source changes since %s.\n' "$baseline_tag" | tee working/live-probes.log
+            exit
+          fi
+          bun run test -- --live "${plugin_args[@]}" --require-results --timeout 120 2>&1 | tee working/live-probes.log
+      - name: Preserve live outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-probes-${{ github.sha }}
+          path: working/live-probes.log
+          if-no-files-found: warn
+      - name: Capture release parser and download baselines
+        if: always() && github.event_name == 'push'
+        run: bun test/release_live.ts
+      - name: Preserve functional evidence
+        if: always() && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: functional-captures-${{ github.sha }}
+          path: working/release-live/
+          if-no-files-found: warn

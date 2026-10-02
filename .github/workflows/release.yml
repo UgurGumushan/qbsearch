@@ -4,15 +4,33 @@ on:
   push:
     tags:
       - "v*"
+  workflow_run:
+    workflows:
+      - "Offline checks"
+    types:
+      - completed
+    branches:
+      - main
+
+concurrency:
+  group: release-qbsearch
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
   release:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -25,31 +43,47 @@ jobs:
           "$BUN_INSTALL/bin/bun" --version
       - name: Install Bun dependencies
         run: bun install --frozen-lockfile
-      - name: Install release checkers
-        run: python -m pip install --disable-pip-version-check --requirement requirements-dev.txt
-      - name: Verify repository
-        run: bun run check -- --strict
-      - name: Build release archive
-        env:
-          RELEASE_VERSION: ${{ github.ref_name }}
-        run: bun run release -- --version "${RELEASE_VERSION#v}" --output "working/qbsearch-${RELEASE_VERSION#v}.zip"
-      - name: Create stable download alias
-        env:
-          RELEASE_VERSION: ${{ github.ref_name }}
-        run: cp "working/qbsearch-${RELEASE_VERSION#v}.zip" working/qbsearch-latest.zip
-      - name: Publish GitHub release
+      - name: Select unpublished release
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          QBSEARCH_RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
-          if [ -f "documentation/releases/${RELEASE_TAG}.md" ]; then
-            gh release create "$RELEASE_TAG" \
-              "working/qbsearch-${RELEASE_TAG#v}.zip" \
-              working/qbsearch-latest.zip \
-              --notes-file "documentation/releases/${RELEASE_TAG}.md"
+          set -euo pipefail
+          release_tag="$(bun -e 'import { publicationTag } from "./tool/release/publication"; console.log(publicationTag(process.env.QBSEARCH_RELEASE_TAG, await Bun.file("documentation/CHANGELOG.md").text()))')"
+          test -f "documentation/releases/${release_tag}.md"
+          published_tags="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name')"
+          if printf '%s\n' "$published_tags" | grep -Fxq "$release_tag"; then
+            printf 'publish=false\n' >> "$GITHUB_OUTPUT"
+            printf '%s is already published.\n' "$release_tag"
           else
-            gh release create "$RELEASE_TAG" \
-              "working/qbsearch-${RELEASE_TAG#v}.zip" \
-              working/qbsearch-latest.zip \
-              --generate-notes
+            printf 'publish=true\ntag=%s\nversion=%s\n' "$release_tag" "${release_tag#v}" >> "$GITHUB_OUTPUT"
           fi
+      - name: Install release checkers
+        if: steps.version.outputs.publish == 'true'
+        run: python -m pip install --disable-pip-version-check --requirement requirements-dev.txt
+      - name: Verify repository
+        if: steps.version.outputs.publish == 'true'
+        run: bun run check -- --strict
+      - name: Build release archive
+        if: steps.version.outputs.publish == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: bun run release -- --version "$RELEASE_VERSION" --output "working/qbsearch-${RELEASE_VERSION}.zip"
+      - name: Create stable download alias
+        if: steps.version.outputs.publish == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: cp "working/qbsearch-${RELEASE_VERSION}.zip" working/qbsearch-latest.zip
+      - name: Publish GitHub release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_TARGET_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            "working/qbsearch-${RELEASE_TAG#v}.zip" \
+            working/qbsearch-latest.zip \
+            --target "$RELEASE_TARGET_COMMIT" \
+            --notes-file "documentation/releases/${RELEASE_TAG}.md"

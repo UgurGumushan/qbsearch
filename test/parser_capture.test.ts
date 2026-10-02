@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { expect, spyOn, test } from "bun:test";
 import { FIXTURES_DIR } from "../tool/core/repo";
 import { CAPTURE_LIMITS, captureParserCase, runFunctionalPass } from "./support/parser_capture";
-import type { ParserCase } from "./support/parser_replay";
+import { replayParserCase, type ParserCase } from "./support/parser_replay";
 
 function mockFetch(handler: (input: Parameters<typeof globalThis.fetch>[0]) => Response) {
   const implementation = Object.assign(
@@ -15,6 +15,32 @@ function mockFetch(handler: (input: Parameters<typeof globalThis.fetch>[0]) => R
   return spyOn(globalThis, "fetch").mockImplementation(implementation);
 }
 
+test("DMHY capture discovers requests through the real parser and retains the supplied magnet", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "qbsearch-dmhy-capture-"));
+  const requested: string[] = [];
+  const magnet = `magnet:?xt=urn:btih:${"a".repeat(40)}`;
+  const fetch = mockFetch((input) => {
+    requested.push(input instanceof Request ? input.url : input.toString());
+    return new Response(
+      `<table id="topic_list"><tr><td>2026/10/02</td><td>Anime</td>` +
+        `<td><a href="/topics/view/1.html">Fixture</a></td><td><a href="${magnet}">Download</a></td>` +
+        "<td>1 GB</td><td>12</td><td>2</td></tr></table>",
+    );
+  });
+  try {
+    const capture = await captureParserCase("dmhy", "fixture", directory);
+    const report = await replayParserCase(capture.path);
+    expect(report.errors).toEqual([]);
+    expect(report.records).toHaveLength(1);
+    expect(report.records[0].link).toBe(magnet);
+    expect(capture.downloads).toEqual([]);
+    expect(requested).toEqual(["https://share.dmhy.org/topics/list/page/1?keyword=fixture"]);
+  } finally {
+    fetch.mockRestore();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("failed captures preserve partial responses and rate-limit evidence", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "qbsearch-capture-"));
   const fixture = (await Bun.file(
@@ -23,9 +49,10 @@ test("failed captures preserve partial responses and rate-limit evidence", async
   let requests = 0;
   const fetch = mockFetch((input) => {
     const url = input instanceof Request ? input.url : input.toString();
+    const body = fixture.responses[url];
     requests += 1;
     return url.endsWith("page=1")
-      ? new Response(fixture.responses[url])
+      ? new Response(typeof body === "string" ? body : body.body)
       : new Response("rate limited", { status: 429, headers: { "retry-after": "60" } });
   });
   try {

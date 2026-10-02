@@ -1,5 +1,13 @@
 # License provenance audit
 
+The nine original 2026-10-03 additions (`aniliberty`, `filemood`,
+`internetarchive`, `knaben`, `linuxtracker`, `torlock`, `torrentclaw`,
+`torrentfunk`, `uindex`) are new repository implementations under
+GPL-3.0-or-later. Protocol references and verification limits are in
+[NEW_PLUGINS.md](NEW_PLUGINS.md). No upstream implementation, tracker passkey
+list or brand icon is incorporated. Historical engine licenses below are
+unchanged.
+
 Audit date: 2026-10-01 (UTC). This records the primary-source evidence for the
 26 catalog entries previously marked `Unknown`. Catalog labels describe the
 identified upstream license; they do not replace the notices in [LICENSE.md](../LICENSE.md)

@@ -631,12 +631,14 @@ class uniondht:
                 retrieved_page = retrieve_url(search_url)
                 if not retrieved_page:
                     break
-                before = len(parser.results)
                 parser.feed(retrieved_page)
             except Exception:
                 break
-            if len(parser.results) == before:
+            if not parser.results:
                 break
+            for result in parser.results:
+                _qbt_prettyPrinter(result)
+            parser.results.clear()
             if parser.total_results and torrent_count + 50 >= parser.total_results:
                 break
         parser.close()

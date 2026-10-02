@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from html import escape, unescape
 from html.parser import HTMLParser
 from typing import ClassVar, cast
+from urllib.parse import urljoin
 
 from helpers import download_file
 from helpers import retrieve_url as _qbt_helper_retrieve_url
@@ -535,11 +537,17 @@ class dmhy:
                 self.cur = {"raw": [], "cells": []}
             elif tag == "td" and self.cur is not None:
                 self.cur["cells"].append("")
+            elif tag == "br" and self.cur is not None and self.cur["cells"]:
+                self.cur["cells"][-1] += " "
+            elif tag == "a" and self.cur is not None and self.cur["cells"]:
+                href = params.get("href")
+                if href is not None:
+                    self.cur["cells"][-1] += f'<a href="{escape(href, quote=True)}">'
 
         @override
         def handle_data(self, data: str) -> None:
             if self.cur is not None and self.cur["cells"]:
-                self.cur["cells"][-1] += data
+                self.cur["cells"][-1] += escape(data)
 
         @override
         def handle_endtag(self, tag: str) -> None:
@@ -548,6 +556,8 @@ class dmhy:
             if tag == "tr" and self.cur is not None:
                 self.rows.append(self.cur["cells"])
                 self.cur = None
+            elif tag == "a" and self.cur is not None and self.cur["cells"]:
+                self.cur["cells"][-1] += "</a>"
             elif tag == "table":
                 self.in_topic_list = False
 
@@ -557,24 +567,28 @@ class dmhy:
     ) -> list[SearchResults]:
         res: list[SearchResults] = []
         for cell in cells:
+            if len(res) >= MAX_DETAILS or (
+                seen_links is not None and len(seen_links) >= MAX_DETAILS
+            ):
+                break
             if len(cell) < 7:
                 continue
-            date = _WHITESPACE_RE.sub(" ", cell[0]).strip().split()[0]
+            date_parts = _WHITESPACE_RE.sub(" ", cell[0]).strip().split()
+            date = date_parts[0] if date_parts else ""
             try:
                 pub_date = int(datetime.strptime(date, "%Y/%m/%d").timestamp())
             except ValueError:
                 pub_date = -1
-            name = _WHITESPACE_RE.sub(" ", _HTML_TAG_RE.sub("", cell[2])).strip()
+            name = _WHITESPACE_RE.sub(" ", unescape(_HTML_TAG_RE.sub("", cell[2]))).strip()
             links = cast(list[str], _HREF_RE.findall(cell[3]))
-            magnet = next((l for l in links if l.startswith("magnet:?")), "")
+            magnet = next((unescape(link) for link in links if link.startswith("magnet:?")), "")
             desc_m = _HREF_RE.search(cell[2])
-            desc_link = f"{cls.url}{desc_m.group(1)}" if desc_m else cls.url
-            size = _WHITESPACE_RE.sub(" ", _HTML_TAG_RE.sub("", cell[4])).strip()
+            desc_link = urljoin(cls.url, unescape(desc_m.group(1))) if desc_m else cls.url
+            size = _WHITESPACE_RE.sub(" ", unescape(_HTML_TAG_RE.sub("", cell[4]))).strip()
             seeds = _WHITESPACE_RE.sub(" ", _HTML_TAG_RE.sub("", cell[5])).strip()
             leech = _WHITESPACE_RE.sub(" ", _HTML_TAG_RE.sub("", cell[6])).strip()
-            btih_m = re.search(r"btih:([0-9A-Fa-f]+)", magnet)
-            link = f"https://dl.dmhy.org/{date}/{btih_m.group(1)}.torrent" if btih_m else magnet
-            if not link or (seen_links is not None and link in seen_links):
+            link = magnet
+            if not name or not link or (seen_links is not None and link in seen_links):
                 continue
             if seen_links is not None:
                 seen_links.add(link)
@@ -629,7 +643,7 @@ class dmhy:
             cells = parser.rows
             hits.extend(self.analyze_torrent(cells, seen_links))
             page += 1
-            if len(cells) < 80:
+            if len(cells) < 80 or len(seen_links) >= MAX_DETAILS:
                 break
 
 

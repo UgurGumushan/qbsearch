@@ -1,6 +1,6 @@
 # qbsearch
 
-Search torrent sites directly from qBittorrent with a collection of 49 search
+Search torrent sites directly from qBittorrent with a collection of 58 search
 plugins for macOS, Linux, and Windows. Install the complete collection or choose
 individual plugins from the list below.
 
@@ -59,13 +59,19 @@ availability.
 | ------------------------------------------------ | -------- | ------------ | --------------------------------------------------------------------------------------------------------------- |
 | [Bit Search](plugins/bitsearch.py)               | General  | Intermittent | [bitsearch.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/bitsearch.py)               |
 | [btdig](plugins/btdig.py)                        | General  | Active       | [btdig.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/btdig.py)                       |
+| [FileMood](plugins/filemood.py)                  | General  | Intermittent | [filemood.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/filemood.py)                 |
+| [Internet Archive](plugins/internetarchive.py)   | General  | Intermittent | [internetarchive.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/internetarchive.py)   |
+| [Knaben](plugins/knaben.py)                      | General  | Intermittent | [knaben.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/knaben.py)                     |
 | [Rutor](plugins/rutor.py)                        | General  | Active       | [rutor.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/rutor.py)                       |
 | [SkTorrent](plugins/sktorrent.py)                | General  | Active       | [sktorrent.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/sktorrent.py)               |
 | [Snowfl](plugins/snowfl.py)                      | General  | Active       | [snowfl.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/snowfl.py)                     |
 | [Solid Torrents](plugins/solidtorrents.py)       | General  | Intermittent | [solidtorrents.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/solidtorrents.py)       |
 | [The Pirate Bay](plugins/thepiratebay.py)        | General  | Active       | [thepiratebay.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/thepiratebay.py)         |
+| [Torlock](plugins/torlock.py)                    | General  | Intermittent | [torlock.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torlock.py)                   |
 | [Torrent Downloads](plugins/torrentdownloads.py) | General  | Active       | [torrentdownloads.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentdownloads.py) |
 | [TorrentDownload](plugins/torrentdownload.py)    | General  | Active       | [torrentdownload.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentdownload.py)   |
+| [TorrentFunk](plugins/torrentfunk.py)            | General  | Intermittent | [torrentfunk.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentfunk.py)           |
+| [UIndex](plugins/uindex.py)                      | General  | Intermittent | [uindex.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/uindex.py)                     |
 | [UnionDHT](plugins/uniondht.py)                  | General  | Active       | [uniondht.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/uniondht.py)                 |
 | [YourBittorrent](plugins/yourbittorrent.py)      | General  | Active       | [yourbittorrent.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/yourbittorrent.py)     |
 | [ApacheTorrent](plugins/apachetorrent.py)        | Movies   | Active       | [apachetorrent.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/apachetorrent.py)       |
@@ -80,10 +86,12 @@ availability.
 | [The RarBg](plugins/therarbg.py)                 | Movies   | Active       | [therarbg.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/therarbg.py)                 |
 | [TomaDivx](plugins/tomadivx.py)                  | Movies   | Active       | [tomadivx.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/tomadivx.py)                 |
 | [Torrent9 (french)](plugins/torrent9.py)         | Movies   | Active       | [torrent9.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrent9.py)                 |
+| [TorrentClaw](plugins/torrentclaw.py)            | Movies   | Intermittent | [torrentclaw.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentclaw.py)           |
 | [Traht](plugins/traht.py)                        | Movies   | Intermittent | [traht.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/traht.py)                       |
 | [YTS](plugins/yts.py)                            | Movies   | Active       | [yts.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/yts.py)                           |
 | [EZTVX](plugins/eztvx.py)                        | TV       | Active       | [eztvx.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/eztvx.py)                       |
 | [acg.rip](plugins/acgrip.py)                     | Anime    | Active       | [acgrip.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/acgrip.py)                     |
+| [AniLiberty](plugins/aniliberty.py)              | Anime    | Intermittent | [aniliberty.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/aniliberty.py)             |
 | [Anime Tosho](plugins/animetosho.py)             | Anime    | Active       | [animetosho.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/animetosho.py)             |
 | [DMHY](plugins/dmhy.py)                          | Anime    | Active       | [dmhy.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/dmhy.py)                         |
 | [mikanani](plugins/mikanani.py)                  | Anime    | Active       | [mikanani.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/mikanani.py)                 |
@@ -92,15 +100,16 @@ availability.
 | [Nyaa.si](plugins/nyaasi.py)                     | Anime    | Active       | [nyaasi.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/nyaasi.py)                     |
 | [SubsPlease](plugins/subsplease.py)              | Anime    | Active       | [subsplease.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/subsplease.py)             |
 | [Tokyo Toshokan](plugins/tokyotoshokan.py)       | Anime    | Active       | [tokyotoshokan.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/tokyotoshokan.py)       |
-| [AudioBook Bay (ABB)](plugins/audiobookbay.py)   | Books    | Active       | [audiobookbay.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/audiobookbay.py)         |
-| [dark-libria](plugins/darklibria.py)             | Books    | Active       | [darklibria.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/darklibria.py)             |
+| [AcademicTorrents](plugins/academictorrents.py)  | Software | Active       | [academictorrents.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/academictorrents.py) |
+| [bt4gprx](plugins/bt4gprx.py)                    | Software | Active       | [bt4gprx.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/bt4gprx.py)                   |
+| [LinuxTracker](plugins/linuxtracker.py)          | Software | Intermittent | [linuxtracker.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/linuxtracker.py)         |
 | [ali213](plugins/ali213.py)                      | Games    | Unavailable  | [ali213.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/ali213.py)                     |
 | [DODI Repacks](plugins/dodi_repacks.py)          | Games    | Active       | [dodi_repacks.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/dodi_repacks.py)         |
 | [FitGirl Repacks](plugins/fitgirl_repacks.py)    | Games    | Active       | [fitgirl_repacks.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/fitgirl_repacks.py)   |
 | [Online-Fix](plugins/onlinefix.py)               | Games    | Active       | [onlinefix.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/onlinefix.py)               |
 | [small-games.info](plugins/smallgames.py)        | Games    | Active       | [smallgames.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/smallgames.py)             |
-| [AcademicTorrents](plugins/academictorrents.py)  | Software | Active       | [academictorrents.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/academictorrents.py) |
-| [bt4gprx](plugins/bt4gprx.py)                    | Software | Active       | [bt4gprx.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/bt4gprx.py)                   |
+| [AudioBook Bay (ABB)](plugins/audiobookbay.py)   | Books    | Active       | [audiobookbay.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/audiobookbay.py)         |
+| [dark-libria](plugins/darklibria.py)             | Books    | Active       | [darklibria.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/darklibria.py)             |
 | [MyPorn Club](plugins/mypornclub.py)             | Adult    | Active       | [mypornclub.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/mypornclub.py)             |
 | [Nyaa.pantsu](plugins/nyaapantsu.py)             | Adult    | Active       | [nyaapantsu.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/nyaapantsu.py)             |
 | [Sukebei (Nyaa)](plugins/sukebeisi.py)           | Adult    | Active       | [sukebeisi.py](https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/sukebeisi.py)               |

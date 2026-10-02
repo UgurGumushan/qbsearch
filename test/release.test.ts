@@ -5,6 +5,17 @@ import { join } from "node:path";
 import { unzipSync } from "fflate";
 import { catalogEntries, loadCatalog } from "../tool/catalog";
 import { buildRelease } from "../tool/release/command";
+import { publicationTag } from "../tool/release/publication";
+
+test("publication selects the current changelog version and rejects mismatched or unsafe tags", () => {
+  const changelog = "# Changelog\n\n## 0.1.11\n\n- Current changes.\n\n## 0.1.10\n";
+  expect(publicationTag(undefined, changelog)).toBe("v0.1.11");
+  expect(publicationTag("", changelog)).toBe("v0.1.11");
+  expect(publicationTag("v0.1.11", changelog)).toBe("v0.1.11");
+  for (const tag of ["v0.1.10", "v0.1.12", "../notes", "v0.1.11-beta", "v00.1.11"])
+    expect(() => publicationTag(tag, changelog)).toThrow();
+  expect(() => publicationTag(undefined, "# Changelog\n\n## Unreleased\n")).toThrow();
+});
 
 test("release archives contain canonical documentation and installers", async () => {
   const directory = await mkdtemp(join(tmpdir(), "qbsearch-release-"));
@@ -25,6 +36,7 @@ test("release archives contain canonical documentation and installers", async ()
     expect(names).toContain(`${prefix}documentation/INSTALL.md`);
     expect(names).toContain(`${prefix}documentation/PLUGINS.md`);
     expect(names).toContain(`${prefix}documentation/CHANGELOG.md`);
+    expect(names).toContain(`${prefix}documentation/PERFORMANCE.md`);
     expect(names).toContain(`${prefix}documentation/ATTRIBUTIONS.md`);
     expect(names).toContain(`${prefix}documentation/LICENSE_PROVENANCE.md`);
     for (const notice of [

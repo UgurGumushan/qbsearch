@@ -153,7 +153,7 @@ function countJsonResultMarkers(value: unknown): number {
   }
   let largest = 0;
   for (const [key, child] of Object.entries(value)) {
-    if (/result|torrent|movie|item|release|entry|data|rows/i.test(key)) {
+    if (/result|torrent|movie|item|release|entry|data|rows|hits|docs|response/i.test(key)) {
       largest = Math.max(largest, countJsonResultMarkers(child));
     }
   }
@@ -183,6 +183,7 @@ export function countResultMarkers(
   }
 
   const patterns = [
+    /<item(?:\s|>)/gi,
     /href\s*=\s*["'][^"']*magnet:/gi,
     /href\s*=\s*["'][^"']*\.torrent(?:[?#]|["'])/gi,
     /class\s*=\s*["'][^"']*(?:torrent|result|release|search-result|download)[^"']*["']/gi,

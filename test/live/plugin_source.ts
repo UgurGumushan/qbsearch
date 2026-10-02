@@ -119,6 +119,26 @@ export function buildProbeUrls(
   category: string,
 ): string[] {
   const body = searchFunctionBody(source);
+  if (new URL(siteUrl).hostname === "archive.org" && body.includes("/advancedsearch.php?")) {
+    const terms = query.match(/[\p{L}\p{N}_.-]+/gu)?.join(" ") ?? "";
+    let search = `(${terms}) AND format:"Archive BitTorrent" AND -mediatype:collection`;
+    const media: Record<string, string> = {
+      movies: "movies",
+      music: "audio",
+      books: "texts",
+      software: "software",
+    };
+    if (media[category]) search += ` AND mediatype:${media[category]}`;
+    const params = new URLSearchParams();
+    params.set("q", search);
+    params.append("fl[]", "identifier");
+    params.append("fl[]", "title");
+    params.set("rows", "20");
+    params.set("page", "1");
+    params.set("output", "json");
+    return [`${siteUrl}/advancedsearch.php?${params.toString().replaceAll("%7E", "~")}`];
+  }
+  if (body.includes('+ " in:title"')) query += " in:title";
   const supportedCategory =
     /supported_categories[\s\S]{0,500}?["']all["'][ \t]*:[ \t]*["']([^"']+)["']/i.exec(
       source,

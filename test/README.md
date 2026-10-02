@@ -22,6 +22,15 @@ harnesses that must import qBittorrent plugins under Python:
 - `parser_harness.py` replays saved responses through actual engines with explicit
   qBittorrent stubs and blocked network/download calls. Bun owns its regression
   tests and the minimized samples under `fixtures/parsers/`;
+- `replay_transport.py` matches fixture GET/POST requests and simulates binary
+  responses, status, headers, redirects, and delays inside isolated profiles;
+- `performance/` provides offline fixtures, paired fresh-process comparisons,
+  statistics, and the `test -- --benchmark` worker. Empty profiles establish
+  transport/import compatibility, not functional performance wins;
+- `parser_correctness.test.ts` verifies DMHY rows and budgets and Maxitorrent's
+  consecutive POST pages, row metadata, redirect resolution, and cycle limits;
+- `release_live.ts` collects bounded functional/download captures and SubsPlease
+  pagination observations on remote release-candidate runners;
 - `support/parser_capture.ts` captures public responses with Bun into ignored
   working files, then invokes the separate offline replay. It validates both
   queries in a recovery pass and records timestamps, redirects, request budgets,
@@ -38,6 +47,8 @@ Run the supported commands from the repository root:
 ```sh
 bun run test
 bun run test -- --watch
+bun run test -- --benchmark
+bun run test -- --benchmark --plugin elitetorrent --baseline v0.1.10 --matrix
 bun run check
 bun run test -- --live --plugin <plugin-id>
 bun run test -- --live --watch --plugin <plugin-id>
@@ -55,6 +66,14 @@ Bun tests where it must exercise the same Python runtime qBittorrent uses.
 The coordinator probes active catalog entries by default. Entries marked
 `intermittent`, `unavailable`, or `retired` are retained for explicit focused
 checks but skipped from the default remote run.
+
+Benchmarks do not contact sites. Their reports, fixtures, and source snapshots
+are saved beneath `working/performance/`. The default is two warmup pairs and
+20 measured pairs, with allocation tracing in separate processes. `--matrix`
+varies worker counts and simulated latency; `--samples` below 20 is exploratory.
+Benchmark mode cannot be combined with `--live` or `--watch`. See
+[`documentation/PERFORMANCE.md`](../documentation/PERFORMANCE.md) for acceptance
+gates, current measurements, and the decision for every plugin.
 
 `bun run test -- --live --watch` runs the same coordinator under Bun's process watcher
 and reruns it when a plugin source or the catalog changes. It makes real remote

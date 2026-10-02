@@ -9,6 +9,7 @@ import { runGenCommand } from "./commands/gen";
 import { runPluginCommand } from "./commands/plugin";
 import { setup } from "./commands/setup";
 import { stripArgumentSeparator } from "./core/args";
+import { runBenchmark } from "../test/performance/runner";
 
 export interface CommandSpec {
   name: string;
@@ -46,10 +47,13 @@ export const COMMANDS: CommandSpec[] = [
   },
   {
     name: "test",
-    description: "Run deterministic bun tests, or live network tests with --live.",
+    description:
+      "Run deterministic tests, live network tests (--live), or offline benchmarks (--benchmark).",
     examples: [
       "bun run test",
       "bun run test -- --watch",
+      "bun run test -- --benchmark",
+      "bun run test -- --benchmark --plugin elitetorrent --baseline v0.1.10 --matrix",
       "bun run test -- --live --plugin yts",
       "bun run test -- --live --plugin yts --require-results",
       "bun run test -- --live --record-probes",
@@ -82,15 +86,23 @@ async function runLive(args: string[]): Promise<number> {
 }
 
 async function runDeterministicTest(args: string[]): Promise<number> {
+  if (args.includes("--benchmark")) {
+    if (args.includes("--live") || args.includes("--watch")) {
+      console.error("--benchmark cannot be combined with --live or --watch");
+      return 2;
+    }
+    return runBenchmark(args.filter((arg) => arg !== "--benchmark"));
+  }
   if (args.includes("--live")) {
     return runLive(args.filter((a) => a !== "--live"));
   }
   if (args.includes("--help") || args.includes("-h")) {
-    console.log(`Usage: bun run test [-- --watch|--live ...]
+    console.log(`Usage: bun run test [-- --watch|--live|--benchmark ...]
 
   (no flags)           Run the deterministic Bun test suite
   --watch              Keep Bun tests watching plugins/
   --live [live flags]  Run live network tests (pass-through to test/live.ts)
+  --benchmark [flags]  Compare saved responses against v0.1.10 (use --help for flags)
 `);
     return 0;
   }

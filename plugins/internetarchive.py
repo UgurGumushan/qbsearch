@@ -1,24 +1,19 @@
-# VERSION: 1.25
-"""
-MaxiTorrent search (atomixhq.com). POSTs the query to the site's JSON result
-endpoint, then follows each torrent's redirect page to the .torrent URL,
-retrying against alternate page layouts when the redirect is absent.
-"""
+# VERSION: 1.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Internet Archive public BitTorrent items: bounded metadata workers and verified file names."""
 
 from __future__ import annotations
 
 import json
 import re
-import urllib.error
-import urllib.parse
-import urllib.request
-from html.parser import HTMLParser
-from typing import ClassVar, cast
+from datetime import datetime, timezone
+from typing import ClassVar, cast, final
+from urllib.parse import quote, unquote, urlencode
+from urllib.request import Request
 
-import helpers
-from novaprinter import SearchResults, prettyPrinter
+from helpers import retrieve_url as _qbt_helper_retrieve_url
+from novaprinter import prettyPrinter
 
-_qbt_helper_retrieve_url = None
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
 # Slim stdlib-only helpers for standalone engines (rendered by `bun run gen`).
 try:
@@ -35,7 +30,6 @@ try:
     from threading import Lock as _qbt_Lock
     from threading import local as _qbt_local
     from types import TracebackType as _QBTTracebackType
-    from typing import TYPE_CHECKING
     from typing import Callable as _QBTCallable
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
@@ -56,14 +50,6 @@ def _qbt_default_workers() -> int:
         return min(16, max(1, int(value)))
     except ValueError:
         return default
-
-
-if TYPE_CHECKING:
-    from typing_extensions import override
-else:
-
-    def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
-        return function
 
 
 HTTP_TIMEOUT = 20.0
@@ -498,200 +484,143 @@ __all__ = [
 # END GENERATED QBITT SAFETY PREAMBLE
 
 
-headers = cast(dict[str, str], cast(object, vars(helpers)["_headers"]))
-_REDIRECT_RE = re.compile(r"window\.location\.href\s*=\s*(['\"])(.*?)\1")
+def _text(value: object) -> str:
+    return value.strip() if isinstance(value, str) else ""
 
 
-class maxitorrent:
-    url: str = "http://atomixhq.com"
-    name: str = "MaxiTorrent"
-    size: str = ""
-    count: int = 1
-    pg: int = 0
-    torrent_list: ClassVar[list[str]] = []
+def _dict(value: object) -> dict[str, object]:
+    return cast(dict[str, object], value) if isinstance(value, dict) else {}
 
-    class HTMLParser1(HTMLParser):
-        indicador: int = 0
 
-        @override
-        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-            if tag == "a" and self.indicador == 1:
-                params = dict(attrs)
-                href = params.get("href")
-                if href is not None:
-                    maxitorrent.get_torrent3(href)
-                self.indicador = 0
-            elif tag == "div":
-                params = dict(attrs)
-                if params.get("style") == "float:left;width:100%;height:auto;text-align:center;":
-                    self.indicador = 1
+def _list(value: object) -> list[object]:
+    return cast(list[object], value) if isinstance(value, list) else []
 
-    class HTMLParser3(HTMLParser):
-        indicador: int = 0
 
-        @override
-        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-            if tag == "a" and self.indicador == 1:
-                params = dict(attrs)
-                href = params.get("href")
-                if href is not None:
-                    maxitorrent.get_torrent2(href)
-            elif tag == "ul":
-                params = dict(attrs)
-                if params.get("class") == "buscar-list":
-                    # print("indicador 1")
-                    self.indicador = 1
+def _number(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, (str, int)):
+        return -1
+    try:
+        number = int(value)
+        return number if 0 <= number <= 9223372036854775807 else -1
+    except (ValueError, OverflowError):
+        return -1
 
-        @override
-        def handle_endtag(self, tag: str) -> None:
-            if tag == "ul":
-                # print("end tag")
-                self.indicador = 0
 
-    class HTMLParser2(HTMLParser):
-        indicador: int = 0
+def _date(value: object) -> int:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return _number(value)
+    value = _text(value)
+    if not value:
+        return -1
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if moment.tzinfo is None:
+            moment = moment.replace(tzinfo=timezone.utc)
+        return int(moment.timestamp())
+    except (ValueError, OverflowError):
+        return -1
 
-        @override
-        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-            if tag == "a" and self.indicador == 1:
-                params = dict(attrs)
-                href = params.get("href")
-                if href is not None:
-                    maxitorrent.get_torrent2(href)
-                self.indicador = 0
-            elif tag == "span":
-                params = dict(attrs)
-                if params.get("class") == "color":
-                    self.indicador = 1
 
-    @staticmethod
-    def retrieve_url2(url: str) -> bytes | str:
-        req = urllib.request.Request(url, headers=headers)
-        try:
-            with _qbt_safe_urlopen(req) as response:
-                return response.read()
-        except urllib.error.URLError:
-            return ""
+def _read(url: str) -> str:
+    request = Request(
+        url,
+        headers={
+            "User-Agent": "qbsearch/0.1 (qBittorrent search plugin)",
+            "Accept": "application/json,application/xml,text/html;q=0.9",
+        },
+    )
+    try:
+        with _qbt_safe_urlopen(request) as response:
+            return response.read().decode("utf-8-sig")
+    except (UnicodeError, ValueError, OSError):
+        return ""
 
-    def do_post(self, full_url: str, what: str) -> bytes:
-        query_args = {"s": what, "pg": self.pg}
-        encoded_args = urllib.parse.urlencode(query_args).encode("ascii")
-        req = urllib.request.Request(full_url, data=encoded_args, headers=headers)
-        with _qbt_safe_urlopen(req) as response:
-            return response.read()
 
-    @staticmethod
-    def montar_torrent(link: str) -> None:
-        link = urllib.parse.urljoin(maxitorrent.url, link)
-        target = urllib.parse.urlsplit(link)
-        if target.scheme not in ("http", "https") or not target.netloc:
+def _json(url: str) -> object:
+    try:
+        return cast(object, json.loads(_read(url)))
+    except (ValueError, TypeError):
+        return None
+
+
+@final
+class internetarchive:
+    url = "https://archive.org"
+    name = "Internet Archive"
+    supported_categories: ClassVar[dict[str, str]] = {
+        "all": "",
+        "movies": "movies",
+        "music": "audio",
+        "books": "texts",
+        "software": "software",
+    }
+
+    def search(self, what: str, cat: str = "all") -> None:
+        deadline = _qbt_new_deadline()
+        what = unquote(what).strip()[:200]
+        if not what or cat not in self.supported_categories:
             return
-        filename = urllib.parse.unquote(target.path.rstrip("/").rsplit("/", 1)[-1])
-        name = filename.rsplit(".", 1)[0]
-        if not name:
+        # Treat input as literal text rather than an Archive query-language expression.
+        terms = " ".join(re.findall(r"[\w.-]+", what, re.UNICODE))
+        if not terms:
             return
+        search = f'({terms}) AND format:"Archive BitTorrent" AND -mediatype:collection'
+        media = self.supported_categories[cat]
+        if media:
+            search += f" AND mediatype:{media}"
+        query = urlencode(
+            {"q": search, "fl[]": ["identifier", "title"], "rows": 20, "page": 1, "output": "json"},
+            doseq=True,
+        )
+        endpoint = f"{self.url}/advancedsearch.php?{query}"
+        data = _dict(_dict(_json(endpoint)).get("response"))
+        identifiers: set[str] = set()
+        jobs: list[tuple[str, str]] = []
+        for value in _list(data.get("docs"))[:20]:
+            row = _dict(value)
+            identifier = _text(row.get("identifier"))
+            if (
+                not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,199}", identifier)
+                or identifier in identifiers
+            ):
+                continue
+            identifiers.add(identifier)
+            jobs.append((identifier, _text(row.get("title")) or identifier))
+            if len(jobs) >= min(20, MAX_DETAILS):
+                break
 
-        item: SearchResults = {
-            "seeds": -1,
-            "leech": -1,
-            "name": name,
-            "size": maxitorrent.size,
-            "link": link,
-            "engine_url": maxitorrent.url,
-            "desc_link": link,
-        }
-
-        _qbt_prettyPrinter(item)
-        maxitorrent.count = maxitorrent.count + 1
-
-    @staticmethod
-    def get_torrent_core(link: str) -> None:
-        link = urllib.parse.urljoin(maxitorrent.url, link)
-        if link in maxitorrent.torrent_list:
-            return
-        if len(maxitorrent.torrent_list) >= MAX_DETAILS:
-            return
-        maxitorrent.torrent_list.append(link)
-
-        raw = maxitorrent.retrieve_url2(link)
-        html = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw
-        redirect = _REDIRECT_RE.search(html)
-        if redirect is not None:
-            destination = urllib.parse.urljoin(link, redirect.group(2))
-            if redirect.group(2).startswith("//") or urllib.parse.urlsplit(
-                destination
-            ).path.endswith(".torrent"):
-                maxitorrent.montar_torrent(destination)
-            else:
-                maxitorrent.get_torrent_core(destination)
-        elif "float:left;width:100%;height:auto;text-align:center;" in html:
-            maxitorrent.HTMLParser1().feed(html)
-        elif ' style="color:#000;font-size:23px;"' in html:
-            maxitorrent.HTMLParser3().feed(html)
-        else:
-            maxitorrent.HTMLParser2().feed(html)
-        return
-
-    @staticmethod
-    def get_torrent2(link: str) -> None:
-        maxitorrent.get_torrent_core(link)
-
-    @staticmethod
-    def get_torrent3(link: str) -> None:
-        maxitorrent.get_torrent_core(urllib.parse.urljoin(maxitorrent.url, link))
-
-    @staticmethod
-    def get_torrent(guid: str) -> None:
-        # print(guid)
-        link = maxitorrent.url + "/" + guid
-        maxitorrent.get_torrent_core(link)
-
-    def search(self, what: str, _cat: str = "all") -> None:
-        self.pg = 1
-        maxitorrent.count = 1
-        maxitorrent.size = ""
-        maxitorrent.torrent_list = []
-
-        while 0 < self.pg <= MAX_PAGES:
-            json_data = self.do_post(self.url + "/get/result/", what)
-            try:
-                payload = cast(object, json.loads(json_data))
-            except (TypeError, ValueError):
-                return
-            if not isinstance(payload, dict):
-                return
-            payload_dict = cast(dict[str, object], payload)
-            raw_data = payload_dict.get("data")
-            if not isinstance(raw_data, dict):
-                return
-            raw_data_dict = cast(dict[str, object], raw_data)
-            raw_torrents = raw_data_dict.get("torrents")
-            if not isinstance(raw_torrents, dict):
-                return
-            torrents = cast(dict[str, object], raw_torrents)
-            if not torrents:
-                return
-
-            for v in torrents.values():
-                # The API fills trailing slots of the last page with null; a
-                # null entry is the signal to stop paginating.
-                if v is None:
-                    return
-                if not isinstance(v, dict):
+        def metadata(identifier: str, title: str) -> dict[str, object] | None:
+            data = _dict(_json(f"{self.url}/metadata/{quote(identifier, safe='')}"))
+            meta = _dict(data.get("metadata"))
+            if (
+                data.get("is_dark") is True
+                or _text(meta.get("access-restricted-item")).lower() == "true"
+            ):
+                return None
+            for value in _list(data.get("files"))[:5000]:
+                row = _dict(value)
+                filename = _text(row.get("name"))
+                if row.get("private") is True or _text(row.get("private")).lower() in {"true", "1"}:
                     continue
-                for v2 in cast(dict[str, object], v).values():
-                    if not isinstance(v2, dict):
-                        continue
-                    torrent = cast(dict[str, object], v2)
-                    maxitorrent.size = str(torrent.get("torrentSize", ""))
-                    guid = torrent.get("guid")
-                    if isinstance(guid, str):
-                        self.get_torrent(guid)
+                if (
+                    filename != identifier + "_archive.torrent"
+                    or row.get("format") != "Archive BitTorrent"
+                ):
+                    continue
+                # The .torrent file's byte length is not the payload size or a live swarm count.
+                return {
+                    "name": title,
+                    "link": f"{self.url}/download/{quote(identifier, safe='')}/{quote(filename, safe='')}",
+                    "desc_link": f"{self.url}/details/{quote(identifier, safe='')}",
+                    "engine_url": self.url,
+                    "size": -1,
+                    "seeds": -1,
+                    "leech": -1,
+                    "pub_date": _date(meta.get("publicdate")),
+                }
+            return None
 
-            self.pg = self.pg + 1
-        # print(maxitorrent.count)
-
-
-if __name__ == "__main__":
-    m = maxitorrent()
-    m.search("calamar")
+        for batch_start in range(0, min(20, MAX_DETAILS), 4):
+            for row in _qbt_iter_parallel(metadata, jobs[batch_start : batch_start + 4], deadline):
+                if row is not None:
+                    _qbt_prettyPrinter(row)

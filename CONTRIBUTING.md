@@ -230,6 +230,17 @@ bun run release -- <version>
 This collects installers, plugin files, icons, support JSON, docs, and verified
 upstream license notices into the distributable zip.
 
+To publish a new stable version, add its entry at the top of
+`documentation/CHANGELOG.md` and write `documentation/releases/v<version>.md`.
+The release workflow runs after the full Python 3.9/3.11 checks and website
+build succeed for a push to `main`. It selects the changelog version, skips an
+already published release, verifies the exact checked commit again, and uploads
+the versioned ZIP and `qbsearch-latest.zip`. Manual `v*` tag pushes also work;
+the tag must match the checked-out changelog version and have release notes.
+Push a `codex/release-*` candidate branch to run focused live probes for engines
+changed since its latest ancestor release tag. The live workflow preserves its
+log as an artifact; record service failures separately from offline CI failures.
+
 Audit unresolved licenses against primary upstream grants using
 [the provenance record](documentation/LICENSE_PROVENANCE.md). A missing license
 API, source URL, or ambiguous collection-wide GPL text is not a per-engine grant.

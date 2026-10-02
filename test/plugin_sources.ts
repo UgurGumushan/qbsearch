@@ -8,6 +8,7 @@
 import academictorrentsSource from "../plugins/academictorrents.py" with { type: "text" };
 import acgripSource from "../plugins/acgrip.py" with { type: "text" };
 import ali213Source from "../plugins/ali213.py" with { type: "text" };
+import anilibertySource from "../plugins/aniliberty.py" with { type: "text" };
 import animetoshoSource from "../plugins/animetosho.py" with { type: "text" };
 import apachetorrentSource from "../plugins/apachetorrent.py" with { type: "text" };
 import audiobookbaySource from "../plugins/audiobookbay.py" with { type: "text" };
@@ -23,7 +24,11 @@ import dontorrentSource from "../plugins/dontorrent.py" with { type: "text" };
 import elitetorrentSource from "../plugins/elitetorrent.py" with { type: "text" };
 import esmeraldatorrentSource from "../plugins/esmeraldatorrent.py" with { type: "text" };
 import eztvxSource from "../plugins/eztvx.py" with { type: "text" };
+import filemoodSource from "../plugins/filemood.py" with { type: "text" };
 import fitgirl_repacksSource from "../plugins/fitgirl_repacks.py" with { type: "text" };
+import internetarchiveSource from "../plugins/internetarchive.py" with { type: "text" };
+import knabenSource from "../plugins/knaben.py" with { type: "text" };
+import linuxtrackerSource from "../plugins/linuxtracker.py" with { type: "text" };
 import maxitorrentSource from "../plugins/maxitorrent.py" with { type: "text" };
 import mikanSource from "../plugins/mikan.py" with { type: "text" };
 import mikananiSource from "../plugins/mikanani.py" with { type: "text" };
@@ -46,10 +51,14 @@ import thepiratebaySource from "../plugins/thepiratebay.py" with { type: "text" 
 import therarbgSource from "../plugins/therarbg.py" with { type: "text" };
 import tokyotoshokanSource from "../plugins/tokyotoshokan.py" with { type: "text" };
 import tomadivxSource from "../plugins/tomadivx.py" with { type: "text" };
+import torlockSource from "../plugins/torlock.py" with { type: "text" };
 import torrent9Source from "../plugins/torrent9.py" with { type: "text" };
+import torrentclawSource from "../plugins/torrentclaw.py" with { type: "text" };
 import torrentdownloadSource from "../plugins/torrentdownload.py" with { type: "text" };
 import torrentdownloadsSource from "../plugins/torrentdownloads.py" with { type: "text" };
+import torrentfunkSource from "../plugins/torrentfunk.py" with { type: "text" };
 import trahtSource from "../plugins/traht.py" with { type: "text" };
+import uindexSource from "../plugins/uindex.py" with { type: "text" };
 import uniondhtSource from "../plugins/uniondht.py" with { type: "text" };
 import xxxclubtoSource from "../plugins/xxxclubto.py" with { type: "text" };
 import yourbittorrentSource from "../plugins/yourbittorrent.py" with { type: "text" };
@@ -59,6 +68,7 @@ export const PLUGIN_SOURCES = {
   academictorrents: academictorrentsSource,
   acgrip: acgripSource,
   ali213: ali213Source,
+  aniliberty: anilibertySource,
   animetosho: animetoshoSource,
   apachetorrent: apachetorrentSource,
   audiobookbay: audiobookbaySource,
@@ -74,7 +84,11 @@ export const PLUGIN_SOURCES = {
   elitetorrent: elitetorrentSource,
   esmeraldatorrent: esmeraldatorrentSource,
   eztvx: eztvxSource,
+  filemood: filemoodSource,
   fitgirl_repacks: fitgirl_repacksSource,
+  internetarchive: internetarchiveSource,
+  knaben: knabenSource,
+  linuxtracker: linuxtrackerSource,
   maxitorrent: maxitorrentSource,
   mikan: mikanSource,
   mikanani: mikananiSource,
@@ -97,10 +111,14 @@ export const PLUGIN_SOURCES = {
   therarbg: therarbgSource,
   tokyotoshokan: tokyotoshokanSource,
   tomadivx: tomadivxSource,
+  torlock: torlockSource,
   torrent9: torrent9Source,
+  torrentclaw: torrentclawSource,
   torrentdownload: torrentdownloadSource,
   torrentdownloads: torrentdownloadsSource,
+  torrentfunk: torrentfunkSource,
   traht: trahtSource,
+  uindex: uindexSource,
   uniondht: uniondhtSource,
   xxxclubto: xxxclubtoSource,
   yourbittorrent: yourbittorrentSource,

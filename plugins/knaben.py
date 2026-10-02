@@ -1,24 +1,20 @@
-# VERSION: 1.25
-"""
-MaxiTorrent search (atomixhq.com). POSTs the query to the site's JSON result
-endpoint, then follows each torrent's redirect page to the .torrent URL,
-retrying against alternate page layouts when the redirect is absent.
-"""
+# VERSION: 1.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Knaben API v2 search: one bounded page, validated infohashes and ready magnets."""
 
 from __future__ import annotations
 
+import base64
 import json
 import re
-import urllib.error
-import urllib.parse
-import urllib.request
-from html.parser import HTMLParser
-from typing import ClassVar, cast
+from datetime import datetime, timezone
+from typing import ClassVar, cast, final
+from urllib.parse import parse_qs, quote, unquote, urlsplit
+from urllib.request import Request
 
-import helpers
-from novaprinter import SearchResults, prettyPrinter
+from helpers import retrieve_url as _qbt_helper_retrieve_url
+from novaprinter import prettyPrinter
 
-_qbt_helper_retrieve_url = None
 # BEGIN GENERATED QBITT SAFETY PREAMBLE
 # Slim stdlib-only helpers for standalone engines (rendered by `bun run gen`).
 try:
@@ -35,7 +31,6 @@ try:
     from threading import Lock as _qbt_Lock
     from threading import local as _qbt_local
     from types import TracebackType as _QBTTracebackType
-    from typing import TYPE_CHECKING
     from typing import Callable as _QBTCallable
     from typing import Protocol as _QBTProtocol
     from typing import TypeVar as _QBTTypeVar
@@ -56,14 +51,6 @@ def _qbt_default_workers() -> int:
         return min(16, max(1, int(value)))
     except ValueError:
         return default
-
-
-if TYPE_CHECKING:
-    from typing_extensions import override
-else:
-
-    def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
-        return function
 
 
 HTTP_TIMEOUT = 20.0
@@ -498,200 +485,177 @@ __all__ = [
 # END GENERATED QBITT SAFETY PREAMBLE
 
 
-headers = cast(dict[str, str], cast(object, vars(helpers)["_headers"]))
-_REDIRECT_RE = re.compile(r"window\.location\.href\s*=\s*(['\"])(.*?)\1")
+def _text(value: object) -> str:
+    return value.strip() if isinstance(value, str) else ""
 
 
-class maxitorrent:
-    url: str = "http://atomixhq.com"
-    name: str = "MaxiTorrent"
-    size: str = ""
-    count: int = 1
-    pg: int = 0
-    torrent_list: ClassVar[list[str]] = []
+def _dict(value: object) -> dict[str, object]:
+    return cast(dict[str, object], value) if isinstance(value, dict) else {}
 
-    class HTMLParser1(HTMLParser):
-        indicador: int = 0
 
-        @override
-        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-            if tag == "a" and self.indicador == 1:
-                params = dict(attrs)
-                href = params.get("href")
-                if href is not None:
-                    maxitorrent.get_torrent3(href)
-                self.indicador = 0
-            elif tag == "div":
-                params = dict(attrs)
-                if params.get("style") == "float:left;width:100%;height:auto;text-align:center;":
-                    self.indicador = 1
+def _list(value: object) -> list[object]:
+    return cast(list[object], value) if isinstance(value, list) else []
 
-    class HTMLParser3(HTMLParser):
-        indicador: int = 0
 
-        @override
-        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-            if tag == "a" and self.indicador == 1:
-                params = dict(attrs)
-                href = params.get("href")
-                if href is not None:
-                    maxitorrent.get_torrent2(href)
-            elif tag == "ul":
-                params = dict(attrs)
-                if params.get("class") == "buscar-list":
-                    # print("indicador 1")
-                    self.indicador = 1
+def _number(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, (str, int)):
+        return -1
+    try:
+        number = int(value)
+        return number if 0 <= number <= 9223372036854775807 else -1
+    except (ValueError, OverflowError):
+        return -1
 
-        @override
-        def handle_endtag(self, tag: str) -> None:
-            if tag == "ul":
-                # print("end tag")
-                self.indicador = 0
 
-    class HTMLParser2(HTMLParser):
-        indicador: int = 0
+def _http(value: object) -> str:
+    url = _text(value)
+    if any(ord(char) <= 32 for char in url):
+        return ""
+    try:
+        parsed = urlsplit(url)
+        return (
+            url
+            if parsed.scheme in {"http", "https"}
+            and parsed.hostname
+            and not (parsed.username or parsed.password)
+            else ""
+        )
+    except ValueError:
+        return ""
 
-        @override
-        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-            if tag == "a" and self.indicador == 1:
-                params = dict(attrs)
-                href = params.get("href")
-                if href is not None:
-                    maxitorrent.get_torrent2(href)
-                self.indicador = 0
-            elif tag == "span":
-                params = dict(attrs)
-                if params.get("class") == "color":
-                    self.indicador = 1
 
-    @staticmethod
-    def retrieve_url2(url: str) -> bytes | str:
-        req = urllib.request.Request(url, headers=headers)
+def _hash(value: object) -> str:
+    value = _text(value)
+    if re.fullmatch(r"[a-fA-F0-9]{40}", value):
+        return value.lower()
+    if re.fullmatch(r"[A-Z2-7a-z]{32}", value):
         try:
-            with _qbt_safe_urlopen(req) as response:
-                return response.read()
-        except urllib.error.URLError:
-            return ""
+            return base64.b32decode(value.upper()).hex()
+        except ValueError:
+            pass
+    return ""
 
-    def do_post(self, full_url: str, what: str) -> bytes:
-        query_args = {"s": what, "pg": self.pg}
-        encoded_args = urllib.parse.urlencode(query_args).encode("ascii")
-        req = urllib.request.Request(full_url, data=encoded_args, headers=headers)
-        with _qbt_safe_urlopen(req) as response:
-            return response.read()
 
-    @staticmethod
-    def montar_torrent(link: str) -> None:
-        link = urllib.parse.urljoin(maxitorrent.url, link)
-        target = urllib.parse.urlsplit(link)
-        if target.scheme not in ("http", "https") or not target.netloc:
-            return
-        filename = urllib.parse.unquote(target.path.rstrip("/").rsplit("/", 1)[-1])
-        name = filename.rsplit(".", 1)[0]
-        if not name:
-            return
+def _magnet(value: object, info_hash: object, title: str) -> tuple[str, str]:
+    digest = _hash(info_hash)
+    magnet = _text(value)
+    if magnet.lower().startswith("magnet:?") and not any(ord(c) < 32 for c in magnet):
+        try:
+            for item in parse_qs(urlsplit(magnet).query).get("xt", []):
+                if item.lower().startswith("urn:btih:"):
+                    found = _hash(item[9:])
+                    if found and (not digest or found == digest):
+                        return magnet, found
+        except ValueError:
+            pass
+    if digest:
+        return f"magnet:?xt=urn:btih:{digest}&dn={quote(title, safe='')}", digest
+    return "", ""
 
-        item: SearchResults = {
-            "seeds": -1,
-            "leech": -1,
+
+def _date(value: object) -> int:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return _number(value)
+    value = _text(value)
+    if not value:
+        return -1
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if moment.tzinfo is None:
+            moment = moment.replace(tzinfo=timezone.utc)
+        return int(moment.timestamp())
+    except (ValueError, OverflowError):
+        return -1
+
+
+def _read(url: str) -> str:
+    request = Request(
+        url,
+        headers={
+            "User-Agent": "qbsearch/0.1 (qBittorrent search plugin)",
+            "Accept": "application/json,application/xml,text/html;q=0.9",
+        },
+    )
+    try:
+        with _qbt_safe_urlopen(request) as response:
+            return response.read().decode("utf-8-sig")
+    except (UnicodeError, ValueError, OSError):
+        return ""
+
+
+def _json(url: str) -> object:
+    try:
+        return cast(object, json.loads(_read(url)))
+    except (ValueError, TypeError):
+        return None
+
+
+def _emit(
+    site: str,
+    seen: set[str],
+    title: object,
+    magnet: object,
+    info_hash: object,
+    size: object,
+    seeds: object,
+    leech: object,
+    detail: object,
+    date: object = None,
+) -> bool:
+    name = _text(title)
+    if (
+        not name
+        or len(seen) >= min(100, MAX_DETAILS)
+        or _qbt_time.monotonic() >= _qbt_get_deadline()
+    ):
+        return False
+    link, key = _magnet(magnet, info_hash, name)
+    if not link or key in seen:
+        return False
+    seen.add(key)
+    _qbt_prettyPrinter(
+        {
             "name": name,
-            "size": maxitorrent.size,
             "link": link,
-            "engine_url": maxitorrent.url,
-            "desc_link": link,
+            "size": size
+            if isinstance(size, str)
+            and re.fullmatch(r"\d+(?:[.,]\d+)?\s*[KMGTPE]?i?B", size, re.IGNORECASE)
+            else _number(size),
+            "seeds": _number(seeds),
+            "leech": _number(leech),
+            "desc_link": _http(detail) or site,
+            "engine_url": site,
+            "pub_date": _date(date),
         }
+    )
+    return True
 
-        _qbt_prettyPrinter(item)
-        maxitorrent.count = maxitorrent.count + 1
 
-    @staticmethod
-    def get_torrent_core(link: str) -> None:
-        link = urllib.parse.urljoin(maxitorrent.url, link)
-        if link in maxitorrent.torrent_list:
+@final
+class knaben:
+    url = "https://knaben.org"
+    name = "Knaben"
+    supported_categories: ClassVar[dict[str, str]] = {"all": "0"}
+
+    def search(self, what: str, cat: str = "all") -> None:
+        _ = _qbt_new_deadline()
+        query = quote(unquote(what).strip()[:200], safe="")
+        if not query or cat not in self.supported_categories:
             return
-        if len(maxitorrent.torrent_list) >= MAX_DETAILS:
-            return
-        maxitorrent.torrent_list.append(link)
-
-        raw = maxitorrent.retrieve_url2(link)
-        html = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw
-        redirect = _REDIRECT_RE.search(html)
-        if redirect is not None:
-            destination = urllib.parse.urljoin(link, redirect.group(2))
-            if redirect.group(2).startswith("//") or urllib.parse.urlsplit(
-                destination
-            ).path.endswith(".torrent"):
-                maxitorrent.montar_torrent(destination)
-            else:
-                maxitorrent.get_torrent_core(destination)
-        elif "float:left;width:100%;height:auto;text-align:center;" in html:
-            maxitorrent.HTMLParser1().feed(html)
-        elif ' style="color:#000;font-size:23px;"' in html:
-            maxitorrent.HTMLParser3().feed(html)
-        else:
-            maxitorrent.HTMLParser2().feed(html)
-        return
-
-    @staticmethod
-    def get_torrent2(link: str) -> None:
-        maxitorrent.get_torrent_core(link)
-
-    @staticmethod
-    def get_torrent3(link: str) -> None:
-        maxitorrent.get_torrent_core(urllib.parse.urljoin(maxitorrent.url, link))
-
-    @staticmethod
-    def get_torrent(guid: str) -> None:
-        # print(guid)
-        link = maxitorrent.url + "/" + guid
-        maxitorrent.get_torrent_core(link)
-
-    def search(self, what: str, _cat: str = "all") -> None:
-        self.pg = 1
-        maxitorrent.count = 1
-        maxitorrent.size = ""
-        maxitorrent.torrent_list = []
-
-        while 0 < self.pg <= MAX_PAGES:
-            json_data = self.do_post(self.url + "/get/result/", what)
-            try:
-                payload = cast(object, json.loads(json_data))
-            except (TypeError, ValueError):
-                return
-            if not isinstance(payload, dict):
-                return
-            payload_dict = cast(dict[str, object], payload)
-            raw_data = payload_dict.get("data")
-            if not isinstance(raw_data, dict):
-                return
-            raw_data_dict = cast(dict[str, object], raw_data)
-            raw_torrents = raw_data_dict.get("torrents")
-            if not isinstance(raw_torrents, dict):
-                return
-            torrents = cast(dict[str, object], raw_torrents)
-            if not torrents:
-                return
-
-            for v in torrents.values():
-                # The API fills trailing slots of the last page with null; a
-                # null entry is the signal to stop paginating.
-                if v is None:
-                    return
-                if not isinstance(v, dict):
-                    continue
-                for v2 in cast(dict[str, object], v).values():
-                    if not isinstance(v2, dict):
-                        continue
-                    torrent = cast(dict[str, object], v2)
-                    maxitorrent.size = str(torrent.get("torrentSize", ""))
-                    guid = torrent.get("guid")
-                    if isinstance(guid, str):
-                        self.get_torrent(guid)
-
-            self.pg = self.pg + 1
-        # print(maxitorrent.count)
-
-
-if __name__ == "__main__":
-    m = maxitorrent()
-    m.search("calamar")
+        endpoint = f"https://api.knaben.org/v2/search?q={query}&s=100&f=0&o=seeders&d=desc"
+        data = _dict(_json(endpoint))
+        seen: set[str] = set()
+        for item in _list(data.get("hits"))[:100]:
+            row = _dict(item)
+            _ = _emit(
+                self.url,
+                seen,
+                row.get("title"),
+                row.get("magnetUrl"),
+                row.get("hash"),
+                row.get("bytes"),
+                row.get("seeders"),
+                row.get("peers"),
+                row.get("details"),
+                row.get("date"),
+            )

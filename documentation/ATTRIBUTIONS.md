@@ -1,5 +1,10 @@
 # Attributions
 
+The 2026-10-03 additions are original qbsearch implementations. Protocol
+references for AniLiberty, FileMood, Internet Archive, Knaben, LinuxTracker,
+Torlock, TorrentClaw, TorrentFunk and UIndex are listed in
+[NEW_PLUGINS.md](NEW_PLUGINS.md). The historical author table below is retained.
+
 Contributor credit for each engine plugin in `plugins/`, transcribed from the
 `# AUTHORS:` / `# AUTHOR:` header that used to sit at the top of each file.
 These blocks were moved out of the plugins (see ../LICENSE.md) so the engines stay

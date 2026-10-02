@@ -679,17 +679,16 @@ class elitetorrent:
 
         links: list[str] = []
         seen_links: set[str] = set()
-
+        pattern = (
+            rf"({self.url}/series/.*?/|{self.url}/peliculas/.*?/)"
+            if cat == "all"
+            else rf"{self.url}/{self.supported_categories[cat]}/.*?/"
+        )
         for page in range(1, min(number_pages, MAX_PAGES) + 1):
-            # Page urls look like: {url}/page/{n}/?s={query}
-            url = f"{self.url}/page/{page}/?s={query}"
-            html = retrieve_url(url).replace("\n", "")  # Replace newline to help the regex
-            # I hate regex, check if selected category is films or tv, if its 'all' get both
-            pattern = (
-                rf"({self.url}/series/.*?/|{self.url}/peliculas/.*?/)"
-                if cat == "all"
-                else rf"{self.url}/{self.supported_categories[cat]}/.*?/"
-            )
+            # The initial search response already contains page one.
+            if page > 1:
+                html = retrieve_url(f"{self.url}/page/{page}/?s={query}")
+            html = html.replace("\n", "")
             # Collect every matching result link on the page.
             items = cast(list[str], re.findall(pattern, html))
             for result_link in items:

@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.1.11
+
+- Add nine original standalone engines: AniLiberty, FileMood, Internet Archive,
+  Knaben, LinuxTracker, Torlock, TorrentClaw, TorrentFunk and UIndex, bringing
+  the collection to 58. Retain provisional status pending live captures.
+- Use bounded API or row parsers, validated and deduplicated download links,
+  and at most four concurrent metadata requests for Archive and AniLiberty.
+  Cache identical TorrentFunk and Torlock searches for documented intervals.
+- Add actual-engine checks for metadata, malformed responses, Unicode query
+  encoding, request budgets, cache reuse and concurrency. Record FOSS Torrents'
+  deferral and honest per-engine expectations in NEW_PLUGINS.md.
+
+- Replace the distribution website with a static download page, one direct
+  latest-ZIP link, platform install commands, and a network-free legacy redirect.
+- Update Next.js to 16.3.3 with the matching Bun lockfile for frozen installs.
+- Reuse Elitetorrent's initial search response for page one, removing one
+  HTTP request while preserving captured result metadata and work limits.
+- Avoid repeated DOM-content and parser-path copies in Darklibria. A controlled
+  wide-DOM replay uses 64.3% less CPU; small pages show no material gain.
+- Emit completed UnionDHT pages immediately while preserving page order and
+  deduplication. First output arrives 78.9% earlier in a five-page replay with
+  simulated 100 ms responses; total search time is essentially unchanged.
+- Retain DMHY's link attributes and supplied magnets, preserve HTML entities
+  and metadata, and enforce its global result budget across pagination.
+- Repair Maxitorrent's skipped POST pages, row-size ordering, URL resolution,
+  and JavaScript redirect parsing while keeping detail and cycle limits.
+- Add an offline benchmark mode to the existing test command, with paired
+  fresh-process comparisons, separate allocation tracing, scheduling matrices,
+  source snapshots, and result-equality and regression gates.
+- Document decisions for all 49 plugins. Reject the AcademicTorrents streaming
+  XML prototype because its memory saving increased search time, and retain
+  functional-evidence requirements for deferred changes.
+- Publish documented versions after successful main-branch CI, retaining
+  manual tag releases, and preserve focused live probes, functional/download
+  captures, and SubsPlease pagination observations for release branches.
+
 ## 0.1.10
 
 - Scale parallel search work from four workers to a hardware-based 4–16 worker

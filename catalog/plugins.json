@@ -41,6 +41,19 @@
       "notes": "Actual-parser pairs on 2026-10-01 emitted zero records for minecraft and elden ring despite HTTP 200 search/game pages. Current resource buttons no longer expose the legacy download chain; bounded replacement-resource request timed out. Keep unavailable pending the separated-date recovery/removal follow-up in MAINTENANCE_LOG.md."
     },
     {
+      "id": "aniliberty",
+      "name": "AniLiberty",
+      "site_url": "https://aniliberty.top",
+      "category": "anime",
+      "default_query": "naruto",
+      "status": "intermittent",
+      "icon": "icons/aniliberty.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/aniliberty.py",
+      "license": "GPLv3",
+      "notes": "API v1 search plus at most eight release-torrent requests; four workers; public magnets. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+    },
+    {
       "id": "animetosho",
       "name": "Anime Tosho",
       "site_url": "https://animetosho.org",
@@ -236,6 +249,19 @@
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
+      "id": "filemood",
+      "name": "FileMood",
+      "site_url": "https://filemood.com",
+      "category": "general",
+      "default_query": "netbsd",
+      "status": "intermittent",
+      "icon": "icons/filemood.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/filemood.py",
+      "license": "GPLv3",
+      "notes": "One public title-search page; builds DHT magnets from listing infohashes. Swarm counts unknown. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+    },
+    {
       "id": "fitgirl_repacks",
       "name": "FitGirl Repacks",
       "site_url": "https://fitgirl-repacks.site/",
@@ -247,6 +273,45 @@
       "source_url": "https://raw.githubusercontent.com/Bioux1/qbtSearchPlugins/main/fitgirl_repacks.py",
       "license": "Unknown",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
+    },
+    {
+      "id": "internetarchive",
+      "name": "Internet Archive",
+      "site_url": "https://archive.org",
+      "category": "general",
+      "default_query": "ubuntu",
+      "status": "intermittent",
+      "icon": "icons/internetarchive.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/internetarchive.py",
+      "license": "GPLv3",
+      "notes": "Search restricted to Archive BitTorrent items; at most 20 metadata requests with four workers. Emits only public, explicitly listed item torrents; payload size and swarm counts unknown. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+    },
+    {
+      "id": "knaben",
+      "name": "Knaben",
+      "site_url": "https://knaben.org",
+      "category": "general",
+      "default_query": "ubuntu",
+      "status": "intermittent",
+      "icon": "icons/knaben.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/knaben.py",
+      "license": "GPLv3",
+      "notes": "API v2 GET search; one seed-sorted page, at most 100 results. V2 response contract awaits live capture. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+    },
+    {
+      "id": "linuxtracker",
+      "name": "LinuxTracker",
+      "site_url": "https://linuxtracker.org",
+      "category": "software",
+      "default_query": "ubuntu",
+      "status": "intermittent",
+      "icon": "icons/linuxtracker.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/linuxtracker.py",
+      "license": "GPLv3",
+      "notes": "Current public /torrents/?q= listing; constructs magnets from infohash URLs, avoiding detail requests. Reports local tracker swarm counts separately from external observations. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
     },
     {
       "id": "maxitorrent",
@@ -535,6 +600,19 @@
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
+      "id": "torlock",
+      "name": "Torlock",
+      "site_url": "https://www.torlock.com",
+      "category": "general",
+      "default_query": "ubuntu",
+      "status": "intermittent",
+      "icon": "icons/torlock.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torlock.py",
+      "license": "GPLv3",
+      "notes": "Hosted Torznab XML API; one page of at most 100 items; magnets avoid sponsored HTML rows. Some datacenter IPs require site whitelisting. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+    },
+    {
       "id": "torrent9",
       "name": "Torrent9 (french)",
       "site_url": "http://torent9.fr",
@@ -546,6 +624,19 @@
       "source_url": "https://raw.githubusercontent.com/menegop/qbfrench/master/torrent9.py",
       "license": "Copyleft",
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
+    },
+    {
+      "id": "torrentclaw",
+      "name": "TorrentClaw",
+      "site_url": "https://torrentclaw.com",
+      "category": "movies",
+      "default_query": "big buck bunny",
+      "status": "intermittent",
+      "icon": "icons/torrentclaw.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentclaw.py",
+      "license": "GPLv3",
+      "notes": "Public API search; 50 content groups, at most 100 torrent results. Uses public infohashes when the ready magnet is omitted for anonymous clients. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
     },
     {
       "id": "torrentdownload",
@@ -574,6 +665,19 @@
       "notes": "Active in catalog; include in standard release validation and verify on maintenance sweeps."
     },
     {
+      "id": "torrentfunk",
+      "name": "TorrentFunk",
+      "site_url": "https://www.torrentfunk.com",
+      "category": "general",
+      "default_query": "ubuntu",
+      "status": "intermittent",
+      "icon": "icons/torrentfunk.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentfunk.py",
+      "license": "GPLv3",
+      "notes": "Public JSON search; one seed-sorted page of at most 100 results; no detail fetches. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+    },
+    {
       "id": "traht",
       "name": "Traht",
       "site_url": "https://traht.org",
@@ -585,6 +689,19 @@
       "source_url": "https://raw.githubusercontent.com/BurningMop/qBittorrent-Search-Plugins/refs/heads/main/traht.py",
       "license": "MIT",
       "notes": "Actual-parser inception/matrix pairs on 2026-10-01 received empty HTTP 200 browse responses and emitted zero records. Public form route without page is also empty; no usable anonymous replacement established. Retain intermittent pending the separated-date follow-up in MAINTENANCE_LOG.md."
+    },
+    {
+      "id": "uindex",
+      "name": "UIndex",
+      "site_url": "https://uindex.org",
+      "category": "general",
+      "default_query": "ubuntu",
+      "status": "intermittent",
+      "icon": "icons/uindex.ico",
+      "requires_auth": false,
+      "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/uindex.py",
+      "license": "GPLv3",
+      "notes": "Guest search; one table page with supplied magnets. Reference engine is deprecated; current search/download behavior awaits live verification. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
     },
     {
       "id": "uniondht",

@@ -176,3 +176,21 @@ header carried only the word "Copyleft" with no verifiable license text;
 | MIT (note only)               | 1     | yggtracker                                                                                                                                                                                         |
 | Copyleft (no verifiable text) | 2     | cpasbien, torrent9                                                                                                                                                                                 |
 | No license stated             | 35    | the remainder, incl. the three files with an empty `# LICENSING INFORMATION` marker (anidex, nyaa_phuong, torrentgalaxy)                                                                           |
+
+## New original engines
+
+The nine original engines added on 2026-10-03 are licensed under GNU GPL v3
+or later (SPDX: GPL-3.0-or-later). See [their protocol references and
+verification limits](documentation/NEW_PLUGINS.md).
+
+| File                                             | License |
+| ------------------------------------------------ | ------- |
+| [aniliberty.py](plugins/aniliberty.py)           | GPLv3   |
+| [filemood.py](plugins/filemood.py)               | GPLv3   |
+| [internetarchive.py](plugins/internetarchive.py) | GPLv3   |
+| [knaben.py](plugins/knaben.py)                   | GPLv3   |
+| [linuxtracker.py](plugins/linuxtracker.py)       | GPLv3   |
+| [torlock.py](plugins/torlock.py)                 | GPLv3   |
+| [torrentclaw.py](plugins/torrentclaw.py)         | GPLv3   |
+| [torrentfunk.py](plugins/torrentfunk.py)         | GPLv3   |
+| [uindex.py](plugins/uindex.py)                   | GPLv3   |

@@ -31,6 +31,11 @@ const FUNCTIONAL_QUERIES: Record<ParserPlugin, readonly string[]> = {
   ali213: ["minecraft", "elden ring"],
   pirateiro: ["inception", "ubuntu"],
   traht: ["inception", "matrix"],
+  audiobookbay: ["the hobbit", "sherlock holmes"],
+  darklibria: ["the hobbit", "sherlock holmes"],
+  dmhy: ["naruto", "one piece"],
+  torrentdownloads: ["ubuntu", "debian"],
+  uniondht: ["ubuntu", "debian"],
 };
 
 interface ResponseEvidence {
@@ -169,7 +174,7 @@ export async function captureParserCase(
     }
     const details = new Set<string>();
     for (let page = 1; page <= Math.min(pages, CAPTURE_LIMITS.maxPages); page += 1) {
-      const html = await get(`${site}/page/${page}/?s=${encoded}`);
+      const html = page === 1 ? first : await get(`${site}/page/${page}/?s=${encoded}`);
       for (const link of elitetorrentResultLinks(html, site)) {
         details.add(link);
         if (details.size === CAPTURE_LIMITS.maxDetails) {
@@ -293,7 +298,12 @@ export async function runFunctionalPass(
         throw new Error("plugin source changed between recovery queries");
       }
       item.replay = await replayParserCase(item.capture.path);
-      assertUsableParserResults(item.replay, ["ali213", "pirateiro", "traht"].includes(plugin));
+      assertUsableParserResults(
+        item.replay,
+        ["ali213", "pirateiro", "traht", "audiobookbay", "torrentdownloads", "uniondht"].includes(
+          plugin,
+        ),
+      );
     } catch (error) {
       if (error instanceof ParserCaptureError) {
         item.capture = error.capture;

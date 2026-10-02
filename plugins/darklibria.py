@@ -686,7 +686,7 @@ class Tag:
         self.type: str | None = tag
         self.is_self_closing: bool | None = is_self_closing
         self._attrs: tuple[tuple[str, str | None], ...] = tuple(attrs)
-        self._content: tuple[Tag | str, ...] = ()
+        self._content: list[Tag | str] = []
 
     @property
     def attrs(self) -> dict[str, str | None]:
@@ -700,13 +700,13 @@ class Tag:
 
     def add_content(self, obj: object) -> None:
         if isinstance(obj, (Tag, str)):
-            self._content += (obj,)
+            self._content.append(obj)
         else:
             raise TypeError(f"Argument must be str or {self.__class__}, not {obj.__class__}")
 
     @property
     def content(self) -> tuple[Tag | str, ...]:
-        return self._content
+        return tuple(self._content)
 
     def find(
         self,
@@ -821,17 +821,19 @@ class Parser(HTMLParser):
 
     @override
     def handle_endtag(self, tag: str) -> None:
-        for pos, node in tuple(enumerate(self._path))[::-1]:
+        for pos in range(len(self._path) - 1, -1, -1):
+            node = self._path[pos]
             if isinstance(node, Tag) and node.type == tag and node.is_self_closing is None:
                 node.is_self_closing = False
 
-                for obj in self._path[pos + 1 :]:
+                for index in range(pos + 1, len(self._path)):
+                    obj = self._path[index]
                     if isinstance(obj, Tag) and obj.is_self_closing is None:
                         obj.is_self_closing = True
 
                     node.add_content(obj)
 
-                self._path = self._path[: pos + 1]
+                del self._path[pos + 1 :]
 
                 break
 

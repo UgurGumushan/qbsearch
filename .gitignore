@@ -13,6 +13,7 @@ __pycache__/
 *.log
 plugins/*.cookie
 plugins/*_temp.*
+plugins/.qbsearch-cache/
 
 # macOS
 .DS_Store

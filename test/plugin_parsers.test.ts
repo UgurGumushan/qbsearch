@@ -60,7 +60,10 @@ for (const name of ["elitetorrent-inception", "elitetorrent-matrix", "bitsearch"
       expect(records[index]).toMatchObject(expected[index]);
       expect(records[index].pub_date).toBeGreaterThan(0);
     }
-    expect(new Set(report.requests)).toEqual(new Set(Object.keys(fixture.responses)));
+    const expectedRequests = Object.keys(fixture.responses).filter(
+      (url) => !url.includes("elitetorrent.com/page/1/"),
+    );
+    expect(new Set(report.requests)).toEqual(new Set(expectedRequests));
   });
 }
 
@@ -140,7 +143,7 @@ test("Elitetorrent filters categories, deduplicates details, and obeys both work
     const report = await replay(fixture);
     assertUsableParserResults(report);
     expect(report.records.length).toBe(1);
-    expect(report.requests.length).toBe(3);
+    expect(report.requests.length).toBe(2);
     expect(report.records[0].desc_link).toBe(category === "tv" ? tv : movie);
   }
 });
@@ -191,9 +194,11 @@ print(json.dumps(parser_harness.replay(Path(sys.argv[1]) / "case.json")))`;
     });
     expect(result.code).toBe(0);
     const report = JSON.parse(result.output) as { errors: string[] };
-    expect(report.errors).toEqual(
-      Array<string>(3).fill("network or download attempted during offline replay"),
-    );
+    expect(report.errors).toEqual([
+      "network or download attempted during offline replay",
+      "unexpected request: https://example.test",
+      "network or download attempted during offline replay",
+    ]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
