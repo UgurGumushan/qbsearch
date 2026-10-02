@@ -51,7 +51,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/aniliberty.py",
       "license": "GPLv3",
-      "notes": "API v1 search plus at most eight release-torrent requests; four workers; public magnets. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "API v1 search plus at most eight release-torrent requests; four workers; public magnets. Fresh browser HTTP captures on 2026-10-03 replayed through the released Python engine emitted nine valid results for naruto and 14 for bleach, with four and three engine requests respectively. Native Bun networking and magnet swarm downloads remain unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "animetosho",
@@ -259,7 +259,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/filemood.py",
       "license": "GPLv3",
-      "notes": "One public title-search page; builds DHT magnets from listing infohashes. Swarm counts unknown. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "One public title-search page; builds DHT magnets from listing infohashes. Fresh browser HTTP captures on 2026-10-03 replayed through the released Python engine emitted 20 valid results each for netbsd and freebsd, with one engine request per query. Swarm counts and DHT availability remain unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "fitgirl_repacks",
@@ -285,7 +285,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/internetarchive.py",
       "license": "GPLv3",
-      "notes": "Search restricted to Archive BitTorrent items; at most 20 metadata requests with four workers. Emits only public, explicitly listed item torrents; payload size and swarm counts unknown. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "Search restricted to Archive BitTorrent items; at most 20 metadata requests with four workers. Fresh browser HTTP captures on 2026-10-03 replayed through the released Python engine emitted 18 public results for ubuntu and 20 for debian, with 21 engine requests each. Both private Ubuntu-query torrents were excluded. Two public torrent files were downloaded and passed structural metainfo checks. Native Bun networking and payload/swarm availability remain unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "knaben",
@@ -298,7 +298,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/knaben.py",
       "license": "GPLv3",
-      "notes": "API v2 GET search; one seed-sorted page, at most 100 results. V2 response contract awaits live capture. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "API v2 GET search; one seed-sorted page, at most 100 results. Fresh browser HTTP captures on 2026-10-03 confirmed the current v2 fields and replayed through the released Python engine emitted 88 valid results for ubuntu and 16 for debian, with one engine request per query. Native Bun networking and magnet swarm downloads remain unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "linuxtracker",
@@ -311,7 +311,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/linuxtracker.py",
       "license": "GPLv3",
-      "notes": "Current public /torrents/?q= listing; constructs magnets from infohash URLs, avoiding detail requests. Reports local tracker swarm counts separately from external observations. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "Current public /torrents/?q= listing; constructs magnets from infohash URLs, avoiding detail requests. Fresh browser HTTP captures on 2026-10-03 replayed through the released Python engine emitted 25 valid results each for ubuntu and debian, with one engine request per query. Reports local tracker counts separately from external observations. Native Bun networking and DHT availability remain unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "maxitorrent",
@@ -610,7 +610,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torlock.py",
       "license": "GPLv3",
-      "notes": "Hosted Torznab XML API; one page of at most 100 items; magnets avoid sponsored HTML rows. Some datacenter IPs require site whitelisting. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "Hosted Torznab XML API; one page of at most 100 items; magnets avoid sponsored HTML rows. Fresh browser HTTP captures on 2026-10-03 replayed through the released Python engine emitted 100 valid results each for ubuntu and debian, with one engine request per query. Native Bun networking and magnet swarm downloads remain unverified; some datacenter IPs require whitelisting. Retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "torrent9",
@@ -636,7 +636,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentclaw.py",
       "license": "GPLv3",
-      "notes": "Public API search; 50 content groups, at most 100 torrent results. Uses public infohashes when the ready magnet is omitted for anonymous clients. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "Public API search; 50 content groups, at most 100 torrent results. Uses public infohashes when the ready magnet is omitted for anonymous clients. Browser HTTP capture on 2026-10-03 returned HTTP 403 Forbidden for big buck bunny; the engine safely emitted no rows. Current successful search parsing remains unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "torrentdownload",
@@ -675,7 +675,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/torrentfunk.py",
       "license": "GPLv3",
-      "notes": "Public JSON search; one seed-sorted page of at most 100 results; no detail fetches. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "Public JSON search; one seed-sorted page of at most 100 results; no detail fetches. Fresh browser HTTP captures on 2026-10-03 replayed through the released Python engine emitted four valid results for ubuntu and 18 for linux, with one engine request per query. The API explicitly reported zero matches for debian, and the engine emitted zero rows. Native Bun networking and magnet swarm downloads remain unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "traht",
@@ -701,7 +701,7 @@
       "requires_auth": false,
       "source_url": "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/uindex.py",
       "license": "GPLv3",
-      "notes": "Guest search; one table page with supplied magnets. Reference engine is deprecated; current search/download behavior awaits live verification. New original engine; deterministic contract tests do not establish live availability. Local live probes on 2026-10-03 cannot connect from the restricted environment."
+      "notes": "Guest search; one table page with supplied magnets. Reference engine is deprecated. Browser HTTP capture on 2026-10-03 returned a Cloudflare HTTP 403 challenge for ubuntu; the engine safely emitted no rows. Current successful search/download behavior remains unverified; retain intermittent. See NEW_PLUGINS.md."
     },
     {
       "id": "uniondht",

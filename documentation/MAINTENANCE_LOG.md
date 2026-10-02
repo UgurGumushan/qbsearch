@@ -456,3 +456,48 @@ archive-source change. The previously completed Python 3.11.15 gate and website
 build also passed; GitHub's main and tag workflows repeat the release checks.
 Release notes are in `documentation/releases/v0.1.10.md`. Local packaging and
 verification artifacts remain ignored under `working/`.
+
+## New engine live verification — 2026-10-03
+
+All nine new 0.1.11 engines were checked against current HTTP responses.
+The native Bun live runner and its local HTTP helper server remain restricted
+by this environment. An isolated browser captured 62 responses; the existing
+offline harness replayed 17 search cases through the released Python sources.
+All 477 emitted records passed the qBittorrent result checks without parser
+errors or missing responses. Query counts and the two blocked endpoints are
+recorded in [NEW_PLUGINS.md](NEW_PLUGINS.md#fresh-browser-captures-and-actual-engine-replay).
+
+Seven sources produced valid results for two distinct queries. TorrentFunk
+also returned a legitimate empty Debian response: both API count fields were
+zero and the engine emitted no records. UIndex returned a Cloudflare HTTP 403
+challenge; TorrentClaw returned HTTP 403 Forbidden. Those outcomes do not
+verify successful parsing for either blocked source. The Knaben v2 field
+question is resolved by the fresh Ubuntu and Debian captures.
+
+Internet Archive's Ubuntu search emitted 18 public torrents from 20 metadata
+reads and excluded both files marked private; Debian emitted 20 public
+torrents. Two emitted links downloaded valid structural metainfo:
+Ubuntu 20.04.3 (31,347 bytes; SHA-256
+`5e8ebf8534b5e2ee88055e043146c9e17e92cba176b24c0c8fe08a4125f91886`)
+and Kubuntu 6.06 (29,765 bytes; SHA-256
+`2d9d9d839fc8090350e3c23faeebba9f516e797fafbc6eb786cd52656c30440e`).
+
+Every case checks its engine's source SHA-256 before replay:
+
+| Engine          | Source SHA-256                                                     |
+| --------------- | ------------------------------------------------------------------ |
+| aniliberty      | `d087d4a59ea3e8b3024ebfa64e990c29adb72a807f3a7e0c286d1d4b562a445e` |
+| filemood        | `b33a5c6ed4a17106250881fa0e32a6105f463735abb82256eadf446bd87909dd` |
+| internetarchive | `f4ddb8d7a5d2315203e559a0f870c132eda19a8570e35590ef3082126d981419` |
+| knaben          | `b185e94cd6af33b8924ff1dfb6ddc09c4377730206cfd2685957c05f7b6b8e68` |
+| linuxtracker    | `2eef2e29b9e63a92577cf54bbbdfde08c951b88e1f18f707d017c30ea5d46d01` |
+| torlock         | `77bc98d1f25890fe20946e610162080d97ae05260175c419934d52d0dc931603` |
+| torrentclaw     | `63c89baca0cfd1a079e308ff0db50526d34e354a96ee0120556f64d5093fff03` |
+| torrentfunk     | `dda7e641a3588d9066bf6d2038ec49b08e2de7fd3eebdc35db6527a49cd83900` |
+| uindex          | `f0e0048097ac7e59e6e4faa94b24915fcd05c0f79dbef3e8b48e2eee5198c88d` |
+
+Full captures, replay results, source hashes, downloaded metainfo and
+`finalize_evidence.py` remain ignored in `working/live-browser-20261003/`.
+The manifest is `report.json`. Native client networking and BitTorrent
+swarm/payload downloads remain unverified. All nine catalog statuses remain
+`intermittent`, with their notes updated to reflect the observed responses.
