@@ -234,7 +234,11 @@ def replay(
         isolated_path.parent.mkdir()
         _ = shutil.copyfile(plugin_path, isolated_path)
         spec = importlib.util.spec_from_file_location(plugin, isolated_path)
-        if spec is None or spec.loader is None:
+        if spec is None:
+            raise ValueError("cannot load plugin")
+        # Python 3.9's abstract Loader stub omits the concrete exec_module API.
+        loader = cast(Optional[ModuleLoader], cast(object, spec.loader))
+        if loader is None:
             raise ValueError("cannot load plugin")
         module = importlib.util.module_from_spec(spec)
         sys.modules[plugin] = module
@@ -244,8 +248,7 @@ def replay(
             tracemalloc.start()
         started = time.perf_counter()
         cpu_started = time.process_time()
-        # Python 3.9's abstract Loader stub omits the concrete exec_module API.
-        cast(ModuleLoader, cast(object, spec.loader)).exec_module(module)
+        loader.exec_module(module)
         import_seconds = time.perf_counter() - started
         import_cpu = time.process_time() - cpu_started
         vars(module).update({"MAX_PAGES": limits["maxPages"], "MAX_DETAILS": limits["maxDetails"]})

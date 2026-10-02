@@ -11,6 +11,8 @@
 - Add actual-engine checks for metadata, malformed responses, Unicode query
   encoding, request budgets, cache reuse and concurrency. Record FOSS Torrents'
   deferral and honest per-engine expectations in NEW_PLUGINS.md.
+- Narrow the offline replay loader before checking it, retaining clean
+  type checks with Python 3.9's incomplete importlib annotations.
 
 - Replace the distribution website with a static download page, one direct
   latest-ZIP link, platform install commands, and a network-free legacy redirect.
