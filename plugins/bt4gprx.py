@@ -61,6 +61,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -113,6 +114,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -120,12 +122,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -186,6 +190,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -244,7 +249,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -350,7 +356,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -497,6 +503,8 @@ __all__ = [
 
 
 class bt4gprx:
+    """Expose bt4gprx search results through the qBittorrent engine interface."""
+
     url: str = "https://bt4gprx.com/"
     name: str = "bt4gprx"
     supported_categories: ClassVar[dict[str, str]] = {
@@ -509,10 +517,14 @@ class bt4gprx:
     }
 
     def __init__(self) -> None:
+        """Initialize the lazily populated tracker cache for magnet downloads."""
         self.trackerlist: list[str] = []
 
     class MyHTMLParser(HTMLParser):
+        """Extract bt4gprx listing metadata while tracking HTML row and field boundaries."""
+
         def __init__(self):
+            """Initialize HTML parsing state and buffers for result metadata."""
             super().__init__()
             self.is_in_container: bool = False
             self.is_in_entry: bool = False
@@ -522,11 +534,13 @@ class bt4gprx:
             self.results: list[dict[str, str]] = []
 
         def parse(self, feed: str) -> list[dict[str, str]]:
+            """Feed one HTML response and return the accumulated result rows."""
             super().feed(feed)
             return self.results
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             attr_dict = {key: value for key, value in attrs if value is not None}
             if tag == "div":
                 if not self.is_in_container and attr_dict.get("class", "") == "container":
@@ -542,11 +556,13 @@ class bt4gprx:
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if tag == "div":
                 self.is_in_entry = False
 
         @override
         def handle_data(self, data: str) -> None:
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.b_value != "":
                 self.temp_result[self.b_value] = data
                 if self.b_value == "leechers":
@@ -555,6 +571,7 @@ class bt4gprx:
                 self.b_value = ""
 
     def search(self, term: str, cat: str = "all") -> None:
+        """Fetch matching bt4gprx entries and emit qBittorrent result records."""
         pagenumber = 1
         all_results: list[dict[str, str]] = []
         for _ in range(MAX_PAGES):
@@ -567,6 +584,7 @@ class bt4gprx:
         self.pretty_print_results(all_results)
 
     def search_page(self, term: str, pagenumber: int, cat: str) -> list[dict[str, str]]:
+        """Fetch and parse one search page, tolerating unavailable responses."""
         try:
             query = (
                 f"{self.url}{self.supported_categories[cat]}search/{term}/byseeders/{pagenumber}"
@@ -604,6 +622,7 @@ class bt4gprx:
         return f"magnet:?xt=urn:btih:{hash_value}&dn={name_value}&tr=" + "&tr=".join(trackerlist)
 
     def download_torrent(self, info: str) -> str | None:
+        """Resolve the selected download and report its torrent path or magnet to qBittorrent."""
         try:
             trackerlist = self._load_trackerlist()
             if not trackerlist:
@@ -645,6 +664,7 @@ class bt4gprx:
         }
 
     def pretty_print_results(self, results: list[dict[str, str]]) -> None:
+        """Convert parsed rows to qBittorrent records and emit usable results."""
         if not results:
             return
 

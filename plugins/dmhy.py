@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -114,6 +115,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -121,12 +123,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -187,6 +191,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -245,7 +250,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -351,7 +357,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -518,7 +524,10 @@ class dmhy:
     supported_categories: ClassVar[dict[str, str]] = {"all": "0"}
 
     class RowParser(HTMLParser):
+        """Collect listing table cells without leaking state between result rows."""
+
         def __init__(self):
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
             self.rows: list[list[str]] = []
             self.in_topic_list: bool = False
@@ -527,6 +536,7 @@ class dmhy:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = dict(attrs)
             if tag == "table" and params.get("id") == "topic_list":
                 self.in_topic_list = True
@@ -546,11 +556,13 @@ class dmhy:
 
         @override
         def handle_data(self, data: str) -> None:
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.cur is not None and self.cur["cells"]:
                 self.cur["cells"][-1] += escape(data)
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if not self.in_topic_list:
                 return
             if tag == "tr" and self.cur is not None:
@@ -565,6 +577,7 @@ class dmhy:
     def analyze_torrent(
         cls, cells: list[list[str]], seen_links: set[str] | None = None
     ) -> list[SearchResults]:
+        """Convert parsed table cells into distinct qBittorrent torrent records."""
         res: list[SearchResults] = []
         for cell in cells:
             if len(res) >= MAX_DETAILS or (

@@ -102,6 +102,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -109,12 +110,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -175,6 +178,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -233,7 +237,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -339,7 +344,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -486,6 +491,8 @@ __all__ = [
 
 
 class FitGirlDownload(TypedDict):
+    """One Hydra feed release and its candidate download URIs."""
+
     title: str
     uploadDate: str
     fileSize: int | float | str
@@ -493,15 +500,20 @@ class FitGirlDownload(TypedDict):
 
 
 class FitGirlFeed(TypedDict):
+    """Hydra feed envelope containing FitGirl release entries."""
+
     downloads: list[FitGirlDownload]
 
 
 class fitgirl_repacks:
+    """Expose fitgirl_repacks search results through the qBittorrent engine interface."""
+
     url: str = "https://fitgirl-repacks.site/"
     name: str = "FitGirl Repacks"
     supported_categories: ClassVar[dict[str, str]] = {"all": ""}
 
     def search(self, what: str, _cat: str = "all") -> None:
+        """Fetch matching fitgirl_repacks entries and emit qBittorrent result records."""
         search_url = "https://hydralinks.cloud/sources/fitgirl.json"
 
         response: str = retrieve_url(search_url)
@@ -547,5 +559,6 @@ class fitgirl_repacks:
             _qbt_prettyPrinter(res)
 
     def download_link(self, result: FitGirlDownload) -> str:
+        """Select an available download URI from the feed entry."""
         uris = result.get("uris", [])
         return uris[0] if uris else ""

@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -112,6 +113,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -119,12 +121,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -185,6 +189,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -243,7 +248,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -349,7 +355,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -497,6 +503,8 @@ __all__ = [
 
 # some other imports if necessary
 class nyaa_phuong:
+    """Expose nyaa_phuong search results through the qBittorrent engine interface."""
+
     url: str = "https://sukebei.nyaa.si"
     name: str = "Sukebei Nyaa"  # spaces and special characters are allowed here
     # Which search categories are supported by this search engine and their corresponding id
@@ -512,7 +520,7 @@ class nyaa_phuong:
     }
 
     def __init__(self) -> None:
-        pass
+        """Keep construction side-effect free; search initializes request state."""
 
     class RowParser(HTMLParser):
         """Collects the <tr> rows of the results table.
@@ -522,6 +530,7 @@ class nyaa_phuong:
         a.get('href'), not the cell text)."""
 
         def __init__(self) -> None:
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
             self.rows: list[list[tuple[str, list[str]]]] = []
             self.in_results: bool = False
@@ -531,6 +540,7 @@ class nyaa_phuong:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = dict(attrs)
             if tag == "table":
                 self.depth += 1
@@ -550,11 +560,13 @@ class nyaa_phuong:
 
         @override
         def handle_data(self, data: str) -> None:
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.cell is not None:
                 self.cell = (self.cell[0] + data, self.cell[1])
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if not self.in_results:
                 return
             if tag == "td" and self.cell is not None and self.cur is not None:
@@ -599,6 +611,7 @@ class nyaa_phuong:
         # what is a string with the search tokens, already escaped (e.g. "Ubuntu+Linux")
         # cat is the name of a search category in ('all', 'movies', 'tv', 'music', 'games', 'anime', 'software', 'pictures', 'books')
         # q - query, f - filter, c - category
+        """Fetch matching nyaa_phuong entries and emit qBittorrent result records."""
         _ = _qbt_new_deadline()
         base_url = "https://sukebei.nyaa.si/?q=%s&f=0&c=0_0"
         base_url_with_query = base_url % what

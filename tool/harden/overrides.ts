@@ -1,6 +1,11 @@
+/**
+ * Add compatible override decorators to known inherited Python methods.
+ * @file
+ */
 import { HTML_PARSER_OVERRIDES } from "./constants";
 import { hasFinalNewline, indentation, isCodeLine } from "./source_text";
 
+/** Python class extent and whether it derives from HTMLParser. */
 interface ClassRange {
   start: number;
   end: number;
@@ -8,6 +13,7 @@ interface ClassRange {
   html: boolean;
 }
 
+/** Locate class boundaries and HTMLParser inheritance using indentation. */
 function classRanges(lines: string[]): ClassRange[] {
   const classes: ClassRange[] = [];
   for (let start = 0; start < lines.length; start += 1) {

@@ -1,3 +1,7 @@
+/**
+ * Validate catalog metadata and parity with installed engine files.
+ * @file
+ */
 import { readFile } from "node:fs/promises";
 import { basename, relative, resolve } from "node:path";
 import { ROOT } from "../core/repo";
@@ -6,11 +10,13 @@ import { discoverPlugins, inspectPluginFile as inspectPlugin } from "../core/plu
 import { catalogEntries } from "../catalog/storage";
 import type { Catalog, CatalogEntry } from "../catalog/types";
 
+/** Hard validation errors and optional metadata warnings from a catalog audit. */
 export interface CatalogValidationReport {
   errors: string[];
   warnings: string[];
 }
 
+/** Render catalog values in Python-like form for parity diagnostics. */
 function pythonRepr(value: unknown): string {
   if (typeof value === "string") {
     return `'${value.replaceAll("'", "\\'")}'`;

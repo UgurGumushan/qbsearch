@@ -1,3 +1,7 @@
+/**
+ * Discover standalone engines and reconcile them with the catalog.
+ * @file
+ */
 import { catalogEntries, loadCatalog } from "../catalog/storage";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -13,6 +17,7 @@ export async function discoverPlugins(): Promise<string[]> {
     .sort();
 }
 
+/** Derive the catalog engine ID from a Python filename. */
 export function pluginId(path: string): string {
   return basename(path, ".py");
 }
@@ -49,6 +54,7 @@ export async function discoverCatalogPlugins(): Promise<string[]> {
   return paths;
 }
 
+/** Read a standalone engine as UTF-8 source without importing it. */
 export async function readPluginSource(path: string): Promise<string> {
   return readFile(path, "utf8");
 }

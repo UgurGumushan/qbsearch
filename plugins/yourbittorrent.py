@@ -102,6 +102,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -109,12 +110,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -175,6 +178,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -233,7 +237,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -339,7 +344,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -487,10 +492,12 @@ __all__ = [
 
 # Raised when a torrent page is missing its .torrent download link.
 class ParseError(Exception):
-    pass
+    """Signal an unusable listing or download response from the remote site."""
 
 
 class yourbittorrent:
+    """Expose yourbittorrent search results through the qBittorrent engine interface."""
+
     url: str = "https://yourbittorrent.com/"
     name: str = "YourBittorrent"
     supported_categories: ClassVar[dict[str, str]] = {
@@ -507,11 +514,15 @@ class yourbittorrent:
     # query can be retrieved; the query itself is the only selector.
 
     class HTMLParser:
+        """Extract yourbittorrent listing metadata while tracking HTML row and field boundaries."""
+
         def __init__(self, url: str):
+            """Store the engine URL and initialize the empty-page indicator."""
             self.url: str = url
             self.noTorrents: bool = False
 
         def feed(self, html: str):
+            """Parse a listing response and update result and pagination state."""
             self.noTorrents = False
             torrents: list[tuple[str, str, str, str, str]] = self.__findTorrents(html)
             resultSize = len(torrents)
@@ -602,6 +613,7 @@ class yourbittorrent:
             return torrents
 
     def download_torrent(self, info: str) -> None:
+        """Resolve the selected download and report its torrent path or magnet to qBittorrent."""
         torrent_page: str = retrieve_url(urllib.parse.unquote(info))
         file_link = re.search(r"(down/.+?\.torrent)", torrent_page)
         if file_link and file_link.groups():
@@ -610,6 +622,7 @@ class yourbittorrent:
             raise ParseError("Error, please fill a bug report!")
 
     def search(self, what: str, cat: str = "all") -> None:
+        """Fetch matching yourbittorrent entries and emit qBittorrent result records."""
         what = what.replace("%20", "-")
         parser = self.HTMLParser(self.url)
         category = "" if cat == "all" else f"&c={self.supported_categories[cat]}"

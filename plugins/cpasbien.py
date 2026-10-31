@@ -63,6 +63,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -115,6 +116,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -122,12 +124,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -188,6 +192,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -246,7 +251,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -352,7 +358,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -505,12 +511,15 @@ logger = logging.getLogger()
 
 class cpasbien:
     # This is a fake url only for engine associations in file download
+    """Expose cpasbien search results through the qBittorrent engine interface."""
+
     url: str = "http://www.cpasbien.fr"
     name: str = "Cpasbien (french)"
     results_per_page: int = 50
     supported_categories: ClassVar[dict[str, list[str]]] = {"all": [""]}
 
     def __init__(self) -> None:
+        """Resolve the current site domain before issuing searches."""
         self.real_url: str = self.find_url()
         logger.debug("Cpasbien URL: %s", self.real_url)
 
@@ -565,6 +574,7 @@ class cpasbien:
         print(download_file(link))
 
     def search(self, what: str, _cat: str | None = None) -> None:
+        """Fetch matching cpasbien entries and emit qBittorrent result records."""
         results: list[SearchResults] = []
         len_old_result = 0
         for page in range(min(10, MAX_PAGES)):
@@ -609,10 +619,13 @@ class cpasbien:
 
 
 class TableRowExtractor(HTMLParser):
+    """Collect torrent metadata only from the site result table."""
+
     map_name: dict[str, str]
     current_div_class: str = ""
 
     def __init__(self, url: str, engine_url: str, results: list[SearchResults]):
+        """Initialize HTML parsing state and buffers for result metadata."""
         self.results: list[SearchResults] = results
         self.map_name = {"titre": "name", "poid": "size", "up": "seeds", "down": "leech"}
         self.in_tr: bool = False
@@ -630,6 +643,7 @@ class TableRowExtractor(HTMLParser):
 
     @override
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+        """Track result boundaries and capture metadata from opening HTML tags."""
         if tag == "table":
             # Only the results table (class "table-corps") is parsed.
             attrs_dict = dict(attrs)
@@ -653,6 +667,7 @@ class TableRowExtractor(HTMLParser):
 
     @override
     def handle_endtag(self, tag: str):
+        """Finalize captured fields and reset state at closing HTML boundaries."""
         if tag == "tr":
             desc_link = self.current_row.get("desc_link")
             if (
@@ -683,10 +698,12 @@ class TableRowExtractor(HTMLParser):
 
     @override
     def handle_data(self, data: str):
+        """Capture text only for the active result field, ignoring surrounding page content."""
         if self.in_div_or_anchor and self.current_div_class:
             self.current_row[self.current_div_class] = data
 
     def get_rows(self) -> list[SearchResults]:
+        """Return the accumulated result records to the engine."""
         return self.results
 
 

@@ -1,3 +1,7 @@
+/**
+ * Build replay workloads for ordered streaming and concurrency limits.
+ * @file
+ */
 import type { ParserCase } from "./parser_replay";
 
 /** Small generated pages exercise real parsers without storing redundant HTML. */
@@ -34,6 +38,7 @@ export function audiobookCase(pages = 8, maxDetails = 32): ParserCase {
 export const YTS_SEARCH_URL =
   "https://movies-api.accel.li/api/v2/list_movies.json?query_term=fixture";
 
+/** Render a YTS API page with predictable movies and pagination metadata. */
 export function ytsPage(page: number, totalPages: number): string {
   return JSON.stringify({
     status: "ok",
@@ -63,6 +68,7 @@ export function ytsPage(page: number, totalPages: number): string {
   });
 }
 
+/** Build a multi-page YTS replay for concurrency and deadline assertions. */
 export function ytsCase(pages = 8): ParserCase {
   const responses: Record<string, string> = { [YTS_SEARCH_URL]: ytsPage(1, pages) };
   for (let page = 2; page <= pages; page += 1) {

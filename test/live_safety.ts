@@ -1,16 +1,22 @@
 #!/usr/bin/env bun
+/**
+ * Verify live transport safety against controlled local HTTP failures.
+ * @file
+ */
 
 import { basename } from "node:path";
 import { countResultMarkers, fetchTextWithRetry, inspectLivePlugin } from "./live_plugin";
 import { PLUGIN_SOURCES } from "./plugin_sources";
 import { discoverCatalogPlugins } from "../tool/core/plugins";
 
+/** Fail the safety probe immediately when its invariant does not hold. */
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
 }
 
+/** Verify plugin metadata and bounded HTTP retry behavior against a local server. */
 export async function runLiveSafetySuite(): Promise<void> {
   const plugins = await discoverCatalogPlugins();
   for (const path of plugins) {
@@ -26,6 +32,7 @@ export async function runLiveSafetySuite(): Promise<void> {
   const counts = new Map<string, number>();
   const server = Bun.serve({
     port: 0,
+    /** Serve controlled local HTTP responses for transport and retry assertions. */
     fetch: async (request) => {
       const path = new URL(request.url).pathname;
       counts.set(path, (counts.get(path) ?? 0) + 1);
@@ -52,6 +59,7 @@ export async function runLiveSafetySuite(): Promise<void> {
       await fetchTextWithRetry(`http://127.0.0.1:${server.port}/slow`, {
         timeoutMs: 50,
         maxAttempts: 3,
+        /** Count each actual HTTP attempt, including retries. */
         onRequest: () => {
           timeoutAttempts += 1;
         },

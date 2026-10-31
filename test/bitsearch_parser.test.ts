@@ -1,3 +1,7 @@
+/**
+ * Verify BitSearch card state, malformed-row handling, and bounded pagination.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { assertUsableParserResults, replayParserFixture as replay } from "./support/parser_replay";
 
@@ -5,6 +9,7 @@ const bit = "https://bitsearch.to";
 const magnet = `magnet:?xt=urn:btih:${"A".repeat(40)}&dn=Fixture`;
 const secondMagnet = `magnet:?xt=urn:btih:${"B".repeat(40)}`;
 
+/** Optional result fields used to exercise complete and malformed search cards. */
 interface Card {
   name?: string;
   link?: string;
@@ -14,6 +19,7 @@ interface Card {
   leech?: string;
 }
 
+/** Render one BitSearch card with independently optional result fields. */
 function bitCard(card: Card): string {
   return `<div class="bg-white"><div class="items-start"><div class="flex-1">
 <div class="items-center">${card.name === undefined ? "" : `<a href="https://bitsearch.eu/torrent/fixture">${card.name}</a>`}</div>
@@ -22,6 +28,7 @@ function bitCard(card: Card): string {
 </div><div class="space-y-2">${card.link === undefined ? "" : `<a href="${card.link}">magnet</a>`}</div></div></div>`;
 }
 
+/** Wrap cards in the current BitSearch result-count and listing containers. */
 function bitPage(cards: Card[], count = 20): string {
   return `<main class="mx-auto">Found <span class="font-semibold">${count}</span><div class="space-y-4">${cards.map(bitCard).join("")}</div></main>`;
 }

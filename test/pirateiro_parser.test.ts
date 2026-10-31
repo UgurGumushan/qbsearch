@@ -1,3 +1,7 @@
+/**
+ * Verify Pirateiro listing and download behavior against captured HTML.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { FIXTURES_DIR } from "../tool/core/repo";
 import { resolve } from "node:path";
@@ -5,6 +9,7 @@ import { replayParserFixture as replay, type ParserCase } from "./support/parser
 
 const site = "https://pirateiro.io/";
 const magnet = `magnet:?xt=urn:btih:${"a".repeat(40)}&dn=A&B`;
+/** Render a Pirateiro result row with optional peer statistics. */
 function row(id: number, title = `Fixture ${id}`, peers = true): string {
   return `<tr><td>Apps</td><td><a href='/torrent/${id}'><h6 class='pt-title'>${title}</h6></a></td><td>${peers ? "<span class='btn-seed-home badge'>47</span><span class='btn-leech-home'>4</span>" : ""}</td></tr>`;
 }

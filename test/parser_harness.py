@@ -30,13 +30,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class SearchEngine(Protocol):
-    def search(self, what: str, cat: str = "all") -> None: ...
+    """Engine hooks exercised by the offline search and detail replay harness."""
 
-    def parse_result(self, url: str) -> dict[str, object] | None: ...
+    def search(self, what: str, cat: str = "all") -> None:
+        """Run a search and emit results through the patched qBittorrent printer."""
+        ...
+
+    def parse_result(self, url: str) -> dict[str, object] | None:
+        """Resolve one detail URL through the fixture-backed engine."""
+        ...
 
 
 class ModuleLoader(Protocol):
-    def exec_module(self, module: ModuleType) -> None: ...
+    """Import loader contract needed to execute an isolated Python fixture."""
+
+    def exec_module(self, module: ModuleType) -> None:
+        """Execute the dynamically loaded fixture module in its module namespace."""
+        ...
 
 
 def replay(
@@ -44,6 +54,7 @@ def replay(
     *,
     source_root: Path | None = None,
 ) -> dict[str, object]:
+    """Load a real engine with fixture transport and collect its results and request evidence."""
     value = cast(object, json.loads(path.read_text(encoding="utf-8")))
     if not isinstance(value, dict):
         raise TypeError("parser case must be an object")
@@ -261,6 +272,7 @@ def replay(
 
 
 def main() -> int:
+    """Run a parser replay from CLI arguments and serialize its report or failure."""
     try:
         import argparse
 

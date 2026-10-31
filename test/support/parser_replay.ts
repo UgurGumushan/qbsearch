@@ -1,8 +1,13 @@
+/**
+ * Replay captured responses through actual Python engine parsers offline.
+ * @file
+ */
 import { pythonCommand, runCapturedCommand } from "../../tool/core/run";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
+/** Engine IDs with maintained capture and replay fixtures. */
 export type ParserPlugin =
   | "elitetorrent"
   | "bitsearch"
@@ -16,6 +21,7 @@ export type ParserPlugin =
   | "torrentdownloads"
   | "uniondht";
 
+/** Captured body or simulated transport response used by offline replay. */
 export type FixtureReply =
   | string
   | {
@@ -27,6 +33,7 @@ export type FixtureReply =
       delayMs?: number;
     };
 
+/** Search input, response fixtures, and optional resource limits for Python replay. */
 export interface ParserCase {
   plugin: string;
   query: string;
@@ -49,11 +56,13 @@ export interface ParserCase {
   repeatSearches?: number;
 }
 
+/** Source-root override and process timeout for isolated replay execution. */
 export interface ReplayOptions {
   sourceRoot?: string;
   timeoutSeconds?: number;
 }
 
+/** Emitted results, errors, and transport counters from the Python replay harness. */
 export interface ParserReport {
   code: number;
   records: Record<string, unknown>[];
@@ -77,6 +86,7 @@ export interface ParserReport {
   resultRequestCounts?: number[];
 }
 
+/** Narrow unknown input to a non-null object excluding arrays. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -140,6 +150,7 @@ export async function replayParserCase(
   };
 }
 
+/** Execute a fixture against the real standalone Python parser without remote access. */
 export async function replayParserFixture(
   fixture: ParserCase,
   options: ReplayOptions = {},
@@ -154,6 +165,7 @@ export async function replayParserFixture(
   }
 }
 
+/** Accept magnets containing a hexadecimal or base32 BitTorrent info hash. */
 export function usableMagnet(link: string): boolean {
   try {
     return (
@@ -167,6 +179,7 @@ export function usableMagnet(link: string): boolean {
   }
 }
 
+/** Reject failed, empty, malformed, or duplicate replay results. */
 export function assertUsableParserResults(report: ParserReport, allowHttp = false): void {
   if (report.code !== 0 || report.errors.length > 0 || report.records.length === 0) {
     throw new Error(`parser replay failed: ${JSON.stringify(report)}`);

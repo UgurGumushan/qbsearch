@@ -1,3 +1,7 @@
+/**
+ * Replay API, RSS, and HTML engines against deterministic result fixtures.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { buildProbeUrl } from "./live/plugin_source";
 import { countResultMarkers } from "./live/http";
@@ -8,7 +12,9 @@ import {
   type ParserCase,
 } from "./support/parser_replay";
 
+/** Build a deterministic 40-digit hexadecimal info hash from a fixture ID. */
 const hash = (id: number): string => id.toString(16).padStart(40, "0");
+/** Build a valid magnet URI for a deterministic fixture ID. */
 const magnet = (id: number): string => `magnet:?xt=urn:btih:${hash(id)}&dn=fixture`;
 const query = "ubuntu";
 const apiUrls = {
@@ -19,6 +25,7 @@ const apiUrls = {
   torlock: "https://www.torlock.com/torznab/api?t=search&q=ubuntu&limit=100&offset=0",
 } as const;
 
+/** Render API-specific result rows for the selected JSON engine. */
 function jsonReply(plugin: "knaben" | "torrentfunk" | "torrentclaw", ids: number[]): string {
   const rows = ids.map((id) => ({
     title: `Ubuntu ${id}`,
@@ -131,6 +138,7 @@ test("TorrentClaw uses public hashes when anonymous responses omit magnets", asy
   expect(report.records[2]).toMatchObject({ seeds: -1, leech: -1, size: -1 });
 });
 
+/** Render RSS results with Torznab metadata for API parser tests. */
 function torznab(ids: number[]): string {
   return `<rss xmlns:torznab="http://torznab.com/schemas/2015/feed"><channel>${ids
     .map(
@@ -202,6 +210,7 @@ const htmlUrls = {
   uindex: "https://uindex.org/search.php?search=ubuntu&c=0",
   filemood: "https://filemood.com/result?q=ubuntu%20in%3Atitle&f=0",
 } as const;
+/** Render a site-specific HTML result with predictable title, size, and peers. */
 function htmlRow(plugin: keyof typeof htmlUrls, id: number): string {
   if (plugin === "linuxtracker") {
     return `<tr><td><a href='/torrents/${hash(id)}/'>Ubuntu &amp; ${id}.iso</a><span>Ubuntu · 2 GB</span></td><td>Ubuntu</td><td>Oct 1, 2026</td><td>3.4 GB</td><td>12 +130 ext</td><td>2 +4 ext</td></tr>`;
@@ -245,6 +254,7 @@ for (const plugin of ["linuxtracker", "uindex", "filemood"] as const) {
 
 const libertySearch =
   "https://aniliberty.top/api/v1/app/search/releases?query=naruto&include=id,alias,name,is_blocked_by_geo,is_blocked_by_copyrights";
+/** Build the AniLiberty release-torrent endpoint expected by replay fixtures. */
 const libertyTorrents = (id: number): string =>
   `https://aniliberty.top/api/v1/anime/torrents/release/${id}?include=hash,size,label,magnet,seeders,leechers,created_at`;
 
@@ -288,6 +298,7 @@ test("AniLiberty uses at most eight unique public releases and four concurrent m
   expect(new Set(report.records.map((row) => row.name)).size).toBe(8);
 });
 
+/** Build the Internet Archive query including torrent format and collection exclusions. */
 const archiveUrl = (text: string): string => {
   const params = new URLSearchParams();
   params.set("q", `(${text}) AND format:"Archive BitTorrent" AND -mediatype:collection`);

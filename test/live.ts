@@ -1,3 +1,7 @@
+/**
+ * Coordinate focused live probes and offline installability workers.
+ * @file
+ */
 import { loadLiveCatalog, type LiveCatalogEntry } from "./live/catalog";
 import { parseLiveArguments, type LiveArguments } from "./live/cli";
 import { writeProbeFixtures } from "./live/probe_fixtures";
@@ -11,6 +15,7 @@ import {
   type LiveTestResult,
 } from "./live/runner";
 
+/** Apply category and explicit-plugin filters, rejecting unknown requested IDs. */
 function selectedPlugins(args: LiveArguments, catalog: LiveCatalogEntry[]): LiveCatalogEntry[] {
   const filtered = catalog.filter(
     (entry) => args.contentCategory === "all" || entry.category === args.contentCategory,
@@ -39,6 +44,7 @@ function selectedPlugins(args: LiveArguments, catalog: LiveCatalogEntry[]): Live
   return selected;
 }
 
+/** Count inactive catalog entries excluded from a default live run. */
 function countSkippedPlugins(args: LiveArguments, catalog: LiveCatalogEntry[]): number {
   if (args.pluginIds) {
     return 0;
@@ -50,6 +56,7 @@ function countSkippedPlugins(args: LiveArguments, catalog: LiveCatalogEntry[]): 
   ).length;
 }
 
+/** Print the selected mode, concurrency, and per-plugin time budget. */
 function printRunSummary(args: LiveArguments, count: number, workers: number): void {
   const live = !args.installOnly;
   const mode = live ? "live searches" : "installability checks";
@@ -66,12 +73,14 @@ function printRunSummary(args: LiveArguments, count: number, workers: number): v
   console.log(`Live result policy: ${args.requireResults ? "required" : "empty results allowed"}`);
 }
 
+/** Print a concise pass/fail line with elapsed time and worker detail. */
 function printPluginResult(result: LiveTestResult): void {
   const status = result.passed ? "PASS" : "FAIL";
   const detail = result.detail ? ` — ${result.detail}` : "";
   console.log(`[${status}] ${result.name} (${result.elapsed.toFixed(2)}s)${detail}`);
 }
 
+/** Validate live options, run selected workers, and return a failing status for failed probes. */
 export async function runLive(rawArgs: string[]): Promise<number> {
   let args: LiveArguments | null;
   try {

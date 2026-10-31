@@ -16,6 +16,7 @@ from typing import cast, final
 
 
 def object_record(value: object, label: str) -> dict[str, object]:
+    """Require a JSON object with string keys before using fixture fields."""
     if not isinstance(value, dict):
         raise TypeError(f"{label} must be an object")
     values = cast(dict[object, object], value)
@@ -25,6 +26,7 @@ def object_record(value: object, label: str) -> dict[str, object]:
 
 
 def string_map(value: object, label: str) -> dict[str, str]:
+    """Validate that every fixture mapping value is a string."""
     values = object_record(value, label)
     if not all(isinstance(item, str) for item in values.values()):
         raise TypeError(f"{label} values must be strings")
@@ -33,6 +35,8 @@ def string_map(value: object, label: str) -> dict[str, str]:
 
 @dataclass(frozen=True)
 class Reply:
+    """Binary response body, status, headers, and delay for one fixture request."""
+
     body: bytes
     status: int = 200
     final_url: str = ""
@@ -41,6 +45,7 @@ class Reply:
 
 
 def parse_reply(value: object) -> Reply:
+    """Normalize fixture text or response metadata into a replayable binary reply."""
     if isinstance(value, str):
         return Reply(value.encode())
     fields = object_record(value, "response")
@@ -74,7 +79,10 @@ def parse_reply(value: object) -> Reply:
 
 @final
 class FixtureResponse:
+    """urllib-compatible response backed by fixture bytes and request accounting."""
+
     def __init__(self, reply: Reply, url: str, transport: FixtureTransport) -> None:
+        """Wrap fixture bytes and headers while retaining the transport accounting owner."""
         self.status: int = reply.status
         self.code: int = reply.status
         self.headers: Message = Message()
@@ -87,6 +95,7 @@ class FixtureResponse:
         self._closed = False
 
     def __enter__(self) -> FixtureResponse:
+        """Return the response used by the context-managed request."""
         return self
 
     def __exit__(
@@ -95,9 +104,11 @@ class FixtureResponse:
         _value: BaseException | None,
         _traceback: TracebackType | None,
     ) -> None:
+        """Close the response when the request context exits."""
         self.close()
 
     def read(self, size: int = -1) -> bytes:
+        """Read fixture bytes while tracking consumption and honoring the requested size."""
         if self._closed:
             return b""
         data = self._body.read(size)
@@ -106,18 +117,23 @@ class FixtureResponse:
         return data
 
     def getcode(self) -> int:
+        """Return the HTTP status recorded in the fixture."""
         return self.status
 
     def geturl(self) -> str:
+        """Return the final response URL, including simulated redirects."""
         return self._url
 
     def info(self) -> Message:
+        """Expose fixture response headers through the urllib-compatible interface."""
         return self.headers
 
     def getheader(self, name: str, default: str | None = None) -> str | None:
+        """Look up a fixture response header with the caller supplied default."""
         return self.headers.get(name, default)
 
     def close(self) -> None:
+        """Release the fixture response and decrement active transport accounting once."""
         if not self._closed:
             self._closed = True
             self._body.close()
@@ -126,7 +142,10 @@ class FixtureResponse:
 
 @final
 class FixtureTransport:
+    """Offline request matcher that tracks concurrency, bytes, and unmatched traffic."""
+
     def __init__(self, case: dict[str, object], errors: list[str]) -> None:
+        """Load fixture replies and initialize request, byte, and concurrency counters."""
         self.responses = {
             url: parse_reply(value)
             for url, value in object_record(case.get("responses", {}), "responses").items()
@@ -168,6 +187,7 @@ class FixtureTransport:
         self.lock = Lock()
 
     def finish(self) -> None:
+        """Decrement the active-request count under the transport lock."""
         with self.lock:
             self.active -= 1
 
@@ -211,6 +231,7 @@ class FixtureTransport:
         data: bytes | None = None,
         **_kwargs: object,
     ) -> FixtureResponse:
+        """Match a fixture request and return a response or the configured HTTP failure."""
         headers: dict[str, str] = {}
         method: str | None = None
         target = url
@@ -252,6 +273,7 @@ class FixtureTransport:
         *_args: object,
         **_kwargs: object,
     ) -> str:
+        """Emulate the qBittorrent text helper using the same offline fixture transport."""
         reply = self._start(url, request_data, custom_headers or {})
         try:
             if reply.status >= 400:

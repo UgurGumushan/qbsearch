@@ -1,3 +1,7 @@
+/**
+ * Render the command reference from the canonical router table.
+ * @file
+ */
 import { COMMANDS } from "./cli";
 
 /** Render documentation/CLI.md from the single router table. */

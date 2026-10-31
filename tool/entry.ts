@@ -1,4 +1,8 @@
 #!/usr/bin/env bun
+/**
+ * Normalize CLI invocation and dispatch the selected maintainer command.
+ * @file
+ */
 /** Unified entrypoint for repository maintenance commands. */
 import { runCommandLine } from "./cli";
 

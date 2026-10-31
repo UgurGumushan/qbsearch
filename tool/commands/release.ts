@@ -1,8 +1,13 @@
+/**
+ * Parse release options and build a validated distribution archive.
+ * @file
+ */
 import type { ReleaseOptions } from "../release/types";
 import { buildRelease } from "../release/command";
 import { checkCatalog } from "../checks/catalog";
 import { DEFAULT_OUTPUT } from "../release/constants";
 
+/** Describe release version and output-path arguments. */
 function usage(): string {
   return `Usage: bun run release -- [version] [--version VERSION] [--output PATH]
 
@@ -10,6 +15,7 @@ Build a self-contained qBittorrent plugin release ZIP.
 `;
 }
 
+/** Normalize release options and reject unsupported or incomplete arguments. */
 export function parseReleaseArguments(args: string[]): ReleaseOptions & { help: boolean } {
   args = normalizeReleaseArguments(args);
   let version = "dev";

@@ -1,6 +1,11 @@
+/**
+ * Project catalog metadata into live-test selection inputs.
+ * @file
+ */
 import { CATALOG_PATH } from "../../tool/core/repo";
 import { catalogEntries, loadCatalog } from "../../tool/catalog/storage";
 
+/** Catalog fields needed to select live probes and their public search queries. */
 export interface LiveCatalogEntry {
   id: string;
   category: string;
@@ -8,6 +13,7 @@ export interface LiveCatalogEntry {
   status: string;
 }
 
+/** Validate and project catalog entries into the live runner input shape. */
 export async function loadLiveCatalog(path = CATALOG_PATH): Promise<LiveCatalogEntry[]> {
   const catalog = await loadCatalog(path);
   return catalogEntries(catalog).map((entry, index) => {

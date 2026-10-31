@@ -1,3 +1,7 @@
+/**
+ * Extract and validate actionable torrent links from remote responses.
+ * @file
+ */
 /** Elitetorrent repeats each result's image/title link inside this list. */
 export function elitetorrentResultLinks(body: string, siteUrl: string): string[] {
   const links = new Set<string>();

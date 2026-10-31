@@ -1,3 +1,7 @@
+/**
+ * Verify catalog parity, generated artifacts, and standalone-engine safety.
+ * @file
+ */
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { expect, setDefaultTimeout, test } from "bun:test";

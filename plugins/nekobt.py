@@ -102,6 +102,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -109,12 +110,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -175,6 +178,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -233,7 +237,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -339,7 +344,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -486,6 +491,8 @@ __all__ = [
 
 
 class TorrentItem(TypedDict, total=False):
+    """Torrent metadata returned by the NekoBT search API."""
+
     id: int
     title: str
     auto_title: str
@@ -499,21 +506,28 @@ class TorrentItem(TypedDict, total=False):
 
 
 class ApiData(TypedDict, total=False):
+    """Supported named collections of NekoBT API torrent entries."""
+
     results: list[TorrentItem]
     torrents: list[TorrentItem]
 
 
 class ApiResponse(TypedDict, total=False):
+    """NekoBT response envelope supporting object or list result payloads."""
+
     data: ApiData | list[TorrentItem]
 
 
 class nekobt:
+    """Expose nekobt search results through the qBittorrent engine interface."""
+
     url: str = "https://nekobt.to/"
     name: str = "NekoBT"
 
     supported_categories: ClassVar[dict[str, str]] = {"all": ""}
 
     def format_size(self, size_bytes: float | str) -> str:
+        """Convert bytes to a human-readable size, tolerating malformed values."""
         try:
             size_bytes = float(size_bytes)
             for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -525,6 +539,7 @@ class nekobt:
             return "0 MB"
 
     def search(self, what: str, _cat: str = "all"):
+        """Fetch matching nekobt entries and emit qBittorrent result records."""
         _ = _qbt_new_deadline()
         what = urllib.parse.unquote(what)
         query = urllib.parse.quote_plus(what)

@@ -1,3 +1,7 @@
+/**
+ * Validate engine inventory or scaffold a new standalone plugin.
+ * @file
+ */
 import { generatePluginCatalog } from "../catalog/command";
 import { hardenPlugins } from "../harden/command";
 import { validPluginIdentifier } from "../core/python-parse";

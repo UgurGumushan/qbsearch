@@ -1,3 +1,5 @@
+"""Exercise generated helpers with controlled transport and concurrency failures."""
+
 import importlib.util
 import os
 import sys
@@ -14,22 +16,32 @@ from unittest.mock import patch
 
 
 class Response(Protocol):
-    def __enter__(self) -> "Response": ...  # noqa: PYI034
+    """Context-managed byte response expected by generated-helper tests."""
+
+    def __enter__(self) -> "Response":  # noqa: PYI034
+        """Return the response used by the context-managed request."""
+        ...
 
     def __exit__(
         self,
         exc_type: object,
         exc_value: object,
         traceback: object,
-    ) -> None: ...
+    ) -> None:
+        """Release the response when the generated opener context exits."""
+        ...
 
-    def read(self) -> bytes: ...
+    def read(self) -> bytes:
+        """Return response bytes from the generated safe opener."""
+        ...
 
 
 JobResult = TypeVar("JobResult")
 
 
 class GeneratedHelpers(Protocol):
+    """Callable safety-helper surface loaded dynamically by the behavior fixture."""
+
     HTTP_TIMEOUT: float
     MAX_ATTEMPTS: int
     RETRY_DELAY: float
@@ -55,11 +67,17 @@ class GeneratedHelpers(Protocol):
         ordered: bool = False,
     ) -> Iterator[JobResult]: ...
 
-    def retrieve_url(self, url: str) -> str: ...
+    def retrieve_url(self, url: str) -> str:
+        """Fetch page text through the generated retry and deadline helpers."""
+        ...
 
 
 class ModuleLoader(Protocol):
-    def exec_module(self, module: ModuleType) -> None: ...
+    """Import loader contract needed to execute an isolated Python fixture."""
+
+    def exec_module(self, module: ModuleType) -> None:
+        """Execute the dynamically loaded fixture module in its module namespace."""
+        ...
 
 
 helper_path, base_url = sys.argv[1:]
@@ -71,12 +89,14 @@ calls: list[int] = []
 
 
 def helper(*_args: object, **_kwargs: object) -> str:
+    """Return empty responses before success to exercise helper retry behavior."""
     calls.append(1)
     return "" if len(calls) < 3 else "ok"
 
 
 def ignore_result(_result: object) -> None:
-    return None
+    """Discard emitted records when testing transport behavior in isolation."""
+    return
 
 
 module.__dict__.update(
@@ -110,6 +130,7 @@ finished = threading.Event()
 
 
 def uneven_worker(value: int) -> int:
+    """Block the second job so the test can observe early streaming results."""
     if value == 1:
         _ = release.wait(5.0)
         finished.set()
@@ -133,12 +154,14 @@ ordered_results: list[int] = []
 
 
 def ordered_jobs() -> Iterator[tuple[int]]:
+    """Record job consumption to verify the ordered iterator bounds its pending work."""
     for value in range(8):
         consumed.append(value)
         yield (value,)
 
 
 def ordered_worker(value: int) -> int:
+    """Control completion order independently of the submitted job order."""
     if value == 0:
         first_started.set()
         _ = release.wait(5.0)
@@ -148,6 +171,7 @@ def ordered_worker(value: int) -> int:
 
 
 def collect_ordered() -> None:
+    """Consume the ordered stream on a separate thread for scheduling assertions."""
     ordered_results.extend(
         generated._qbt_iter_parallel(
             ordered_worker, ordered_jobs(), time.monotonic() + 4.0, ordered=True
@@ -182,6 +206,7 @@ nested_barrier = threading.Barrier(2)
 
 
 def nested_worker(value: int) -> int:
+    """Record worker thread identity and synchronize nested concurrency probes."""
     with nested_lock:
         nested_threads.add(threading.get_ident())
     _ = nested_barrier.wait(2.0)
@@ -189,6 +214,7 @@ def nested_worker(value: int) -> int:
 
 
 def page_worker(page: int) -> list[int]:
+    """Launch a nested detail batch to verify that worker pools do not multiply."""
     return generated._qbt_run_parallel(
         nested_worker, [(page * 10 + n,) for n in range(3)], time.monotonic() + 3.0
     )
@@ -228,6 +254,7 @@ assert len(calls) == 3
 
 
 def worker(value: str) -> str:
+    """Simulate one failing job while allowing other results to survive."""
     if value == "bad":
         raise RuntimeError("one worker failed")
     return value

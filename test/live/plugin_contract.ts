@@ -1,3 +1,7 @@
+/**
+ * Inspect engine contracts before probing inferred endpoints.
+ * @file
+ */
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { END_MARKER, START_MARKER } from "../../tool/harden/constants";
@@ -8,6 +12,7 @@ import {
 } from "../../tool/core/python-parse";
 import type { LivePluginContract } from "./types";
 
+/** Inspect engine metadata, required hooks, and inferred probe URLs without importing Python. */
 export async function inspectLivePlugin(
   path: string,
   sourceOverride?: string,

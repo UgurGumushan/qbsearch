@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -112,6 +113,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -119,12 +121,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -185,6 +189,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -243,7 +248,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -349,7 +355,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -496,6 +502,8 @@ __all__ = [
 
 
 class xxxclubto:
+    """Expose xxxclubto search results through the qBittorrent engine interface."""
+
     url: str = "https://xxxclub.to"
     headers: ClassVar[dict[str, str]] = {"Referer": url}
     name: str = "XXXClub"
@@ -515,8 +523,10 @@ class xxxclubto:
     last_page: int = 100
 
     class MyHtmlParser(HTMLParser):
+        """Extract xxxclubto listing metadata while tracking HTML row and field boundaries."""
+
         def error(self, _message: str):
-            pass
+            """Tolerate parser error callbacks so one malformed page does not abort the engine."""
 
         UL: str = "ul"
         LI: str = "li"
@@ -531,6 +541,7 @@ class xxxclubto:
             seen_result_links: set[str],
             state_lock: LockType,
         ) -> None:
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
             self.url: str = url
             self.headers: dict[str, str] = headers
@@ -561,6 +572,7 @@ class xxxclubto:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = dict(attrs)
             if "browsetableinside" in (params.get("class") or ""):
                 self.foundResults = True
@@ -600,6 +612,7 @@ class xxxclubto:
 
         @override
         def handle_data(self, data: str):
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.insideCell and self.foundRowCatlabe:
                 if self.column == 1 and self.insideNameLink:
                     self.row["name"] = data
@@ -613,6 +626,7 @@ class xxxclubto:
 
         @override
         def handle_endtag(self, tag: str):
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if self.insideCell and self.insideNameLink and tag == self.A:
                 self.insideNameLink = False
             if self.insideCell and tag == self.SPAN:
@@ -637,17 +651,21 @@ class xxxclubto:
                 return
 
     def __init__(self) -> None:
+        """Initialize shared deduplication state and its synchronization lock."""
         self._seen_detail_links: set[str] = set()
         self._seen_result_links: set[str] = set()
         self._state_lock: LockType = _qbt_Lock()
 
     def download_torrent(self, info: str) -> None:
+        """Download the selected torrent and print its local path for qBittorrent."""
         print(download_file(info))
 
     def get_page_url(self, what: str, category: str, page: int) -> str:
+        """Build the site search URL for the requested query and page."""
         return f"{self.url}/torrents/search/{category}/{what}?page={page}&sort=seeders&order=asc"
 
     def get_results(self, html: str) -> None:
+        """Extract listing containers and feed their rows to the engine HTML parser."""
         container_matches = re.finditer(self.container_regex, html, re.MULTILINE)
         container = [x.group() for x in container_matches]
 
@@ -660,6 +678,7 @@ class xxxclubto:
             self.has_results = False
 
     def get_next_page(self, html: str) -> None:
+        """Update the next-page state from the listing pagination controls."""
         next_page_matches = re.finditer(self.pagination_next_regex, html, re.MULTILINE)
         next_page = [x.group() for x in next_page_matches]
 
@@ -668,6 +687,7 @@ class xxxclubto:
             self.get_last_page(html)
 
     def get_last_page(self, html: str) -> None:
+        """Read the final page number from the listing pagination controls."""
         last_page_matches = re.finditer(self.pagination_last_page, html, re.MULTILINE)
         last_page = [x.group() for x in last_page_matches]
 
@@ -677,6 +697,7 @@ class xxxclubto:
             self.last_page = int(re.sub(r"</a>", "", re.sub(r"<a.*?>", "", last_page[0])))
 
     def threaded_search(self, page: int, what: str, cat: str) -> bool:
+        """Process a listing page within the engine shared search and detail limits."""
         page_url = self.get_page_url(what, cat, page)
         headers = dict(self.headers)
         headers["Referer"] = page_url
@@ -704,6 +725,7 @@ class xxxclubto:
         return bool(has_results and has_next_page)
 
     def search(self, what: str, cat: str = "all") -> None:
+        """Fetch matching xxxclubto entries and emit qBittorrent result records."""
         category = self.supported_categories[cat]
         self._seen_detail_links = set()
         self._seen_result_links = set()

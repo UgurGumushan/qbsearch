@@ -1,5 +1,6 @@
 import eslint from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
+import jsdoc from "eslint-plugin-jsdoc";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
@@ -45,6 +46,43 @@ export default tseslint.config(
           allowNumber: true,
         },
       ],
+    },
+  },
+  {
+    files: TYPESCRIPT_FILES,
+    ignores: ["test/plugin_sources.ts", "**/*.d.ts"],
+    plugins: { jsdoc },
+    rules: {
+      "jsdoc/require-jsdoc": [
+        "error",
+        {
+          enableFixer: false,
+          exemptEmptyConstructors: true,
+          require: {
+            FunctionDeclaration: true,
+            ClassDeclaration: true,
+            ClassExpression: true,
+            MethodDefinition: true,
+            ArrowFunctionExpression: false,
+            FunctionExpression: false,
+          },
+          contexts: [
+            "VariableDeclarator > ArrowFunctionExpression",
+            "VariableDeclarator > FunctionExpression",
+            "FunctionExpression[id]",
+            "AssignmentExpression > ArrowFunctionExpression",
+            "AssignmentExpression > FunctionExpression",
+            "Property > ArrowFunctionExpression",
+            "Property > FunctionExpression",
+            "PropertyDefinition > ArrowFunctionExpression",
+            "PropertyDefinition > FunctionExpression",
+            "TSInterfaceDeclaration",
+            "TSTypeAliasDeclaration",
+          ],
+        },
+      ],
+      "jsdoc/require-description": ["error", { contexts: ["any"], exemptedBy: [] }],
+      "jsdoc/require-file-overview": "error",
     },
   },
   eslintConfigPrettier,

@@ -1,3 +1,7 @@
+/**
+ * Decode remote response bytes, including legacy Windows-1251 pages.
+ * @file
+ */
 // WHATWG Encoding index, 2024-09-18; Bun 1.3.14 lacks this decoder.
 // https://encoding.spec.whatwg.org/index-windows-1251.txt
 const WINDOWS_1251 = [
@@ -11,6 +15,7 @@ const WINDOWS_1251 = [
   1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103,
 ];
 
+/** Decode the declared charset, defaulting to UTF-8 when the header omits it. */
 export function decodeHttpBody(bytes: Uint8Array, contentType: string): string {
   const charset =
     /charset\s*=\s*["']?([^;\s"']+)/i.exec(contentType)?.[1]?.toLowerCase() ?? "utf-8";

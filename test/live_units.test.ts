@@ -1,3 +1,7 @@
+/**
+ * Verify live argument parsing and HTTP limits against local fixture servers.
+ * @file
+ */
 import { resolve } from "node:path";
 import { ROOT } from "../tool/core/repo";
 import { expect, test } from "bun:test";
@@ -118,6 +122,7 @@ test("bounded response capture enforces bytes and preserves streamed UTF-8", asy
   let oversizedRequests = 0;
   const server = Bun.serve({
     port: 0,
+    /** Serve controlled local HTTP responses for transport and retry assertions. */
     fetch(request) {
       if (new URL(request.url).pathname === "/oversized") {
         oversizedRequests += 1;
@@ -125,6 +130,7 @@ test("bounded response capture enforces bytes and preserves streamed UTF-8", asy
       }
       return new Response(
         new ReadableStream<Uint8Array>({
+          /** Drive the fixture response stream to reproduce the tested transport condition. */
           start(controller) {
             controller.enqueue(new Uint8Array([0xc3]));
             controller.enqueue(new Uint8Array([0xa9]));
@@ -151,6 +157,7 @@ test("capture deadline bounds retry delays and prevents further requests", async
   let requests = 0;
   const server = Bun.serve({
     port: 0,
+    /** Serve controlled local HTTP responses for transport and retry assertions. */
     fetch() {
       requests += 1;
       return new Response("retry", { status: 503 });
@@ -182,6 +189,7 @@ test("HTTP 429 stops retries and preserves the service's retry window", async ()
   let requests = 0;
   const server = Bun.serve({
     port: 0,
+    /** Serve controlled local HTTP responses for transport and retry assertions. */
     fetch() {
       requests += 1;
       return new Response("rate limited", { status: 429, headers: { "retry-after": "60" } });

@@ -1,3 +1,7 @@
+/**
+ * Select changed engines for focused release-candidate probes.
+ * @file
+ */
 /** Bounded functional evidence for release candidates; this is not an offline gate. */
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";

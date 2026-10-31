@@ -78,6 +78,51 @@ This installs pinned tool dependencies and enables the repository pre-commit hoo
 
 ## Plugin quality and performance contract
 
+### Code documentation
+
+Documentation is part of both `bun run check -- --fast` and the full CI gate.
+The policy applies to existing code and new contributions, with no baseline of
+allowed omissions:
+
+- Python public modules, classes, functions, methods, constructors, and magic
+  methods need nonempty docstrings. Ruff enforces D100-D107 and D419; declaration
+  stubs are exempt. Explain non-obvious private helpers too.
+- Handwritten TypeScript in `tool/` and `test/` needs a file overview and descriptive
+  JSDoc on named or assigned functions, classes, methods, interfaces, and type
+  aliases. Anonymous callbacks, interface members, empty constructors, declaration
+  stubs, and the generated watch manifest are exempt. Parameter and return tags
+  are optional; do not duplicate TypeScript type annotations.
+- Explain why a site quirk, fallback, swallowed exception, deadline, or compatibility
+  workaround exists. Describe side effects and surprising failure behavior. Simple
+  functions usually need only one sentence; empty blocks and prose that merely
+  repeats the function name are insufficient.
+
+For example:
+
+```ts
+/**
+ * Decode remote response bodies using the site's declared encoding.
+ * @file
+ */
+
+/** Decode legacy pages as Windows-1251 when their response headers declare it. */
+function decodeLegacyPage(bytes: Uint8Array): string {
+  return new TextDecoder("windows-1251").decode(bytes);
+}
+```
+
+Edit generated safety documentation in `tool/harden/safety_preamble.ts` and run
+`bun run gen -- --write`. A dedicated Ruff pass masks that preamble in memory so
+its helper-only `__all__` cannot hide undocumented engine APIs. Diagnostics retain
+the original source line numbers; plugin exports stay unchanged. Scaffolds carry
+documentation for their initial behavior; update it when implementing the site.
+
+Reviewers check that comments explain actual behavior and remain accurate after
+changes. Linters enforce presence, not usefulness, and there is no comment-count
+quota or website-asset documentation gate.
+
+### Bounded engine behavior
+
 Every engine must keep network work bounded and remain independently
 installable. In addition to preserving metadata and result fields:
 
@@ -279,5 +324,7 @@ When you plan a maintenance cycle, include these follow-up tasks:
 - List changed plugins and catalog updates.
 - Include live query and outcome when endpoint behavior changed.
 - Mention commands run (`check`, `test`, and any live checks).
+- Update docstrings and JSDoc with behavior changes; explain non-obvious parser
+  quirks, fallbacks, deadlines, and compatibility decisions.
 - Do not commit credentials, session cookies, or private data.
 - Keep changes focused to one maintenance objective.

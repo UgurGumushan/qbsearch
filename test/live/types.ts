@@ -1,3 +1,8 @@
+/**
+ * Define inputs and reports exchanged by live probe workers.
+ * @file
+ */
+/** Validated options for one plugin probe process. */
 export interface LiveWorkerArguments {
   plugin: string;
   query: string;
@@ -6,6 +11,7 @@ export interface LiveWorkerArguments {
   installOnly: boolean;
 }
 
+/** Decoded response and transport metadata recorded by a live probe. */
 export interface LiveResponse {
   url: string;
   status: number;
@@ -16,6 +22,7 @@ export interface LiveResponse {
   bytes?: number;
 }
 
+/** Static engine metadata and validation errors used before contacting an endpoint. */
 export interface LivePluginContract {
   id: string;
   name: string;
@@ -25,6 +32,7 @@ export interface LivePluginContract {
   errors: string[];
 }
 
+/** Installability or network-probe evidence emitted by a plugin worker. */
 export interface LiveProbeReport {
   id: string;
   query: string;

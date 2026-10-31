@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -114,6 +115,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -121,12 +123,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -187,6 +191,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -245,7 +250,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -351,7 +357,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -498,6 +504,7 @@ __all__ = [
 
 
 def stats_int(value: str | int) -> int:
+    """Parse a peer count, returning the unknown-value sentinel on malformed input."""
     try:
         return int(value)
     except ValueError:
@@ -505,6 +512,8 @@ def stats_int(value: str | int) -> int:
 
 
 class bitsearch:
+    """Expose bitsearch search results through the qBittorrent engine interface."""
+
     url: str = "https://bitsearch.to"
     name: str = "Bit Search"
     supported_categories: ClassVar[dict[str, str]] = {"all": "all"}
@@ -512,8 +521,10 @@ class bitsearch:
     results_regex: str = r"Found\s+<span.+>\d+<\/span>"
 
     class MyHtmlParser(HTMLParser):
+        """Extract bitsearch listing metadata while tracking HTML row and field boundaries."""
+
         def error(self, _message: str) -> None:
-            pass
+            """Tolerate parser error callbacks so one malformed page does not abort the engine."""
 
         MAIN: str = "main"
         DIV: str = "div"
@@ -531,6 +542,7 @@ class bitsearch:
         search_results_item_mobile_download_class_name: str = "sm:hidden"
 
         def __init__(self, url: str) -> None:
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
 
             self.url: str = url
@@ -558,6 +570,7 @@ class bitsearch:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = dict(attrs)
             cssClasses = params.get("class") or ""
 
@@ -678,6 +691,7 @@ class bitsearch:
 
         @override
         def handle_data(self, data: str) -> None:
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.shouldGetName:
                 self.row["name"] = data.strip()
                 self.shouldGetName = False
@@ -710,6 +724,7 @@ class bitsearch:
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if self.insideSwarm and tag == self.DIV:
                 self.insideSwarm = False
                 self.column = 0
@@ -781,9 +796,11 @@ class bitsearch:
                 return
 
     def download_torrent(self, info: str) -> None:
+        """Download the selected torrent and print its local path for qBittorrent."""
         print(download_file(info))
 
     def search(self, what: str, _cat: str = "all"):
+        """Fetch matching bitsearch entries and emit qBittorrent result records."""
         parser = self.MyHtmlParser(self.url)
         what = what.replace("%20", "+")
         what = what.replace(" ", "+")

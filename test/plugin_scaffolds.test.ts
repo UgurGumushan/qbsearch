@@ -1,3 +1,7 @@
+/**
+ * Verify scaffold validation, Python compatibility, and bounded result behavior.
+ * @file
+ */
 import { expect, spyOn, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,6 +10,7 @@ import { runPluginCommand } from "../tool/commands/plugin";
 import { renderPluginTemplate } from "../tool/generators/plugin-template";
 import { renderPlugin } from "../tool/harden/render_plugin";
 import { pythonCommand, runCapturedCommand } from "../tool/core/run";
+import { lintPluginDocumentation } from "../tool/checks/python_documentation";
 
 const REPLAY = `
 import ast, importlib.util, json, socket, sys
@@ -107,8 +112,11 @@ for (const kind of ["json", "html"] as const) {
       expect(report.records[0]).toMatchObject({ seeds: -1, leech: -1 });
       if (kind === "json") expect(report.records[1]).toMatchObject({ seeds: 7, leech: 2 });
       // Generated Python must satisfy the same formatting/lint contract as maintained engines.
-      const lint = await runCapturedCommand(["ruff", "check", path]);
+      const lint = await runCapturedCommand(["ruff", "check", "--config", "pyproject.toml", path]);
       expect(lint.code).toBe(0);
+      const documentation = await lintPluginDocumentation(path, source);
+      expect(documentation.output).toBe("All checks passed!");
+      expect(documentation.code).toBe(0);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

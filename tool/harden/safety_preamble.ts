@@ -1,3 +1,7 @@
+/**
+ * Maintain the stdlib-only Python safety block copied into all engines.
+ * @file
+ */
 /** Canonical safety preamble copied into standalone plugin files. */
 const PREAMBLE_LINES = [
   "# BEGIN GENERATED QBITT SAFETY PREAMBLE",
@@ -87,6 +91,7 @@ const PREAMBLE_LINES = [
   "",
   "",
   "def _qbt_get_deadline() -> float:",
+  '    """Reuse the current search deadline, creating one for legacy callers if needed."""',
   "    global _qbt_search_deadline",
   "    if _qbt_search_deadline is None:",
   "        _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))",
@@ -94,12 +99,14 @@ const PREAMBLE_LINES = [
   "",
   "",
   "def _qbt_new_deadline() -> float:",
+  '    """Start a fresh budget shared by all requests and workers in this search."""',
   "    global _qbt_search_deadline",
   "    _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))",
   "    return _qbt_search_deadline",
   "",
   "",
   "def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:",
+  '    """Apply bounded retry backoff and report whether any search budget remains."""',
   "    if deadline is None:",
   "        deadline = _qbt_get_deadline()",
   "    remaining = deadline - _qbt_time.monotonic()",
@@ -160,6 +167,7 @@ const PREAMBLE_LINES = [
   "",
   "",
   "def _qbt_response_limit(limit: object = None) -> int:",
+  '    """Normalize a read limit, falling back to the configured cap for invalid input."""',
   "    value = MAX_RESPONSE_BYTES if limit is None else limit",
   "    try:",
   "        return max(0, _qbt_int(value))",
@@ -218,7 +226,8 @@ const PREAMBLE_LINES = [
   "",
   "",
   "def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:",
-  '    """Run a helper request a bounded number of times; return empty on failure."""',
+  '    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""',
+  "    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.",
   "    attempts = max(1, int(MAX_ATTEMPTS))",
   "    for attempt in range(attempts):",
   "        if _qbt_time.monotonic() >= _qbt_get_deadline():",
@@ -324,7 +333,7 @@ const PREAMBLE_LINES = [
   "",
   "",
   "def _qbt_prettyPrinter(result: object) -> None:",
-  '    """Serialize result records emitted by parallel workers."""',
+  '    """Serialize result emission so concurrent workers cannot interleave printer output."""',
   "    with _qbt_output_lock:",
   "        printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)",
   "        printer(result)",
@@ -479,11 +488,13 @@ const OVERRIDE_SUPPORT = `if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
 HTTP_TIMEOUT = 20.0`;
 
+/** Inject a type-checking override import with a Python 3.9 runtime identity fallback. */
 function addOverrideSupport(preamble: string): string {
   return preamble
     .replace("    from typing import Callable as _QBTCallable", OVERRIDE_IMPORT)

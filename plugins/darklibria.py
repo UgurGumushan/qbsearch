@@ -69,6 +69,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -121,6 +122,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -128,12 +130,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -194,6 +198,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -252,7 +257,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -358,7 +364,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -509,6 +515,8 @@ LOG_DT_FORMAT = "%d-%b-%y %H:%M:%S"
 
 
 class darklibria:
+    """Expose darklibria search results through the qBittorrent engine interface."""
+
     url: str = SITE_URL
     name: str = "dark-libria"
     supported_categories: ClassVar[dict[str, str]] = {"all": "0"}
@@ -524,11 +532,13 @@ class darklibria:
     dt_regex: re.Pattern[str] = re_compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
 
     def __init__(self, output: bool = True) -> None:
+        """Initialize output policy and counters for search progress."""
         self.output: bool = output
         self.torrents_count: int = 0
         self.pages_count: int = 0
 
     def search(self, what: str, _cat: str = "all") -> None:
+        """Fetch matching darklibria entries and emit qBittorrent result records."""
         deadline = _qbt_new_deadline()
         self.torrents_count = 0
         self.pages_count = 0
@@ -548,12 +558,14 @@ class darklibria:
         logger.info("%s torrents", self.torrents_count)
 
     def handle_page(self, what: str, page: int) -> Parser | None:
+        """Fetch a listing page and resolve its series details within the search budget."""
         parser = self.fetch_page(what, page)
         if parser is not None:
             _ = _qbt_run_parallel(self.handle_serial, self.serial_jobs(parser), _qbt_get_deadline())
         return parser
 
     def fetch_page(self, what: str, page: int) -> Parser | None:
+        """Fetch and parse one result page, returning None when it cannot be used."""
         url = self.page_search_url_pattern.format(page=page, what=what)
         data = self.request_get(url)
         if not data:
@@ -561,6 +573,7 @@ class darklibria:
         return Parser(data)
 
     def serial_jobs(self, parser: Parser) -> list[tuple[str]]:
+        """Collect unique series detail URLs within the global detail limit."""
         serials = parser.find_all("tbody", {"style": "vertical-align: center"})
         jobs: list[tuple[str]] = []
         seen_urls: set[str] = set()
@@ -575,6 +588,7 @@ class darklibria:
         return jobs
 
     def handle_serial(self, url: str) -> None:
+        """Fetch a series detail page and emit its available torrent rows."""
         data = self.request_get(url)
         if not data:
             return
@@ -585,6 +599,7 @@ class darklibria:
             self.handle_torrent_row(torrent_row, name, url)
 
     def handle_torrent_row(self, torrent_row: Tag, name: str, url: str) -> None:
+        """Convert a release table row into a qBittorrent result record."""
         type, quality, size_data, date_time, download, seeds, leech, *_ = torrent_row.children
         self.pretty_printer(
             {
@@ -601,6 +616,7 @@ class darklibria:
         self.torrents_count += 1
 
     def get_link(self, download: Tag) -> str:
+        """Prefer a magnet anchor, falling back to the available download link."""
         magnet = download.find(attrs={"title": "Magnet-ссылка"})
         if magnet is not None:
             href = magnet["href"]
@@ -615,9 +631,11 @@ class darklibria:
         return ""
 
     def get_name(self, name: str, quality: Tag, type: Tag, date_time: Tag) -> str:
+        """Combine release name, date, type, and quality for the displayed result title."""
         return f"[{self.get_date(date_time)}] {name} [{type.text}] {quality.text}"
 
     def get_date(self, date_time: Tag) -> str:
+        """Normalize a release date for display, preserving text when it is unrecognized."""
         m = self.dt_regex.search(date_time.text)
         if m is None:
             return str(date_time.text)
@@ -626,6 +644,7 @@ class darklibria:
         return str(utc2local(utc))
 
     def get_pub_date(self, date_time: Tag) -> int:
+        """Convert a recognized release date to a timestamp or return the unknown sentinel."""
         m = self.dt_regex.search(date_time.text)
         if m is None:
             return -1
@@ -633,10 +652,12 @@ class darklibria:
         return int(utc.replace(tzinfo=timezone.utc).timestamp())
 
     def get_size(self, size_data: Tag) -> str:
+        """Translate the site size unit into the unit expected by qBittorrent."""
         size, unit = size_data.text.split()
         return size + " " + self.units_dict[unit]
 
     def request_get(self, url: str) -> str | None:
+        """Retrieve page text while isolating request failures from the remaining search."""
         try:
             return retrieve_url(url)
         except Exception as exp:
@@ -654,11 +675,13 @@ class darklibria:
             )
 
     def pretty_printer(self, dictionary: SearchResults) -> None:
+        """Log a result and emit it only when output is enabled."""
         logger.debug(str(dictionary))
         if self.output:
             _qbt_prettyPrinter(dictionary)
 
     def set_search_data(self, parser: Parser) -> None:
+        """Read the total torrent and page counts from the listing summary."""
         results = parser.find("span", {"class": "text text-light mt-0"})
         if results:
             parts = results.text.split()
@@ -677,12 +700,15 @@ class darklibria:
 
 
 class Tag:
+    """Minimal HTML tree node supporting attribute, text, and descendant lookup."""
+
     def __init__(
         self,
         tag: str | None = None,
         attrs: Sequence[tuple[str, str | None]] = (),
         is_self_closing: bool | None = None,
     ) -> None:
+        """Store tag attributes and initial children for lightweight tree traversal."""
         self.type: str | None = tag
         self.is_self_closing: bool | None = is_self_closing
         self._attrs: tuple[tuple[str, str | None], ...] = tuple(attrs)
@@ -699,6 +725,7 @@ class Tag:
         return "".join(c if isinstance(c, str) else c.text for c in self._content)
 
     def add_content(self, obj: object) -> None:
+        """Append a supported child node or text fragment to this HTML node."""
         if isinstance(obj, (Tag, str)):
             self._content.append(obj)
         else:
@@ -706,6 +733,7 @@ class Tag:
 
     @property
     def content(self) -> tuple[Tag | str, ...]:
+        """Expose child content as an immutable tuple."""
         return tuple(self._content)
 
     def find(
@@ -772,15 +800,18 @@ class Tag:
             yield from child_tag.descendants
 
     def __getitem__(self, key: str) -> str | None:
+        """Look up a parsed HTML attribute by name."""
         return self.attrs[key]
 
     def __getattr__(self, attr: str) -> Tag | None:
+        """Resolve dynamic tag access while preserving normal magic-attribute lookup failures."""
         if not attr.startswith("__"):
             return self.find(tag=attr)
         raise AttributeError(attr)
 
     @override
     def __repr__(self) -> str:
+        """Serialize the parsed node content back into HTML."""
         attrs = " ".join(str(k) if v is None else f'{k}="{v}"' for k, v in self._attrs)
         starttag = f"{self.type} {attrs}" if attrs else self.type
 
@@ -795,6 +826,7 @@ class Parser(HTMLParser):
     """Feed HTML through and expose the root Tag tree for querying."""
 
     def __init__(self, html_code: str, *args: object, **kwargs: object) -> None:
+        """Initialize the HTML parser and synthetic root used for tree construction."""
         super().__init__(*args, **kwargs)
 
         self._root: Tag = Tag("_root")
@@ -809,18 +841,22 @@ class Parser(HTMLParser):
 
     @property
     def attrs(self) -> dict[str, str | None]:
+        """Expose the attributes of the parser root node."""
         return self._root.attrs
 
     @property
     def text(self) -> str:
+        """Return text collected beneath the parser root."""
         return self._root.text
 
     @override
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Push an opening tag onto the lightweight HTML tree stack."""
         self._path.append(Tag(tag=tag, attrs=attrs))
 
     @override
     def handle_endtag(self, tag: str) -> None:
+        """Fold completed nodes into their parent when the matching closing tag arrives."""
         for pos in range(len(self._path) - 1, -1, -1):
             node = self._path[pos]
             if isinstance(node, Tag) and node.type == tag and node.is_self_closing is None:
@@ -839,30 +875,37 @@ class Parser(HTMLParser):
 
     @override
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Record a self-closing HTML node without expecting a closing tag."""
         self._path.append(Tag(tag=tag, attrs=attrs, is_self_closing=True))
 
     @override
     def handle_decl(self, decl: str) -> None:
+        """Retain an HTML declaration as a self-closing node."""
         self._path.append(Tag(tag="!" + decl, is_self_closing=True))
 
     @override
     def handle_data(self, data: str) -> None:
+        """Retain a text fragment on the current HTML tree path."""
         self._path.append(data)
 
     def __getitem__(self, key: str) -> str | None:
+        """Look up a parsed HTML attribute by name."""
         return self.attrs[key]
 
     def __getattr__(self, attr: str) -> Tag | None:
+        """Resolve dynamic tag access while preserving normal magic-attribute lookup failures."""
         if not attr.startswith("__"):
             return cast(Optional[Tag], getattr(self._root, attr))
         raise AttributeError(attr)
 
     @override
     def __repr__(self) -> str:
+        """Serialize the parsed node content back into HTML."""
         return "".join(str(c) for c in self._root.content)
 
 
 def utc2local(utc: datetime) -> datetime:
+    """Convert a naive UTC datetime using the local timezone offset at that instant."""
     epoch = mktime(utc.timetuple())
     offset = datetime.fromtimestamp(epoch) - datetime.fromtimestamp(epoch, timezone.utc).replace(
         tzinfo=None

@@ -1,3 +1,7 @@
+/**
+ * Generate and compare deterministic endpoint inference fixtures.
+ * @file
+ */
 import { join } from "node:path";
 import { format } from "prettier";
 import { ROOT } from "../../tool/core/repo";
@@ -8,12 +12,14 @@ import { pluginPath } from "./runner";
 
 export const PROBE_FIXTURES_PATH = join(ROOT, "test", "live", "fixtures", "probe-urls.json");
 
+/** Public query, site URL, and expected inferred probe endpoints for one engine. */
 export interface ProbeFixture {
   query: string;
   siteUrl: string;
   urls: string[];
 }
 
+/** Probe expectations keyed by catalog plugin ID. */
 export type ProbeFixtures = Record<string, ProbeFixture>;
 
 /** Build the current probe fixtures for every catalog plugin (no network). */
@@ -33,6 +39,7 @@ export async function buildProbeFixtures(queryOverride: string | null): Promise<
   return fixtures;
 }
 
+/** Regenerate deterministic endpoint fixtures from the current plugin sources. */
 export async function writeProbeFixtures(queryOverride: string | null): Promise<void> {
   const fixtures = await buildProbeFixtures(queryOverride);
   await Bun.write(
@@ -44,6 +51,7 @@ export async function writeProbeFixtures(queryOverride: string | null): Promise<
   );
 }
 
+/** Load checked-in probe expectations or report the missing generated file. */
 export async function loadProbeFixtures(): Promise<ProbeFixtures> {
   const file = Bun.file(PROBE_FIXTURES_PATH);
   if (!(await file.exists())) {

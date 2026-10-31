@@ -1,8 +1,13 @@
+/**
+ * Collect validated files needed by a standalone-engine distribution.
+ * @file
+ */
 import { extname, join, resolve } from "node:path";
 import { readdir, stat } from "node:fs/promises";
 import { DOCUMENTATION_DIR, INSTALL_DIR, ROOT, SCREENSHOT_PATH } from "./constants";
 import type { CatalogEntry } from "./types";
 
+/** Check for a regular file, treating missing or inaccessible paths as absent. */
 async function isFile(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile();
@@ -11,6 +16,7 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
+/** Collect non-Python support files that must accompany installed engines. */
 async function supportFiles(): Promise<string[]> {
   const pluginDirectory = resolve(ROOT, "plugins");
   const entries = await readdir(pluginDirectory, { withFileTypes: true });

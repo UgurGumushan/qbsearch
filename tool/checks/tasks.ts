@@ -1,5 +1,10 @@
+/**
+ * Define the static, generated, and test tasks shared by hooks and CI.
+ * @file
+ */
 import type { CheckTask } from "../core/run";
 
+/** Select the deterministic gate breadth and metadata-warning policy. */
 export interface CheckOptions {
   mode: "fast" | "full";
   strict: boolean;
@@ -13,6 +18,7 @@ export function checkTasks({ mode, strict }: CheckOptions): CheckTask[] {
     { label: "ESLint", command: [bun, "run", "lint"] },
     { label: "Prettier", command: [bun, "run", "format:check"] },
     { label: "Ruff lint", command: ["ruff", "check", "."] },
+    { label: "Plugin documentation", command: [bun, "tool/checks/python_documentation.ts"] },
     { label: "Ruff format", command: ["ruff", "format", "--check", "."] },
     { label: "BasedPyright", command: ["basedpyright"] },
     { label: "Plugin quality", command: [bun, "tool/checks/plugin_quality.ts"] },

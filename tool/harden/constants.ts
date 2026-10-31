@@ -1,3 +1,7 @@
+/**
+ * Define safety block markers and supported HTMLParser override hooks.
+ * @file
+ */
 import { PLUGIN_DIR, ROOT } from "../core/repo";
 
 export { PLUGIN_DIR, ROOT };

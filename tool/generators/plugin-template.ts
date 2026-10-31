@@ -1,5 +1,10 @@
+/**
+ * Render documented JSON and HTML standalone-engine scaffolds.
+ * @file
+ */
 import { pythonStringLiteral } from "../core/python-parse";
 
+/** Render shared Python scaffold metadata, imports, and the safety-injection anchor. */
 const HEADER = (id: string, site: string, imports: string) => `# VERSION: 1.00
 """Search engine template for ${id}.
 
@@ -20,6 +25,7 @@ from novaprinter import prettyPrinter
 
 
 def _usable_link(value: object) -> bool:
+    """Accept HTTP downloads and magnets with a valid BitTorrent info hash."""
     if not isinstance(value, str) or not value.strip():
         return False
     try:
@@ -35,16 +41,20 @@ def _usable_link(value: object) -> bool:
 
 
 class ${id}:
+    """Expose ${id} listings through the qBittorrent search-engine interface."""
+
     url = ${pythonStringLiteral(site)}
     name = "${id}"
     supported_categories: ClassVar[dict[str, str]] = {"all": "all"}
 `;
 
+/** Render a standalone JSON or HTML engine scaffold with bounded result handling. */
 export function renderPluginTemplate(kind: "json" | "html", id: string, site: string): string {
   if (kind === "json") {
     return `${HEADER(id, site, "import json\nimport re")}
     @staticmethod
     def _peers(value: object) -> int:
+        """Normalize peer counts, using -1 for absent or malformed values."""
         if isinstance(value, bool) or not isinstance(value, (int, float, str)):
             return -1
         try:
@@ -53,6 +63,7 @@ export function renderPluginTemplate(kind: "json" | "html", id: string, site: st
             return -1
 
     def search(self, what: str, cat: str = "all") -> None:
+        """Fetch JSON listings and emit unique usable results within the detail limit."""
         _ = cat
         _ = _qbt_new_deadline()
         response = retrieve_url(f"{self.url.rstrip('/')}/search/{quote_plus(what)}")
@@ -90,7 +101,10 @@ export function renderPluginTemplate(kind: "json" | "html", id: string, site: st
   }
   return `${HEADER(id, site, "import re\nfrom html.parser import HTMLParser")}
     class ResultParser(HTMLParser):
+        """Collect labeled magnet and torrent anchors from the search response."""
+
         def __init__(self, site: str) -> None:
+            """Initialize anchor capture and result deduplication for one search page."""
             super().__init__(convert_charrefs=True)
             self.site = site
             self.link = ""
@@ -98,6 +112,7 @@ export function renderPluginTemplate(kind: "json" | "html", id: string, site: st
             self.seen: set[str] = set()
 
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Begin title capture only for a usable magnet or torrent anchor."""
             if tag != "a":
                 return
             self.link = ""
@@ -115,10 +130,12 @@ export function renderPluginTemplate(kind: "json" | "html", id: string, site: st
                 return
 
         def handle_data(self, data: str) -> None:
+            """Accumulate visible text inside the current download anchor."""
             if self.link:
                 self.title.append(data)
 
         def handle_endtag(self, tag: str) -> None:
+            """Emit a completed unique anchor and clear its state for the next result."""
             if tag != "a":
                 return
             title = "".join(self.title).strip()
@@ -138,6 +155,7 @@ export function renderPluginTemplate(kind: "json" | "html", id: string, site: st
             self.title = []
 
     def search(self, what: str, cat: str = "all") -> None:
+        """Fetch a listing page and emit the parser's bounded download results."""
         _ = cat
         _ = _qbt_new_deadline()
         response = retrieve_url(f"{self.url.rstrip('/')}/search/{quote_plus(what)}")

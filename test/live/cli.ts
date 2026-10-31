@@ -1,3 +1,8 @@
+/**
+ * Parse live runner options and document their defaults.
+ * @file
+ */
+/** Parsed live-run filters, worker limits, and install-only options. */
 export interface LiveArguments {
   timeout: number;
   skipSafety: boolean;
@@ -19,6 +24,7 @@ const VALUE_OPTIONS = new Set([
   "--plugin",
 ]);
 
+/** Describe the supported live-test flags and their defaults. */
 export function liveUsage(): string {
   return `Usage: bun run test -- --live [options]
 
@@ -36,6 +42,7 @@ Options:
 `;
 }
 
+/** Parse a finite CLI number or throw an option-specific error. */
 function parseNumber(value: string, option: string): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
@@ -44,6 +51,7 @@ function parseNumber(value: string, option: string): number {
   return parsed;
 }
 
+/** Parse live-run options, returning null for help and rejecting invalid values. */
 export function parseLiveArguments(rawArgs: string[]): LiveArguments | null {
   const args: LiveArguments = {
     timeout: 120,

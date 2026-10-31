@@ -63,6 +63,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -115,6 +116,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -122,12 +124,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -188,6 +192,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -246,7 +251,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -352,7 +358,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -502,6 +508,8 @@ MAX_DEPTH = 10  # Safety cap on how many Base64+ROT13 layers to peel off.
 
 
 class TorrentInfo(TypedDict):
+    """Metadata collected from a detail page before emitting a search result."""
+
     title: str | None
     link: str | None
     size: str
@@ -514,6 +522,7 @@ class TorrentInfo(TypedDict):
 
 
 def deobfuscate_magnet(obfuscated: str) -> str | None:
+    """Decode bounded layers of the site magnet obfuscation, rejecting malformed input."""
     encoded = obfuscated.encode()
     try:
         for _ in range(MAX_DEPTH):
@@ -531,11 +540,13 @@ class MagnetParser(HTMLParser):
     """Read encoded query values without depending on link order or quoting."""
 
     def __init__(self) -> None:
+        """Initialize HTML parsing state and buffers for result metadata."""
         super().__init__()
         self.link: str | None = None
 
     @override
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Track result boundaries and capture metadata from opening HTML tags."""
         if tag != "a" or self.link is not None:
             return
         href = dict(attrs).get("href") or ""
@@ -553,7 +564,7 @@ class MagnetParser(HTMLParser):
 
 
 def format_info(info: TorrentInfo) -> None:
-
+    """Normalize extracted detail metadata into a printable torrent record."""
     title = info["title"] or ""
     if title.startswith("<h1>") and title.endswith("</h1>"):
         title = title[4:-5]
@@ -570,6 +581,8 @@ def format_info(info: TorrentInfo) -> None:
 
 
 class elitetorrent:
+    """Expose elitetorrent search results through the qBittorrent engine interface."""
+
     url: str = "https://www.elitetorrent.com"
     name: str = "Elitetorrent"
     # Page has only movies and tv series. Search box has no filters
@@ -580,6 +593,7 @@ class elitetorrent:
     }
 
     def __init__(self) -> None:
+        """Set the detail-search pagination budget for this engine instance."""
         self.pages_limit: int = 2  # Limit of pages, more pages increase the time it takes
 
     def download_torrent(self, info: SearchResults) -> None:
@@ -587,6 +601,7 @@ class elitetorrent:
         print(download_file(info["link"]))
 
     def parse_result(self, url: str) -> SearchResults | None:
+        """Fetch a detail page and extract its title, size, and usable download link."""
         data = retrieve_url(url).replace("\n", "")
         info: TorrentInfo = {
             "title": None,
@@ -653,6 +668,7 @@ class elitetorrent:
         }
 
     def search(self, what: str, cat: str = "all") -> None:
+        """Fetch matching elitetorrent entries and emit qBittorrent result records."""
         query = what.replace("%20", "+")
         search_url = f"{self.url}/?s={query}"
         html = retrieve_url(search_url)

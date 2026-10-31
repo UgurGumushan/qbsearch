@@ -1,3 +1,7 @@
+/**
+ * Verify static safety audits recognize bounded work and reject unsafe patterns.
+ * @file
+ */
 import { describe, expect, test } from "bun:test";
 import { auditPluginQuality } from "../tool/checks/plugin_quality";
 

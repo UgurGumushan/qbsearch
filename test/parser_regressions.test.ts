@@ -1,3 +1,7 @@
+/**
+ * Verify offline transport fidelity and parser resource-limit regressions.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { gzipSync } from "node:zlib";
 import { mkdtemp, rm } from "node:fs/promises";

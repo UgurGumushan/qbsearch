@@ -1,3 +1,7 @@
+/**
+ * Define release output defaults and required distribution assets.
+ * @file
+ */
 import {
   CATALOG_PATH,
   DOCUMENTATION_DIR,

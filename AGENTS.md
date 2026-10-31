@@ -60,6 +60,28 @@ start from `bun run plugin -- --new <id>` and place the safety preamble at the
 TypeScript follows strict type-checked ESLint and Prettier; the source of truth
 for linted roots is `tool/core/repo.ts` (`TYPESCRIPT_DIRS`).
 
+## Code Documentation
+
+- Python public modules, classes, functions, methods, constructors, and magic
+  methods require nonempty docstrings (Ruff D100-D107 and D419). Private helpers
+  need explanations when their behavior is non-obvious. Declaration stubs are exempt.
+- Handwritten TypeScript modules in `tool/` and `test/` require a file overview
+  (`/** Description.\n * @file\n */`) and descriptive JSDoc for named functions,
+  assigned functions, classes, methods, interfaces, and type aliases. Anonymous
+  callbacks, interface members, and empty constructors are exempt. Types already
+  express signatures; parameter and return tags are optional.
+- Explain purpose, constraints, side effects, and unusual failure behavior. Add
+  inline explanations for site quirks, swallowed exceptions, fallback logic,
+  deadlines, and compatibility workarounds. Keep simple functions to one sentence.
+  Empty blocks, placeholder prose, and comments that only repeat a name do not count.
+- Document generated behavior in its canonical generator and regenerate outputs;
+  never hand-edit preambles or `test/plugin_sources.ts`. Plugin documentation is
+  also checked with the preamble masked in memory because its `__all__` otherwise
+  hides engine APIs from Ruff. Source line numbers and runtime exports are preserved.
+- `check --fast` and full checks enforce documentation immediately across the
+  covered scope. Review comment accuracy and rationale; linters only check presence.
+  Website assets have no documentation quota.
+
 ## Testing Guidelines
 
 There is no coverage threshold. Add or update deterministic checks in the

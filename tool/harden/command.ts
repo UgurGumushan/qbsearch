@@ -1,3 +1,7 @@
+/**
+ * Regenerate or audit safety preambles for every engine.
+ * @file
+ */
 import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { auditPlugin } from "../checks/harden/audit_plugin";

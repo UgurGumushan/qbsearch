@@ -1,3 +1,7 @@
+/**
+ * Fetch bounded remote responses with retry and deadline controls.
+ * @file
+ */
 import type { LiveResponse } from "./types";
 import { elitetorrentResultLinks, pirateiroResultLinks } from "./result_links";
 import { decodeHttpBody } from "./encoding";
@@ -11,6 +15,7 @@ const LIVE_HEADERS = {
   "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36",
 };
 
+/** Bounds and request hooks shared by text and binary HTTP probes. */
 export interface FetchOptions {
   timeoutMs?: number;
   maxAttempts?: number;
@@ -19,10 +24,12 @@ export interface FetchOptions {
   deadline?: number;
 }
 
+/** HTTP probe metadata with an undecoded response body. */
 export interface BinaryResponse extends Omit<LiveResponse, "body"> {
   body: Uint8Array;
 }
 
+/** Consume a response stream, enforcing its byte limit before retaining more data. */
 async function readBytes(response: Response, limit?: number): Promise<Uint8Array> {
   if (!response.body) return new Uint8Array();
   const reader = response.body.getReader();
@@ -66,10 +73,12 @@ export async function fetchTextWithRetry(
   return { ...response, body, bytes: response.body.byteLength };
 }
 
+/** Narrow unknown input to a non-null object excluding arrays. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Fetch bounded response bytes with transient retries inside the remaining deadline. */
 export async function fetchBytesWithRetry(
   url: string,
   options: FetchOptions = {},
@@ -77,6 +86,7 @@ export async function fetchBytesWithRetry(
   const timeoutMs = options.timeoutMs ?? LIVE_REQUEST_TIMEOUT_MS;
   const maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_ATTEMPTS);
   let lastError: unknown = null;
+  /** Delay a retry without sleeping beyond the remaining request budget. */
   const pause = async (attempt: number): Promise<void> => {
     const remaining = options.deadline === undefined ? 1_000 : options.deadline - performance.now();
     await Bun.sleep(Math.max(0, Math.ceil(Math.min(250 * attempt, 1_000, remaining))));
@@ -141,6 +151,7 @@ export async function fetchBytesWithRetry(
   throw new Error(`request failed after ${maxAttempts} attempts: ${detail}`);
 }
 
+/** Estimate result count from common JSON listing shapes. */
 function countJsonResultMarkers(value: unknown): number {
   if (Array.isArray(value)) {
     return value.length;
@@ -160,6 +171,7 @@ function countJsonResultMarkers(value: unknown): number {
   return largest;
 }
 
+/** Estimate listing size from JSON or HTML without executing the Python engine. */
 export function countResultMarkers(
   body: string,
   contentType = "",

@@ -1,3 +1,7 @@
+/**
+ * Verify bounded capture and preservation of partial failure evidence.
+ * @file
+ */
 import { rejects } from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,6 +11,7 @@ import { FIXTURES_DIR } from "../tool/core/repo";
 import { CAPTURE_LIMITS, captureParserCase, runFunctionalPass } from "./support/parser_capture";
 import { replayParserCase, type ParserCase } from "./support/parser_replay";
 
+/** Replace network access with fixture responses while retaining Bun fetch properties. */
 function mockFetch(handler: (input: Parameters<typeof globalThis.fetch>[0]) => Response) {
   const implementation = Object.assign(
     (input: Parameters<typeof globalThis.fetch>[0]) => Promise.resolve(handler(input)),
@@ -124,8 +129,10 @@ test("a rate-limited recovery pass stops subsequent queries and cannot qualify a
 for (const { description, body } of [
   {
     description: "interrupted",
+    /** Create the malformed or oversized body used by this capture failure case. */
     body: () =>
       new ReadableStream<Uint8Array>({
+        /** Drive the fixture response stream to reproduce the tested transport condition. */
         start(controller) {
           controller.error(new Error("response body interrupted"));
         },
@@ -133,6 +140,7 @@ for (const { description, body } of [
   },
   {
     description: "oversized",
+    /** Create the malformed or oversized body used by this capture failure case. */
     body: () => new Uint8Array(CAPTURE_LIMITS.maxResponseBytes + 1),
   },
 ]) {

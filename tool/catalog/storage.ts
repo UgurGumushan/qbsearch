@@ -1,8 +1,13 @@
+/**
+ * Read catalog JSON and validate its basic document shape.
+ * @file
+ */
 import { readFile } from "node:fs/promises";
 import { CATALOG_PATH } from "../core/repo";
 import { isRecord } from "../core/guards";
 import type { Catalog, CatalogEntry, InstallableCatalogEntry } from "./types";
 
+/** Read and parse catalog JSON, reporting missing files and malformed top-level data. */
 export async function loadCatalog(path: string = CATALOG_PATH): Promise<Catalog> {
   let source: string;
   try {
@@ -25,6 +30,7 @@ export async function loadCatalog(path: string = CATALOG_PATH): Promise<Catalog>
   return value as Catalog;
 }
 
+/** Return validated catalog rows or reject an invalid plugins collection. */
 export function catalogEntries(catalog: Catalog): CatalogEntry[] {
   const entries = catalog.plugins;
   if (!Array.isArray(entries)) {

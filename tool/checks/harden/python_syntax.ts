@@ -1,3 +1,7 @@
+/**
+ * Check engine syntax using the configured Python interpreter.
+ * @file
+ */
 import { runPythonCaptured } from "../../core/run";
 
 /** Return a concise Python AST error for a plugin, or null when valid. */

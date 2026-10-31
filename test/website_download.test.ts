@@ -1,3 +1,7 @@
+/**
+ * Verify static website downloads resolve through the stable release contract.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { ROOT } from "../tool/core/repo";
@@ -22,16 +26,19 @@ test("the static page and legacy redirect share the stable release download", as
   let scripts = 0;
   await new HTMLRewriter()
     .on("a.download-button", {
+      /** Collect the matched HTML element for static download-contract assertions. */
       element(element) {
         downloads.push(element.getAttribute("href") ?? "");
       },
     })
     .on("link[href]", {
+      /** Collect the matched HTML element for static download-contract assertions. */
       element(element) {
         assets.push(element.getAttribute("href") ?? "");
       },
     })
     .on("script", {
+      /** Collect the matched HTML element for static download-contract assertions. */
       element() {
         scripts += 1;
       },

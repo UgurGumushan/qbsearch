@@ -8,6 +8,7 @@
 - [ ] Focused live test run, if a remote parser or endpoint changed
 - [ ] Catalog and generated `documentation/PLUGINS.md` updated, if metadata changed
 - [ ] No credentials, cookies, or personal queries included
+- [ ] Documentation matches behavior; non-obvious quirks, fallbacks, and limits are explained
 
 Live query used, if any:
 

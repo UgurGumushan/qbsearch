@@ -1,3 +1,7 @@
+/**
+ * Verify Bun live-worker contracts and the offline Python boundary.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";

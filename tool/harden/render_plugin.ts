@@ -1,3 +1,7 @@
+/**
+ * Render canonical safety helpers into standalone Python engines.
+ * @file
+ */
 import { END_MARKER, START_MARKER } from "./constants";
 import { addOverrideDecorators } from "./overrides";
 import {

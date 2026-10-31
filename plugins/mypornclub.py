@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -114,6 +115,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -121,12 +123,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -187,6 +191,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -245,7 +250,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -351,7 +357,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -498,6 +504,8 @@ __all__ = [
 
 
 class MyPornRow(TypedDict, total=False):
+    """Typed listing metadata including the resolved download link."""
+
     link: str
     name: str
     size: str
@@ -509,6 +517,8 @@ class MyPornRow(TypedDict, total=False):
 
 
 class mypornclub:
+    """Expose mypornclub search results through the qBittorrent engine interface."""
+
     url: str = "https://myporn.club"
     name: str = "MyPorn Club"
     supported_categories: ClassVar[dict[str, str]] = {"all": "all"}
@@ -516,8 +526,10 @@ class mypornclub:
     pagination_regex: str = r"<div>Page\s+\d+\s+of\s+(\d+)</div>"
 
     class MyHtmlParser(HTMLParser):
+        """Extract mypornclub listing metadata while tracking HTML row and field boundaries."""
+
         def error(self, _message: str):
-            pass
+            """Tolerate parser error callbacks so one malformed page does not abort the engine."""
 
         DIV: str = "div"
         A: str = "a"
@@ -533,6 +545,7 @@ class mypornclub:
             detail_links: set[str] | None = None,
             result_links: set[str] | None = None,
         ) -> None:
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
             self.url: str = url
             self.row: MyPornRow = {}
@@ -578,6 +591,7 @@ class mypornclub:
                 return True
 
         def preda(self, arg: list[str]) -> list[str]:
+            """Adjust the web-seed signature component using the neighboring digit sums."""
             adjusted = int(arg[5])
             adjusted -= self.ssut51(arg[6]) + self.ssut51(arg[7])
             arg[5] = str(adjusted)
@@ -585,6 +599,7 @@ class mypornclub:
 
         def ssut51(self, arg: str) -> int:
             # Digit sum of the argument; part of the web-seed signature
+            """Sum decimal digits for the site web-seed signature calculation."""
             str_num = "".join(filter(str.isdigit, arg))
             sut = 0
             for char in str_num:
@@ -594,10 +609,12 @@ class mypornclub:
         def boo(self, ss: str, es: str) -> str:
             # urlsafe-base64 of "digit_sum(sxyprn.com)-digit_sum(...)"; part of
             # the web-seed signature
+            """Encode the site-specific web-seed signature payload as URL-safe Base64."""
             b = base64.b64encode((ss + "-" + "sxyprn.com" + "-" + es).encode()).decode()
             return b.replace("+", "-").replace("/", "_").replace("=", ".")
 
         def check_for_web_seed(self, web_page_url: str) -> str | None:
+            """Resolve a detail page web seed only after claiming the shared detail budget."""
             page_id = web_page_url.split("/")[-1].split(".")[0]
             web_page_url = re.sub(r"\\", r"", web_page_url)
             if not self._claim_detail(web_page_url):
@@ -632,6 +649,7 @@ class mypornclub:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = {key: value for key, value in attrs if value is not None}
             cssClasses = params.get("class") or ""
             if "torrents_list" in cssClasses:
@@ -702,7 +720,7 @@ class mypornclub:
 
         @override
         def handle_data(self, data: str) -> None:
-
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.shouldGetDate:
                 self.shouldGetDate = False
                 from datetime import datetime
@@ -774,6 +792,7 @@ class mypornclub:
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if self.insideRow and tag == self.DIV:
                 if self.insideTorrentData and tag == self.DIV:
                     self.insideTorrentData = False
@@ -798,6 +817,7 @@ class mypornclub:
                 self.insideRow = False
 
     def download_torrent(self, info: str) -> None:
+        """Download the selected torrent and print its local path for qBittorrent."""
         print(download_file(info))
 
     def do_search(
@@ -809,6 +829,7 @@ class mypornclub:
         detail_links: set[str] | None = None,
         result_links: set[str] | None = None,
     ) -> None:
+        """Fetch one listing page using the shared detail budget and synchronization lock."""
         parser = self.MyHtmlParser(self.url, detail_budget, detail_lock, detail_links, result_links)
         page_url = f"{self.url}/s/{what}/seeders/{page}"
         retrievedHtml = retrieve_url(page_url)
@@ -816,6 +837,7 @@ class mypornclub:
         parser.close()
 
     def search(self, what: str, _cat: str = "all") -> None:
+        """Fetch matching mypornclub entries and emit qBittorrent result records."""
         deadline = _qbt_new_deadline()
         detail_budget = [MAX_DETAILS]
         detail_lock = _qbt_Lock()

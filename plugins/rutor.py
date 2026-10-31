@@ -115,6 +115,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -122,12 +123,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -188,6 +191,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -246,7 +250,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -352,7 +357,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -572,6 +577,7 @@ logger.propagate = False
 
 
 def rng(t: int) -> range:
+    """Calculate remaining result-page indexes within the global page limit."""
     page_count = min(-(-t // PAGES), MAX_PAGES + 1)
     return range(1, page_count)
 
@@ -594,19 +600,23 @@ RUTOR_MONTHS = (
 
 def date_normalize(date_str: str) -> int:
     # Map Russian month abbreviations (Янв, Фев, ...) to month numbers.
+    """Translate Russian month abbreviations into a normalized numeric date."""
     date_str = next(
         date_str.replace(m, f"{i:02d}") for i, m in enumerate(RUTOR_MONTHS, 1) if m in date_str
     )
     return int(time.mktime(time.strptime(date_str, "%d %m %y")))
 
 
-class EngineError(Exception): ...
+class EngineError(Exception):
+    """Carry a Rutor request or parsing failure for user-visible reporting."""
 
 
 @dataclass
 class Config:
     # username: str = "USERNAME"
     # password: str = "PASSWORD"
+    """Rutor download preferences loaded from the adjacent JSON configuration file."""
+
     magnet: bool = False
     proxy: bool = False
     # dynamic_proxy: bool = True
@@ -614,6 +624,7 @@ class Config:
     ua: str = "Mozilla/5.0 (X11; Linux i686; rv:38.0) Gecko/20100101 Firefox/38.0 "
 
     def __post_init__(self) -> None:
+        """Load supported settings from disk and translate JSON camel-case keys."""
         try:
             config_value: object = cast(object, json.loads(FILE_J.read_text()))
             if not isinstance(config_value, dict):
@@ -630,9 +641,11 @@ class Config:
             _ = (BASEDIR / f"{FILENAME}.ico").write_bytes(base64.b64decode(ICON))
 
     def to_str(self) -> str:
+        """Serialize the effective engine configuration as readable JSON."""
         return json.dumps(self.to_dict(), indent=4, sort_keys=False)
 
     def to_dict(self) -> dict[str, object]:
+        """Expose configuration fields using the camel-case keys expected by the JSON file."""
         values = cast(dict[str, object], cast(object, vars(self)))
         return {self._to_camel(k): v for k, v in values.items()}
 
@@ -663,6 +676,8 @@ config = Config()
 
 
 class Rutor:
+    """Expose rutor search results through the qBittorrent engine interface."""
+
     name: str = "Rutor"
     url: str = "https://rutor.info/"
     url_dl: str = url.replace("//", "//d.") + "download/"
@@ -682,16 +697,20 @@ class Rutor:
     session: OpenerDirector = build_opener()
 
     def __init__(self) -> None:
+        """Initialize shared deduplication state and its synchronization lock."""
         self._seen_links: set[str] = set()
         self._seen_links_lock: LockType = Lock()
 
     def search(self, what: str, cat: str = "all") -> None:
+        """Fetch matching rutor entries and emit qBittorrent result records."""
         self._catch_errors(self._search, what, cat)
 
     def download_torrent(self, url: str) -> None:
+        """Resolve the selected download and report its torrent path or magnet to qBittorrent."""
         self._catch_errors(self._download_torrent, url)
 
     def searching(self, query: str, first: bool = False) -> int:
+        """Fetch a search page, emit its rows, and return the discovered result count."""
         page: str = self._request(query).decode()
         torrents_found: int = -1
         if first:
@@ -708,6 +727,7 @@ class Rutor:
         return torrents_found
 
     def draw(self, html: str) -> None:
+        """Emit parsed torrents while deduplicating links under the shared lock."""
         for tor in RE_TORRENTS.finditer(html):
             link = tor.group("mag_link") if config.magnet else self.url_dl + tor.group("tor_id")
             with self._seen_links_lock:
@@ -833,6 +853,7 @@ class Rutor:
         raise EngineError(f"{url} is not response! Maybe it is blocked.")
 
     def pretty_error(self, what: str, error: str) -> None:
+        """Emit an engine error as a visible qBittorrent result row."""
         _qbt_prettyPrinter(
             {
                 "engine_url": self.url,

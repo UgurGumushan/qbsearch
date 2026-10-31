@@ -103,6 +103,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -110,12 +111,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -176,6 +179,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -234,7 +238,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -340,7 +345,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -491,10 +496,12 @@ _Cls = TypeVar("_Cls", bound=type)
 
 
 def filter_unexpected_fields(cls: _Cls) -> _Cls:
+    """Ignore unknown API keys when constructing the decorated dataclass."""
     original_init: Callable[..., None] = cls.__init__
 
     def new_init(self: object, *args: object, **kwargs: object) -> None:
         expected_fields = {field.name for field in dataclasses.fields(cls)}
+        # The API can add fields independently of this installed plugin version.
         cleaned_kwargs = {key: value for key, value in kwargs.items() if key in expected_fields}
         original_init(self, *args, **cleaned_kwargs)
 
@@ -505,6 +512,8 @@ def filter_unexpected_fields(cls: _Cls) -> _Cls:
 @filter_unexpected_fields
 @dataclasses.dataclass
 class yts_torrent:
+    """Download and swarm metadata for one YTS movie encode."""
+
     url: str
     seeds: int
     peers: int
@@ -524,6 +533,8 @@ class yts_torrent:
 @filter_unexpected_fields
 @dataclasses.dataclass
 class yts_movie:
+    """Movie metadata with its available torrent encodes."""
+
     id: int
     url: str
     title: str
@@ -537,29 +548,36 @@ class yts_movie:
     date_uploaded_unix: int | None = None
 
     def __post_init__(self):
+        """Convert nested torrent dictionaries into typed encode records."""
         self.torrents = self.torrents and [yts_torrent(**torrent) for torrent in self.torrents]  # pyright: ignore[reportCallIssue]
 
 
 @filter_unexpected_fields
 @dataclasses.dataclass
 class yts_data:
+    """Paginated movie collection returned by the YTS API."""
+
     movie_count: int
     limit: int
     page_number: int
     movies: list[yts_movie] | None = None
 
     def __post_init__(self):
+        """Convert movie dictionaries into typed movie records."""
         self.movies = self.movies and [yts_movie(**movie) for movie in self.movies]  # pyright: ignore[reportCallIssue]
 
 
 @filter_unexpected_fields
 @dataclasses.dataclass
 class yts_response:
+    """YTS status envelope and parsed movie collection."""
+
     status: str
     status_message: str
     data: yts_data
 
     def __post_init__(self):
+        """Convert the API data dictionary into a typed page collection."""
         self.data = yts_data(**self.data)  # pyright: ignore[reportCallIssue]
 
 
@@ -686,6 +704,7 @@ class yts:
                 self.process_movies(api_result.data.movies or [], search_params, seen_links)
 
     def fetch_page(self, url: str) -> yts_response | None:
+        """Fetch and parse one result page, returning None when it cannot be used."""
         try:
             response = _parse_response(cast(object, json.loads(retrieve_url(url))))
         except Exception as error:
@@ -702,6 +721,7 @@ class yts:
         search_params: dict[str, str],
         seen_links: set[str] | None = None,
     ) -> None:
+        """Apply requested codec and quality filters and emit distinct movie torrents."""
         for movie in movies or []:
             for torrent in movie.torrents or []:
                 if seen_links is not None and torrent.url and torrent.url in seen_links:

@@ -1,3 +1,7 @@
+/**
+ * Verify streaming results, shared deadlines, and engine concurrency budgets.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { audiobookCase, darklibriaCase, ytsCase, YTS_SEARCH_URL } from "./support/concurrent_cases";
 import { assertUsableParserResults, replayParserFixture as replay } from "./support/parser_replay";

@@ -1,3 +1,7 @@
+/**
+ * Verify remaining engine fixtures and honest handling of unavailable results.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { FIXTURES_DIR } from "../tool/core/repo";

@@ -1,3 +1,7 @@
+/**
+ * Select changelog versions and verify release publication prerequisites.
+ * @file
+ */
 /** Keep published tags aligned with the first versioned changelog entry. */
 export function publicationTag(explicitTag: string | undefined, changelog: string): string {
   const version = /^## (\d+\.\d+\.\d+)\s*$/m.exec(changelog)?.[1];

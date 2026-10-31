@@ -57,6 +57,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -109,6 +110,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -116,12 +118,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -182,6 +186,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -240,7 +245,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -346,7 +352,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -496,12 +502,17 @@ TorrentInfo = dict[str, str]
 
 
 class uniondht:
+    """Expose uniondht search results through the qBittorrent engine interface."""
+
     name: str = "UnionDHT"
     url: str = "http://uniondht.org"
     supported_categories: ClassVar[dict[str, str]] = {"all": ""}
 
     class UnionDHTParser(HTMLParser):
+        """Parse forum search results and pagination totals into torrent records."""
+
         def __init__(self, url: str):
+            """Initialize HTML parsing state and buffers for result metadata."""
             super().__init__()
             self.engine_url: str = url
             self.torrent_info: TorrentInfo = self.default_torrent_info()
@@ -524,6 +535,7 @@ class uniondht:
             self.seen_links: set[str] = set()
 
         def default_torrent_info(self) -> TorrentInfo:
+            """Create an empty result with unknown optional metadata for the next row."""
             return {
                 "link": "",
                 "name": "",
@@ -536,6 +548,7 @@ class uniondht:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+            """Track result boundaries and capture metadata from opening HTML tags."""
             if self.find_total_results:
                 if tag == "p":
                     attributes = dict(attrs)
@@ -589,6 +602,7 @@ class uniondht:
 
         @override
         def handle_data(self, data: str):
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.parse_total_results:
                 total_results = data.split(":")[1].split("(")[0].strip()
                 self.total_results = int(total_results)
@@ -613,6 +627,7 @@ class uniondht:
 
         @override
         def handle_endtag(self, tag: str):
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if self.print_result:
                 result_link = self.torrent_info.get("link") or self.torrent_info.get("desc_link")
                 if result_link and result_link not in self.seen_links:
@@ -623,6 +638,7 @@ class uniondht:
                 self.find_torrent = True
 
     def search(self, what: str, _cat: str = "all"):
+        """Fetch matching uniondht entries and emit qBittorrent result records."""
         parser = self.UnionDHTParser(self.url)
         for page_number in range(1, MAX_PAGES + 1):
             torrent_count = (page_number - 1) * 50

@@ -1,3 +1,7 @@
+/**
+ * Extract standalone-engine metadata from Python source.
+ * @file
+ */
 /** Single Python-source parser for qBittorrent standalone engines. */
 const PYTHON_KEYWORDS = new Set(
   "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield".split(
@@ -5,6 +9,7 @@ const PYTHON_KEYWORDS = new Set(
   ),
 );
 
+/** Accept lowercase Python identifiers that are not language keywords. */
 export function validPluginIdentifier(id: string): boolean {
   return /^[a-z_][a-z0-9_]*$/.test(id) && !PYTHON_KEYWORDS.has(id);
 }
@@ -14,11 +19,13 @@ export function pythonStringLiteral(value: string): string {
   return JSON.stringify(value);
 }
 
+/** Python class body lines and the indentation used for member assignments. */
 export interface ClassBody {
   lines: string[];
   indent: string;
 }
 
+/** Display name and site URL extracted from a standalone engine class. */
 export interface PluginMetadata {
   name: string;
   site_url: string;
@@ -34,10 +41,12 @@ const SEARCH_METHOD = /^[ \t]+def\s+search\s*\(/m;
 
 export const CLASS_ATTRIBUTES = CLASS_ATTRIBUTE;
 
+/** Read an optional regex group without assuming it matched. */
 function capture(match: RegExpMatchArray, index: number): string | undefined {
   return match[index];
 }
 
+/** Decode supported Python escapes used in engine metadata literals. */
 export function decodePythonString(value: string): string {
   return value.replace(/\\([\\'"nrt])/g, (_match, character: string) => {
     switch (character) {
@@ -53,11 +62,13 @@ export function decodePythonString(value: string): string {
   });
 }
 
+/** Extract a quoted assignment value, returning null for nonliteral expressions. */
 export function literalValue(match: RegExpMatchArray): string | null {
   const value = capture(match, 2) ?? capture(match, 3);
   return value === undefined ? null : decodePythonString(value);
 }
 
+/** Resolve a literal assignment or a previously discovered string constant. */
 export function assignmentValue(
   match: RegExpMatchArray,
   constants: Map<string, string>,
@@ -67,6 +78,7 @@ export function assignmentValue(
   return literal ?? (constant === undefined ? null : (constants.get(constant) ?? null));
 }
 
+/** Collect simple top-level string assignments in declaration order. */
 export function topLevelConstants(lines: string[]): Map<string, string> {
   const constants = new Map<string, string>();
   for (const line of lines) {
@@ -85,6 +97,7 @@ export function topLevelConstants(lines: string[]): Map<string, string> {
   return constants;
 }
 
+/** Index top-level Python class bodies by name and indentation. */
 export function classBodies(lines: string[]): Map<string, ClassBody> {
   const classes = new Map<string, ClassBody>();
   for (let index = 0; index < lines.length; index += 1) {
@@ -109,6 +122,7 @@ export function classBodies(lines: string[]): Map<string, ClassBody> {
   return classes;
 }
 
+/** Split Python source consistently across Windows and Unix line endings. */
 export function splitLines(source: string): string[] {
   return source.split(/\r?\n/);
 }
@@ -165,10 +179,12 @@ export function metadataFromSource(source: string, stem: string): PluginMetadata
   return { name: attributes.name, site_url: attributes.url };
 }
 
+/** Read the qBittorrent version marker or return null when absent. */
 export function versionFromSource(source: string): string | null {
   return VERSION_LINE.exec(source)?.[1] ?? null;
 }
 
+/** Detect an indented search hook required by the engine contract. */
 export function hasSearchMethod(source: string): boolean {
   return SEARCH_METHOD.test(source);
 }

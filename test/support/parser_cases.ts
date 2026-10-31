@@ -1,6 +1,11 @@
+/**
+ * Build deterministic parser fixtures for large and paginated workloads.
+ * @file
+ */
 import { darklibriaCase } from "./concurrent_cases";
 import type { ParserCase } from "./parser_replay";
 
+/** Build a large Academic Torrents XML catalog with a controlled number of matches. */
 export function academicCase(items = 10000, matched = 5): ParserCase {
   const site = "https://academictorrents.com/";
   const responses: Record<string, string> = {};
@@ -24,6 +29,7 @@ export function academicCase(items = 10000, matched = 5): ParserCase {
   };
 }
 
+/** Expand a dark-libria fixture to stress bounded detail resolution. */
 export function darkWideCase(rows = 2048): ParserCase {
   const fixture = darklibriaCase();
   fixture.responseDelayMs = 0;
@@ -36,6 +42,7 @@ export function darkWideCase(rows = 2048): ParserCase {
   return fixture;
 }
 
+/** Build a paginated UnionDHT replay with predictable search results. */
 export function unionCase(pages = 5): ParserCase {
   const site = "http://uniondht.org";
   const responses: Record<string, string> = {};

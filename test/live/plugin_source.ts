@@ -1,27 +1,37 @@
+/**
+ * Infer probe URLs from supported Python source patterns.
+ * @file
+ */
 import { decodePythonString } from "../../tool/core/python-parse";
+import { withoutPythonDocumentation } from "../../tool/core/python-analysis";
 
+/** Extract source following the last search method for endpoint inference. */
 function searchFunctionBody(source: string): string {
   const matches = [...source.matchAll(/^[ \t]+def\s+search\s*\(/gm)];
   const start = matches.at(-1)?.index;
   return start === undefined ? "" : source.slice(start);
 }
 
+/** Collect Python formatted-string bodies for conservative URL inference. */
 function formattedLiterals(source: string): string[] {
   return [...source.matchAll(/\b(?:f|fr|rf)(["'])([\s\S]*?)\1/gi)].map((match) =>
     decodePythonString(match[2]),
   );
 }
 
+/** Collect explicit HTTP URLs from quoted Python source literals. */
 function literalUrls(source: string): string[] {
   return [...source.matchAll(/["'](https?:\/\/[^"'\n]+)["']/g)].map((match) =>
     decodePythonString(match[1]),
   );
 }
 
+/** Recognize conventional search-term variable names in a Python expression. */
 function queryExpression(expression: string): boolean {
   return /\b(?:what|query|term|searchTerm|search_term)\b/i.test(expression);
 }
 
+/** Resolve a supported Python expression to a query or known constant, otherwise return null. */
 function expandExpression(
   expression: string,
   query: string,
@@ -56,6 +66,7 @@ function expandExpression(
   return null;
 }
 
+/** Substitute supported Python format placeholders without evaluating source code. */
 function expandTemplate(
   value: string,
   query: string,
@@ -87,6 +98,7 @@ function expandTemplate(
   }
 }
 
+/** Resolve a partial search endpoint and append the probe query when needed. */
 function appendQuery(siteUrl: string, prefix: string, query: string): string | null {
   const normalizedPrefix = prefix.replaceAll("/page//", "/page/1/");
   if (normalizedPrefix.includes("https://") && !normalizedPrefix.startsWith("https://")) {
@@ -99,12 +111,14 @@ function appendQuery(siteUrl: string, prefix: string, query: string): string | n
   }
 }
 
+/** Infer candidate search URLs from engine source using supported literal patterns. */
 export function buildProbeUrls(
   source: string,
   siteUrl: string,
   query: string,
   category: string,
 ): string[] {
+  source = withoutPythonDocumentation(source);
   const body = searchFunctionBody(source);
   if (new URL(siteUrl).hostname === "archive.org" && body.includes("/advancedsearch.php?")) {
     const terms = query.match(/[\p{L}\p{N}_.-]+/gu)?.join(" ") ?? "";
@@ -131,6 +145,7 @@ export function buildProbeUrls(
       source,
     )?.[1] ?? "0";
   const candidates: string[] = [];
+  /** Retain each non-null candidate URL once while preserving discovery order. */
   const add = (candidate: string | null): void => {
     if (candidate && !candidates.includes(candidate)) {
       candidates.push(candidate);
@@ -236,6 +251,7 @@ export function buildProbeUrls(
   return candidates;
 }
 
+/** Select the first inferred endpoint, falling back to the engine site URL. */
 export function buildProbeUrl(
   source: string,
   siteUrl: string,

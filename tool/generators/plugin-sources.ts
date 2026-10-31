@@ -1,3 +1,7 @@
+/**
+ * Generate the engine import manifest used by Bun watch mode.
+ * @file
+ */
 import { PLUGIN_SOURCES_PATH } from "../core/repo";
 import { discoverPlugins, pluginId } from "../core/plugins";
 
@@ -23,14 +27,17 @@ export function renderPluginSources(ids: string[]): string {
   return lines.join("\n");
 }
 
+/** List discovered engine IDs in stable order for the watch manifest. */
 export async function pluginSourceIds(): Promise<string[]> {
   return (await discoverPlugins()).map(pluginId).sort();
 }
 
+/** Regenerate the watch manifest from the current engine inventory. */
 export async function writePluginSources(): Promise<void> {
   await Bun.write(PLUGIN_SOURCES_PATH, renderPluginSources(await pluginSourceIds()));
 }
 
+/** Report a missing or stale watch manifest without writing files. */
 export async function checkPluginSources(): Promise<string | null> {
   const expected = renderPluginSources(await pluginSourceIds());
   const file = Bun.file(PLUGIN_SOURCES_PATH);

@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -112,6 +113,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -119,12 +121,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -185,6 +189,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -243,7 +248,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -349,7 +355,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -496,6 +502,7 @@ __all__ = [
 
 
 def stats_int(value: str) -> int:
+    """Parse a peer count, returning the unknown-value sentinel on malformed input."""
     try:
         return int(value)
     except ValueError:
@@ -507,10 +514,13 @@ DATE_RE = re_compile(r"Date:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\s+UTC")
 
 
 class tokyotoshokan:
+    """Expose Tokyo Toshokan listings through the qBittorrent engine interface."""
+
     url: str = "http://tokyotosho.info"
     name: str = "Tokyo Toshokan"
 
     def __init__(self):
+        """Map supported qBittorrent categories to the site category IDs."""
         self.supported_categories: dict[str, str] = {"all": "0", "anime": "1", "games": "14"}
         # self.supported_categories = {'all': '0', 'anime': '1', 'anime(non-english)': '10',
         #                        'manga': '3', 'drama': '8', 'music': '2',
@@ -519,10 +529,14 @@ class tokyotoshokan:
         #
 
     def download_torrent(self, info: str) -> None:
+        """Download the selected torrent and print its local path for qBittorrent."""
         print(download_file(info))
 
     class MyHtmlParseWithBlackJack(HTMLParser):
+        """Extract tokyotoshokan listing metadata while tracking HTML row and field boundaries."""
+
         def __init__(self, url: str):
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
             self.get_size_regex: re.Pattern[str] = re_compile(r".*Size:\s+([^ ]*)\s+.*")
             self.url: str = url
@@ -535,6 +549,7 @@ class tokyotoshokan:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = dict(attrs)
             if self.current_item:
                 if tag == "a":
@@ -563,6 +578,7 @@ class tokyotoshokan:
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if tag == "a":
                 if self.name_found:
                     self.name_found = False
@@ -593,6 +609,7 @@ class tokyotoshokan:
 
         @override
         def handle_data(self, data: str) -> None:
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.current_item is None:
                 return
             if self.name_found:
@@ -624,6 +641,7 @@ class tokyotoshokan:
         visited: set[str] | None = None,
         page_data: str | None = None,
     ) -> str:
+        """Fetch remaining search pages without exceeding the pagination limit."""
         if visited is None:
             visited = {last_page_url}
         additional_links = re_compile(
@@ -656,6 +674,7 @@ class tokyotoshokan:
         return last_page_url
 
     def search(self, query: str, cat: str = "all") -> None:
+        """Fetch matching tokyotoshokan entries and emit qBittorrent result records."""
         query = query.replace(" ", "+")
         parser = self.MyHtmlParseWithBlackJack(self.url)
         request_url = f"{self.url}/search.php?terms={query}&type={self.supported_categories[cat]}&size_min=&size_max=&username="

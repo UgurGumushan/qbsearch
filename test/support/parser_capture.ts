@@ -1,3 +1,7 @@
+/**
+ * Save bounded remote evidence for reproducible parser investigations.
+ * @file
+ */
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { ROOT } from "../../tool/core/repo";
@@ -38,6 +42,7 @@ const FUNCTIONAL_QUERIES: Record<ParserPlugin, readonly string[]> = {
   uniondht: ["ubuntu", "debian"],
 };
 
+/** Per-request capture metadata retained for reproducible parser investigations. */
 interface ResponseEvidence {
   requestedUrl: string;
   finalUrl: string;
@@ -48,6 +53,7 @@ interface ResponseEvidence {
   error?: string;
 }
 
+/** Saved fixture location, capture time, responses, and replay outcome. */
 interface CapturedCase {
   path: string;
   capturedAt: string;
@@ -56,7 +62,9 @@ interface CapturedCase {
   downloads: DownloadProof[];
 }
 
+/** Capture failure carrying the partial evidence saved before the error. */
 class ParserCaptureError extends Error {
+  /** Retain the failed capture alongside the diagnostic message. */
   constructor(
     message: string,
     readonly capture: CapturedCase,
@@ -96,6 +104,7 @@ export async function captureParserCase(
     responses,
     sourceSha256,
   };
+  /** Persist the current capture evidence and return its location and timestamp. */
   const save = async (): Promise<CapturedCase> => {
     capturedAt = new Date().toISOString();
     await Bun.write(
@@ -104,6 +113,7 @@ export async function captureParserCase(
     );
     return { path, capturedAt, responses: evidence, sourceSha256, downloads };
   };
+  /** Capture one bounded HTTP response and retain evidence even when the request fails. */
   const get = async (url: string): Promise<string> => {
     let response;
     let attempts = 0;
@@ -111,6 +121,7 @@ export async function captureParserCase(
       response = await fetchTextWithRetry(url, {
         ...CAPTURE_LIMITS,
         deadline,
+        /** Count each actual HTTP attempt, including retries. */
         onRequest: () => {
           attempts += 1;
         },
@@ -201,6 +212,7 @@ export async function captureParserCase(
             response = await fetchBytesWithRetry(url, {
               ...CAPTURE_LIMITS,
               deadline,
+              /** Count each actual HTTP attempt, including retries. */
               onRequest: () => {
                 attempts += 1;
               },
@@ -255,6 +267,7 @@ export async function captureParserCase(
   return save();
 }
 
+/** Public query and optional capture or error from a functional parser check. */
 interface FunctionalCase {
   query: string;
   capture?: CapturedCase;

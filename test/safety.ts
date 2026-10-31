@@ -1,3 +1,7 @@
+/**
+ * Exercise generated Python helpers and audit standalone-engine safety.
+ * @file
+ */
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -32,14 +36,6 @@ const SAFETY_BEHAVIOR_HARNESS = [
   "generated = cast(ModuleType, module)",
   "",
   "",
-  "generated.SEARCH_DEADLINE = 0.2",
-  "first_deadline = generated._qbt_new_deadline()",
-  "time.sleep(0.01)",
-  "second_deadline = generated._qbt_new_deadline()",
-  "assert second_deadline > first_deadline",
-  "assert second_deadline - time.monotonic() > 0.1",
-  "",
-  "",
   "class Clock:",
   "    def __init__(self) -> None:",
   "        self.now = 100.0",
@@ -51,6 +47,18 @@ const SAFETY_BEHAVIOR_HARNESS = [
   "    def sleep(self, duration: float) -> None:",
   "        self.sleeps.append(duration)",
   "        self.now += duration",
+  "",
+  "",
+  "# Windows clock resolution can exceed a short sleep; test budget resets with explicit ticks.",
+  "deadline_clock = Clock()",
+  "generated._qbt_time = deadline_clock",
+  "generated.SEARCH_DEADLINE = 0.2",
+  "first_deadline = generated._qbt_new_deadline()",
+  "deadline_clock.now += 0.01",
+  "assert generated._qbt_get_deadline() == first_deadline",
+  "second_deadline = generated._qbt_new_deadline()",
+  "assert abs(second_deadline - first_deadline - 0.01) < 0.000001",
+  "assert abs(second_deadline - deadline_clock.now - 0.2) < 0.000001",
   "",
   "",
   "clock = Clock()",
@@ -302,6 +310,7 @@ const SAFETY_BEHAVIOR_HARNESS = [
   "print('Safety behavior tests passed.')",
 ].join("\n");
 
+/** Execute Python helper behavior assertions and surface captured failures. */
 async function runSafetyBehaviorHarness(helperPath: string, scriptPath: string): Promise<void> {
   const result = await runPythonCaptured([scriptPath, helperPath, resolve(PLUGIN_DIR, "rutor.py")]);
   if (result.code !== 0) {
@@ -312,6 +321,7 @@ async function runSafetyBehaviorHarness(helperPath: string, scriptPath: string):
   process.stdout.write(result.output);
 }
 
+/** Allow local request accounting to settle until the count or short timeout is reached. */
 async function waitForRequests(
   counts: Map<string, number>,
   path: string,
@@ -323,12 +333,14 @@ async function waitForRequests(
   }
 }
 
+/** Audit engine source and exercise generated helpers against local failure scenarios. */
 export async function runSafetySuite(): Promise<void> {
   await auditPlugins();
 
   const serverCounts = new Map<string, number>();
   const server = Bun.serve({
     port: 0,
+    /** Serve controlled local HTTP responses for transport and retry assertions. */
     fetch: async (request) => {
       const path = new URL(request.url).pathname;
       const count = (serverCounts.get(path) ?? 0) + 1;

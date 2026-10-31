@@ -1,3 +1,7 @@
+/**
+ * Coordinate catalog validation and generated catalog documentation.
+ * @file
+ */
 import { relative } from "node:path";
 import { DOCS_PATH, ROOT } from "../core/repo";
 import { validateCatalog } from "../checks/catalog_validation";

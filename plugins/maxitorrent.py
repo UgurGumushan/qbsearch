@@ -63,6 +63,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -115,6 +116,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -122,12 +124,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -188,6 +192,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -246,7 +251,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -352,7 +358,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -503,6 +509,8 @@ _REDIRECT_RE = re.compile(r"window\.location\.href\s*=\s*(['\"])(.*?)\1")
 
 
 class maxitorrent:
+    """Expose MaxiTorrent listings through the qBittorrent engine interface."""
+
     url: str = "http://atomixhq.com"
     name: str = "MaxiTorrent"
     size: str = ""
@@ -511,10 +519,13 @@ class maxitorrent:
     torrent_list: ClassVar[list[str]] = []
 
     class HTMLParser1(HTMLParser):
+        """Follow links in the centered navigation container to related listings."""
+
         indicador: int = 0
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             if tag == "a" and self.indicador == 1:
                 params = dict(attrs)
                 href = params.get("href")
@@ -527,10 +538,13 @@ class maxitorrent:
                     self.indicador = 1
 
     class HTMLParser3(HTMLParser):
+        """Resolve detail anchors inside the buscar-list result container."""
+
         indicador: int = 0
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             if tag == "a" and self.indicador == 1:
                 params = dict(attrs)
                 href = params.get("href")
@@ -544,15 +558,19 @@ class maxitorrent:
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if tag == "ul":
                 # print("end tag")
                 self.indicador = 0
 
     class HTMLParser2(HTMLParser):
+        """Resolve the detail anchor following a color-marked span."""
+
         indicador: int = 0
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             if tag == "a" and self.indicador == 1:
                 params = dict(attrs)
                 href = params.get("href")
@@ -566,6 +584,7 @@ class maxitorrent:
 
     @staticmethod
     def retrieve_url2(url: str) -> bytes | str:
+        """Fetch bytes with supplied headers through the bounded URL opener."""
         req = urllib.request.Request(url, headers=headers)
         try:
             with _qbt_safe_urlopen(req) as response:
@@ -574,6 +593,7 @@ class maxitorrent:
             return ""
 
     def do_post(self, full_url: str, what: str) -> bytes:
+        """Submit the current search page as a form-encoded request."""
         query_args = {"s": what, "pg": self.pg}
         encoded_args = urllib.parse.urlencode(query_args).encode("ascii")
         req = urllib.request.Request(full_url, data=encoded_args, headers=headers)
@@ -582,6 +602,7 @@ class maxitorrent:
 
     @staticmethod
     def montar_torrent(link: str) -> None:
+        """Validate a resolved torrent URL and emit its collected result metadata."""
         link = urllib.parse.urljoin(maxitorrent.url, link)
         target = urllib.parse.urlsplit(link)
         if target.scheme not in ("http", "https") or not target.netloc:
@@ -606,6 +627,7 @@ class maxitorrent:
 
     @staticmethod
     def get_torrent_core(link: str) -> None:
+        """Resolve a unique detail link and extract downloadable torrent metadata."""
         link = urllib.parse.urljoin(maxitorrent.url, link)
         if link in maxitorrent.torrent_list:
             return
@@ -634,19 +656,23 @@ class maxitorrent:
 
     @staticmethod
     def get_torrent2(link: str) -> None:
+        """Resolve a detail link through the shared torrent extraction path."""
         maxitorrent.get_torrent_core(link)
 
     @staticmethod
     def get_torrent3(link: str) -> None:
+        """Resolve a relative detail link against the current site before extraction."""
         maxitorrent.get_torrent_core(urllib.parse.urljoin(maxitorrent.url, link))
 
     @staticmethod
     def get_torrent(guid: str) -> None:
         # print(guid)
+        """Convert a listing identifier to a detail URL for torrent extraction."""
         link = maxitorrent.url + "/" + guid
         maxitorrent.get_torrent_core(link)
 
     def search(self, what: str, _cat: str = "all") -> None:
+        """Fetch matching maxitorrent entries and emit qBittorrent result records."""
         self.pg = 1
         maxitorrent.count = 1
         maxitorrent.size = ""

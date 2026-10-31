@@ -1,3 +1,7 @@
+/**
+ * Verify detail-link decoding and usable results through real Python parsers.
+ * @file
+ */
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -16,6 +20,7 @@ const elite = "https://www.elitetorrent.com";
 const bit = "https://bitsearch.to";
 const magnet = `magnet:?xt=urn:btih:${"A".repeat(40)}&dn=Fixture`;
 
+/** Apply the site obfuscation layers to a magnet for decoder regression tests. */
 function encodeMagnet(value: string, depth = 1): string {
   const rot13 = value.replace(/[a-z]/gi, (char) => {
     const start = char <= "Z" ? 65 : 97;
@@ -28,6 +33,7 @@ function encodeMagnet(value: string, depth = 1): string {
   return result;
 }
 
+/** Build an Elitetorrent detail replay around the supplied download anchors. */
 function detailCase(anchors: string): ParserCase {
   const url = `${elite}/peliculas/fixture/`;
   return {

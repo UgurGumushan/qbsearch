@@ -1,3 +1,7 @@
+/**
+ * Run a single engine contract check and optional remote probe.
+ * @file
+ */
 import { basename, resolve } from "node:path";
 import { ROOT } from "../../tool/core/repo";
 import { countResultMarkers, fetchTextWithRetry } from "./http";
@@ -5,6 +9,7 @@ import { inspectLivePlugin } from "./plugin_contract";
 import { buildProbeUrl } from "./plugin_source";
 import type { LiveProbeReport, LiveWorkerArguments } from "./types";
 
+/** Describe the single-plugin worker arguments and optional modes. */
 function workerUsage(): string {
   return `Usage: bun test/live_plugin.ts PLUGIN [options]
 
@@ -16,6 +21,7 @@ Options:
 `;
 }
 
+/** Parse one worker invocation, rejecting missing plugins and invalid options. */
 export function parseWorkerArguments(rawArgs: string[]): LiveWorkerArguments | null {
   let plugin: string | null = null;
   const args: LiveWorkerArguments = {
@@ -78,6 +84,7 @@ export function parseWorkerArguments(rawArgs: string[]): LiveWorkerArguments | n
   return args;
 }
 
+/** Validate a plugin contract and optionally fetch its search endpoint for result evidence. */
 export async function runLiveProbe(args: LiveWorkerArguments): Promise<LiveProbeReport> {
   const contract = await inspectLivePlugin(args.plugin);
   if (contract.errors.length > 0) {
@@ -99,7 +106,9 @@ export async function runLiveProbe(args: LiveWorkerArguments): Promise<LiveProbe
 
   const url = buildProbeUrl(contract.source, contract.siteUrl, args.query, args.category);
   let requests = 0;
-  const response = await fetchTextWithRetry(url, { onRequest: () => (requests += 1) });
+  const response = await fetchTextWithRetry(url, {
+    /** Count each actual HTTP attempt, including retries. */ onRequest: () => (requests += 1),
+  });
   if (response.status >= 400) {
     throw new Error(`remote endpoint returned HTTP ${response.status}`);
   }
@@ -120,6 +129,7 @@ export async function runLiveProbe(args: LiveWorkerArguments): Promise<LiveProbe
   };
 }
 
+/** Format the worker report with its query, mode, and remote evidence. */
 function reportLine(report: LiveProbeReport): string {
   if (report.mode === "install-only") {
     return `LIVE PASS ${report.id} [${JSON.stringify(report.query)}]: metadata verified, 0 HTTP requests, TypeScript installability probe`;
@@ -127,6 +137,7 @@ function reportLine(report: LiveProbeReport): string {
   return `LIVE PASS ${report.id} [${JSON.stringify(report.query)}]: ${report.resultMarkers} result markers, ${report.requests} HTTP requests, TypeScript remote probe`;
 }
 
+/** Handle worker help, execution, and error reporting through an exit status. */
 export async function runWorker(rawArgs: string[]): Promise<number> {
   let args: LiveWorkerArguments | null;
   try {

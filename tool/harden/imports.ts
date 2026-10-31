@@ -1,3 +1,7 @@
+/**
+ * Place safety preambles and preserve required Python import ordering.
+ * @file
+ */
 import { SAFETY_PREAMBLE, SAFETY_PREAMBLE_WITH_OVERRIDE } from "./safety_preamble";
 import { END_MARKER, START_MARKER } from "./constants";
 import { bracketDelta, hasFinalNewline, indentation } from "./source_text";
@@ -5,6 +9,7 @@ import { bracketDelta, hasFinalNewline, indentation } from "./source_text";
 /** Anchor line for deterministic preamble placement in newly scaffolded engines. */
 export const PREAMBLE_ANCHOR = "# QBSEARCH-PREAMBLE-ANCHOR";
 
+/** Add postponed annotations before executable code when the import is absent. */
 export function ensureFutureAnnotations(source: string): string {
   if (/^from\s+__future__\s+import\s+.*\bannotations\b/m.test(source)) {
     return source;
@@ -47,6 +52,7 @@ export function ensureFutureAnnotations(source: string): string {
   return lines.join("\n") + "\n";
 }
 
+/** Keep the original qBittorrent fetch helper under the safety wrapper alias. */
 export function aliasRetrieveImports(source: string): string {
   const trailingNewline = hasFinalNewline(source);
   const lines = source.split(/\r?\n/);
@@ -79,6 +85,7 @@ export function aliasRetrieveImports(source: string): string {
   );
 }
 
+/** Locate the end of the final top-level import, including continuation lines. */
 export function lastTopLevelImportEnd(source: string): number {
   const lines = source.split(/\r?\n/);
   if (hasFinalNewline(source)) {
@@ -107,6 +114,7 @@ export function lastTopLevelImportEnd(source: string): number {
   return lastEnd;
 }
 
+/** Insert the safety block at its explicit anchor or after the import section. */
 export function insertAfterImports(source: string, includeOverride: boolean): string {
   const lines = source.split(/\r?\n/);
   if (hasFinalNewline(source)) {
@@ -144,6 +152,7 @@ export function insertAfterImports(source: string, includeOverride: boolean): st
   return lines.join("\n") + "\n";
 }
 
+/** Replace only the marked safety block, rejecting incomplete marker pairs. */
 export function replaceGeneratedPreamble(source: string, includeOverride: boolean): string {
   const preamble = includeOverride ? SAFETY_PREAMBLE_WITH_OVERRIDE : SAFETY_PREAMBLE;
   const startMarker = source.indexOf(START_MARKER);

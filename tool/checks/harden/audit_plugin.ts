@@ -1,3 +1,7 @@
+/**
+ * Audit engine transport calls and required generated safety markers.
+ * @file
+ */
 import { readFile } from "node:fs/promises";
 import { END_MARKER, START_MARKER } from "../../harden/constants";
 import { callText, functionBody, lineNumberAt, preambleLine } from "./audit_helpers";
@@ -23,6 +27,7 @@ export async function auditPlugin(path: string): Promise<string[]> {
 
   const preambleEndLine = preambleLine(source);
   const lines = source.split(/\r?\n/);
+  /** Exclude generated helper lines from handwritten-engine transport checks. */
   const afterPreamble = (line: number) => line + 1 > preambleEndLine;
 
   for (const match of source.matchAll(/\b(?:urlopen|_qbt_urlopen)\s*\(/g)) {

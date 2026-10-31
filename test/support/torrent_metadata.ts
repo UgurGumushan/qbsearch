@@ -1,15 +1,23 @@
+/**
+ * Validate captured v1 and v2 torrent metainfo with resource limits.
+ * @file
+ */
 // Structural metainfo checks based on BEP 3 and BEP 52:
 // https://www.bittorrent.org/beps/bep_0003.html
 // https://www.bittorrent.org/beps/bep_0052.html
+/** Recursive bencode value representation used for torrent metadata validation. */
 type Value = number | Uint8Array | Value[] | Map<string, Value>;
 
+/** Validate bounded v1 or v2 torrent metadata before accepting a captured download. */
 export function assertTorrentMetadata(bytes: Uint8Array): void {
   if (!bytes.length || bytes.length > 4 * 1024 * 1024) throw new Error("invalid metainfo size");
   let position = 0;
   let nodes = 0;
+  /** Abort parsing with a consistent malformed-metainfo error. */
   const fail = (): never => {
     throw new Error("invalid bencoded torrent metadata");
   };
+  /** Decode one bencoded value while bounding nesting, node count, and byte offsets. */
   const parse = (depth: number): Value => {
     if (depth > 100 || ++nodes > 100_000 || position >= bytes.length) return fail();
     const kind = bytes[position];
@@ -57,8 +65,10 @@ export function assertTorrentMetadata(bytes: Uint8Array): void {
     }
     return fail();
   };
+  /** Recognize safe nonnegative integer fields in parsed torrent metadata. */
   const nonnegative = (value: Value | undefined): value is number =>
     typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  /** Recognize nonempty byte strings in parsed torrent metadata. */
   const text = (value: Value | undefined): value is Uint8Array =>
     value instanceof Uint8Array && value.length > 0;
   const root = parse(0);
@@ -101,6 +111,7 @@ export function assertTorrentMetadata(bytes: Uint8Array): void {
     const tree = info.get("file tree");
     if (!(tree instanceof Map) || !tree.size) return fail();
     let files = 0;
+    /** Validate a v2 torrent file tree recursively within the nesting limit. */
     const walk = (branch: Map<string, Value>, depth: number): void => {
       if (depth > 100 || !branch.size) return fail();
       for (const [name, node] of branch) {

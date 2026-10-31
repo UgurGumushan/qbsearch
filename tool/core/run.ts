@@ -1,20 +1,28 @@
+/**
+ * Run repository tools with shared timeout and diagnostic handling.
+ * @file
+ */
 import { ROOT } from "./repo";
 
+/** Process exit status and combined captured diagnostic output. */
 export interface CommandResult {
   code: number;
   output: string;
 }
 
+/** Captured command result with elapsed seconds and timeout status. */
 export type TimedCommandResult = CommandResult & {
   elapsed: number;
   timedOut: boolean;
 };
 
+/** Working-directory override and optional wall-clock process limit. */
 export interface RunCommandOptions {
   cwd?: string;
   timeoutSeconds?: number | null;
 }
 
+/** Named command executed by the shared deterministic check runner. */
 export interface CheckTask {
   label: string;
   command: string[];
@@ -60,6 +68,7 @@ export async function runCommand(command: string[], label: string): Promise<numb
   }
 }
 
+/** Drain both process output streams and join nonempty diagnostics. */
 async function commandOutput(child: Bun.Subprocess<"ignore", "pipe", "pipe">): Promise<string> {
   const stdout = new Response(child.stdout).text();
   const stderr = new Response(child.stderr).text();
@@ -87,6 +96,7 @@ export async function runCapturedCommand(
     let timer: ReturnType<typeof setTimeout> | undefined;
     const exit = await new Promise<{ code: number; timedOut: boolean }>((resolveExit) => {
       let settled = false;
+      /** Resolve process completion once and cancel the competing timeout timer. */
       const finish = (result: { code: number; timedOut: boolean }): void => {
         if (settled) {
           return;
@@ -172,6 +182,7 @@ export function runPythonCaptured(args: string[]): Promise<TimedCommandResult> {
   return runCapturedCommand([...pythonCommand(), ...args]);
 }
 
+/** Throw a labeled error containing captured diagnostics for a failed command. */
 export function assertPassed(label: string, result: CommandResult): void {
   if (result.code !== 0) {
     throw new Error(`${label} failed with exit code ${result.code}.\n${result.output}`);

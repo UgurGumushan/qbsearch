@@ -1,3 +1,7 @@
+/**
+ * Audit engine source for bounded work and safe network behavior.
+ * @file
+ */
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ROOT } from "../core/repo";
@@ -13,8 +17,10 @@ import {
 const PLUGINS_DIR = join(ROOT, "plugins");
 const PREAMBLE_END = "# END GENERATED QBITT SAFETY PREAMBLE";
 
+/** Whether a plugin finding blocks checks or remains advisory. */
 export type PluginQualitySeverity = "error" | "warning";
 
+/** Source-located quality finding with its category and severity. */
 export interface PluginQualityIssue {
   kind: string;
   line: number;
@@ -22,6 +28,7 @@ export interface PluginQualityIssue {
   severity: PluginQualitySeverity;
 }
 
+/** Static counts of bounded work, transport usage, and safety violations. */
 export interface PluginQualityMetrics {
   dynamicLoops: number;
   directTransportCalls: number;
@@ -45,12 +52,14 @@ export interface PluginQualityMetrics {
   warnings: number;
 }
 
+/** Engine identity, findings, and metrics from a static quality audit. */
 export interface PluginQualityReport {
   id: string;
   issues: PluginQualityIssue[];
   metrics: PluginQualityMetrics;
 }
 
+/** Extract handwritten engine code after the shared safety block. */
 function withoutGeneratedPreamble(source: string): string {
   const marker = source.indexOf(PREAMBLE_END);
   if (marker < 0) {
@@ -60,10 +69,12 @@ function withoutGeneratedPreamble(source: string): string {
   return bodyStart < 0 ? "" : source.slice(bodyStart + 1);
 }
 
+/** Convert a source position into a one-based diagnostic line. */
 function lineNumber(source: string, index: number): number {
   return source.slice(0, Math.max(index, 0)).split("\n").length;
 }
 
+/** Append a source-located finding with a default blocking severity. */
 function addIssue(
   issues: PluginQualityIssue[],
   source: string,
@@ -78,11 +89,13 @@ function addIssue(
   }
 }
 
+/** Translate a body-relative offset back into the complete plugin source. */
 function sourceIndex(source: string, body: string, bodyIndex: number): number {
   const bodyStart = source.indexOf(body);
   return bodyStart < 0 ? bodyIndex : bodyStart + bodyIndex;
 }
 
+/** Index line starts for translating lexical matches to source locations. */
 function lineOffsets(source: string): number[] {
   const offsets = [0];
   for (let index = 0; index < source.length; index += 1) {
@@ -93,6 +106,7 @@ function lineOffsets(source: string): number[] {
   return offsets;
 }
 
+/** Known local names for executor, threading, HTTP, and sleep APIs. */
 interface ImportAliases {
   executorNames: Set<string>;
   executorRoots: Set<string>;
@@ -124,6 +138,7 @@ const NETWORK_METHODS = new Set([
   "request",
 ]);
 
+/** Track supported import aliases so audits also recognize renamed unsafe APIs. */
 function importAliases(source: string): ImportAliases {
   const aliases: ImportAliases = {
     executorNames: new Set(["ThreadPoolExecutor"]),
@@ -184,10 +199,12 @@ function importAliases(source: string): ImportAliases {
   return aliases;
 }
 
+/** Extract the final component of a qualified Python call name. */
 function leafName(name: string): string {
   return name.slice(name.lastIndexOf(".") + 1);
 }
 
+/** Recognize network calls that bypass the generated safety wrappers. */
 function isDirectTransport(name: string, aliases: ImportAliases): boolean {
   if (NETWORK_HELPERS.has(name)) {
     return false;
@@ -207,6 +224,7 @@ function isDirectTransport(name: string, aliases: ImportAliases): boolean {
   );
 }
 
+/** Detect an explicit non-None timeout in a direct transport call. */
 function hasTimeout(call: PythonCall): boolean {
   if (/\btimeout\s*=\s*(?!None\b)/.test(maskPythonSource(call.args))) {
     return true;
@@ -214,6 +232,7 @@ function hasTimeout(call: PythonCall): boolean {
   return leafName(call.name) === "urlopen" && topLevelArgumentCount(call.args) >= 3;
 }
 
+/** Count positional arguments without splitting nested calls or containers. */
 function topLevelArgumentCount(argumentsText: string): number {
   if (!argumentsText.trim()) {
     return 0;
@@ -233,10 +252,12 @@ function topLevelArgumentCount(argumentsText: string): number {
   return commas + 1;
 }
 
+/** Recognize sleep arguments that reference a deadline or remaining budget. */
 function isDeadlineAwareSleep(call: PythonCall): boolean {
   return /\b(?:_qbt_)?(?:deadline|remaining)\w*\b/i.test(call.args);
 }
 
+/** Extract an indented loop body up to the next sibling statement. */
 function loopBlock(lines: string[], lineIndex: number): { end: number; text: string } {
   const baseIndent = /^\s*/.exec(lines[lineIndex])?.[0].length ?? 0;
   let end = lines.length;
@@ -253,6 +274,7 @@ function loopBlock(lines: string[], lineIndex: number): { end: number; text: str
   return { end, text: lines.slice(lineIndex, end).join("\n") };
 }
 
+/** Count duplicate or dead assignments to the generated helper sentinel. */
 function helperAssignmentMetrics(body: string): {
   dead: number;
   duplicate: number;
@@ -285,6 +307,7 @@ function helperAssignmentMetrics(body: string): {
   return { dead, duplicate, firstIndex: assignments.length > 0 ? assignments[0].index : null };
 }
 
+/** Inspect handwritten engine source for unsafe or unbounded operations. */
 export function auditPluginQuality(id: string, source: string): PluginQualityReport {
   const body = withoutGeneratedPreamble(source);
   const issues: PluginQualityIssue[] = [];
@@ -414,6 +437,7 @@ export function auditPluginQuality(id: string, source: string): PluginQualityRep
 
   let tlsBypasses = 0;
   const tlsLines = new Set<number>();
+  /** Report at most one TLS verification bypass per source line. */
   const addTlsIssue = (index: number, message: string): void => {
     const line = lineNumber(source, sourceIndex(source, body, index));
     if (tlsLines.has(line)) {
@@ -543,6 +567,7 @@ export function auditPluginQuality(id: string, source: string): PluginQualityRep
   return { id, issues, metrics };
 }
 
+/** Audit every checked-in engine in deterministic filename order. */
 export function pluginQualityReports(): PluginQualityReport[] {
   return readdirSync(PLUGINS_DIR)
     .filter((entry) => entry.endsWith(".py"))
@@ -553,6 +578,7 @@ export function pluginQualityReports(): PluginQualityReport[] {
     });
 }
 
+/** Print all plugin findings and aggregate metrics, failing on hard violations. */
 export function runPluginQualityCheck(): number {
   const reports = pluginQualityReports();
   let errors = 0;

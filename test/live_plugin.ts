@@ -1,4 +1,8 @@
 #!/usr/bin/env bun
+/**
+ * Expose the single-plugin probe worker as a process entrypoint.
+ * @file
+ */
 
 /**
  * qBittorrent live worker entrypoint. Implementation is split into source,

@@ -1,6 +1,11 @@
+/**
+ * Parse check options and execute the deterministic gate.
+ * @file
+ */
 import { checkTasks, type CheckOptions } from "../checks/tasks";
 import { runParallel } from "../core/run";
 
+/** Parse gate breadth and strictness, rejecting unknown options. */
 function parseArguments(rawArgs: string[]): CheckOptions {
   let mode: CheckOptions["mode"] = "full";
   let strict = false;

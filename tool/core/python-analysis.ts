@@ -1,3 +1,7 @@
+/**
+ * Conservatively analyze Python calls and resource bounds without execution.
+ * @file
+ */
 /** Conservative lexical analysis; unknown dataflow remains an advisory. */
 export interface PythonCall {
   args: string;
@@ -6,6 +10,30 @@ export interface PythonCall {
   start: number;
 }
 
+/** Remove comments and standalone string statements while retaining executable string literals. */
+export function withoutPythonDocumentation(source: string): string {
+  // Tokenize complete strings before looking for comments: URLs and payloads may
+  // contain hashes or triple quotes. Assigned multiline strings remain data.
+  const tokens =
+    /#[^\r\n]*|(?:[rubf]{0,2})?(?:"""(?:\\[\s\S]|(?!""")[^\\])*"""|'''(?:\\[\s\S]|(?!''')[^\\])*'''|"(?:\\[\s\S]|[^"\\\r\n])*"|'(?:\\[\s\S]|[^'\\\r\n])*')|[()[\]{}]/gi;
+  let depth = 0;
+  return source.replace(tokens, (token: string, offset: number) => {
+    if (token.startsWith("#")) return "";
+    if (token.length === 1) {
+      depth += "([{".includes(token) ? 1 : -1;
+      return token;
+    }
+    const lineStart = source.lastIndexOf("\n", offset - 1) + 1;
+    const end = offset + token.length;
+    const nextLine = source.indexOf("\n", end);
+    const suffix = source.slice(end, nextLine < 0 ? source.length : nextLine);
+    const standalone =
+      depth === 0 && /^\s*$/.test(source.slice(lineStart, offset)) && /^\s*(?:#.*)?$/.test(suffix);
+    return standalone ? "" : token;
+  });
+}
+
+/** Blank comments and string contents while preserving offsets and line boundaries. */
 export function maskPythonSource(source: string): string {
   const characters = source.split("");
   let quote: string | null = null;
@@ -63,6 +91,7 @@ export function maskPythonSource(source: string): string {
   return characters.join("");
 }
 
+/** Find the matching closing parenthesis in already masked Python source. */
 function closingParen(source: string, openIndex: number): number {
   let depth = 0;
   for (let index = openIndex; index < source.length; index += 1) {
@@ -78,6 +107,7 @@ function closingParen(source: string, openIndex: number): number {
   return source.length;
 }
 
+/** Locate call expressions and their original argument text without executing Python. */
 export function scanPythonCalls(source: string): PythonCall[] {
   const masked = maskPythonSource(source);
   const calls: PythonCall[] = [];
@@ -121,6 +151,7 @@ export function pythonArguments(expression: string): string[] {
   return args.filter(Boolean);
 }
 
+/** Collect preceding assignments visible to a call without borrowing another function scope. */
 function scopePrefix(source: string, position: number): string {
   const lines = maskPythonSource(source).slice(0, position).split("\n");
   const lineStart = source.lastIndexOf("\n", position - 1) + 1;
@@ -136,6 +167,7 @@ function scopePrefix(source: string, position: number): string {
   return lines.join("\n");
 }
 
+/** Track simple assignments and bounded updates for conservative value inference. */
 function assignments(prefix: string): Map<string, string> {
   const values = new Map<string, string>();
   for (const line of prefix.split("\n")) {
@@ -185,6 +217,7 @@ const BUDGETS = new Set([
   "MAX_RESPONSE_BYTES",
 ]);
 
+/** Prove supported arithmetic expressions finite from known values and safety limits. */
 function finiteExpression(
   expression: string,
   values: Map<string, string>,
@@ -213,6 +246,7 @@ function finiteExpression(
   return args.length > 0 && args.every((arg) => finiteExpression(arg, values, seen));
 }
 
+/** Determine whether all range arguments have statically finite bounds. */
 export function boundedPythonRange(source: string, call: PythonCall): boolean {
   const args = pythonArguments(maskPythonSource(call.args));
   const values = assignments(scopePrefix(source, call.start));
@@ -228,6 +262,7 @@ export function boundedPythonRange(source: string, call: PythonCall): boolean {
   );
 }
 
+/** Prove a supported expression strictly positive for loop-progress analysis. */
 function positiveExpression(
   expression: string,
   values: Map<string, string>,
@@ -250,6 +285,7 @@ function positiveExpression(
     : args.length > 0 && args.every((arg) => positiveExpression(arg, values, seen));
 }
 
+/** Prove a supported expression nonnegative from literals and known assignments. */
 function nonnegativeExpression(
   expression: string,
   values: Map<string, string>,
@@ -280,6 +316,7 @@ function nonnegativeExpression(
     : args.length > 0 && args.every((arg) => nonnegativeExpression(arg, values, seen));
 }
 
+/** Recognize finite while-loop limits and monotonic progress toward termination. */
 export function boundedPythonWhile(source: string, position: number, block: string): boolean {
   const lines = maskPythonSource(block).split("\n");
   const condition = lines[0]
@@ -316,6 +353,7 @@ export function boundedPythonWhile(source: string, position: number, block: stri
   return !outerContinue && lines.some((line) => step.test(line));
 }
 
+/** Check whether a response read uses a provably finite byte count. */
 export function boundedPythonRead(source: string, call: PythonCall): boolean {
   const prefix = scopePrefix(source, call.start);
   const values = assignments(prefix);

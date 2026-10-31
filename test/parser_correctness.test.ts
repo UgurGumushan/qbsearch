@@ -1,3 +1,7 @@
+/**
+ * Verify parser metadata, deduplication, and pagination edge cases offline.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import {
   assertUsableParserResults,
@@ -5,6 +9,7 @@ import {
   type ParserCase,
 } from "./support/parser_replay";
 
+/** Render a DMHY table row with configurable publication date and escaped title. */
 function dmhyRow(id: number, date = "2026/10/02", name = "Fixture &amp; &lt;title&gt;"): string {
   return `<tr><td><span>${date}</span><br />12:00</td><td>Anime</td>
 <td><a href='topics/view/${id}.html'><b>${name}</b></a></td>
@@ -68,6 +73,7 @@ test("DMHY stops printing and pagination at the global result budget", async () 
   expect(report.requests).toHaveLength(1);
 });
 
+/** Build a MaxiTorrent replay with a configurable response for the next page. */
 function maxiCase(secondPage: object): ParserCase {
   const url = "http://atomixhq.com";
   return {

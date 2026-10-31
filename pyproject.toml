@@ -9,6 +9,10 @@ line-length = 100
 exclude = ["external", "node_modules", "working", ".opencode"]
 
 [tool.ruff.lint]
+# Require public API documentation and reject empty docstrings without changing
+# the existing default lint selection.
+# Keep the selection in tool/checks/python_documentation.ts aligned with these rules.
+extend-select = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "D419"]
 # Intentional scraper idioms the repo keeps:
 #   BLE001  broad `except Exception` keeps one engine's failure from crashing
 #           the qBitt process.
@@ -25,6 +29,9 @@ ignore = [
     "S110",
     "S112",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"typings/*.pyi" = ["D"]
 
 [tool.basedpyright]
 pythonVersion = "3.9"

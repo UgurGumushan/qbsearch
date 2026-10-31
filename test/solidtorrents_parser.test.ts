@@ -1,3 +1,7 @@
+/**
+ * Verify modern and legacy Solid Torrents result parsing and pagination.
+ * @file
+ */
 import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { FIXTURES_DIR } from "../tool/core/repo";
@@ -14,6 +18,7 @@ const secondMagnet = `magnet:?xt=urn:btih:${"B".repeat(40)}`;
 const page1 = `${site}/search?q=fixture&page=1`;
 const page2 = `${site}/search?q=fixture&page=2`;
 
+/** Optional result fields used to exercise complete and malformed search cards. */
 interface Card {
   name?: string;
   link?: string;
@@ -24,6 +29,7 @@ interface Card {
   date?: string;
 }
 
+/** Render a modern Solid Torrents card with escaped magnet attributes. */
 function modernCard(card: Card): string {
   const link = card.link?.replaceAll("&", "&amp;").replaceAll("=", "&#x3D;");
   const magnet = link === undefined ? "" : `<a href="${link}">magnet</a>`;
@@ -34,10 +40,12 @@ function modernCard(card: Card): string {
 </div><div class="space-y-2">${magnet}</div></div><div class="sm:hidden">${magnet}</div></div>`;
 }
 
+/** Wrap modern cards with the result count and listing container. */
 function modernPage(cards: Card[], count = 20): string {
   return `<main class="mx-auto">Found <span class="font-semibold">${count}</span><div class="space-y-4">${cards.map(modernCard).join("")}</div></main>`;
 }
 
+/** Render a legacy Solid Torrents result with optional metadata fields. */
 function legacyCard(card: Card): string {
   return `<li class="search-result"><div class="info"><h5>${card.name === undefined ? "" : `<a href="${card.href ?? "/view/fixture"}">${card.name}</a>`}</h5>
 <div class="stats"><div>Video</div><div>${card.size ?? ""}</div><div>${card.seeds ?? ""}</div><div>${card.leech ?? ""}</div><div>${card.date ?? ""}</div></div></div>

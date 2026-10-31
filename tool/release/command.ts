@@ -1,3 +1,7 @@
+/**
+ * Validate and assemble installable release artifacts.
+ * @file
+ */
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { zipSync } from "fflate";

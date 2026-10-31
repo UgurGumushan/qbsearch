@@ -1,3 +1,7 @@
+/**
+ * Verify captured torrent metadata, response encodings, and download failure evidence.
+ * @file
+ */
 import { expect, spyOn, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -42,6 +46,7 @@ test("HTTP torrent validation accepts metainfo and rejects HTML, malformed benco
   }).toThrow();
 });
 
+/** Replace network access with fixture responses while retaining Bun fetch properties. */
 function mockFetch(handler: (url: string) => Response) {
   return spyOn(globalThis, "fetch").mockImplementation(
     Object.assign(
@@ -96,6 +101,7 @@ test("download replay resolves magnets without network and requires separately v
   }
 });
 
+/** Route Ali213 search, detail, and download requests to controlled responses. */
 function aliResponse(url: string, metadata: Response): Response {
   if (url.includes("/search?"))
     return new Response(
@@ -171,6 +177,7 @@ for (const mode of ["magnet", "html", "rate-limited"] as const) {
           if (mode === "rate-limited")
             return new Response(
               new ReadableStream<Uint8Array>({
+                /** Drive the fixture response stream to reproduce the tested transport condition. */
                 start(controller) {
                   controller.error(new Error("interrupted"));
                 },
@@ -219,6 +226,7 @@ for (const mode of ["html", "binary-429"] as const) {
             ? new Response("<html>Download manager</html>")
             : new Response(
                 new ReadableStream<Uint8Array>({
+                  /** Drive the fixture response stream to reproduce the tested transport condition. */
                   start(controller) {
                     controller.error(new Error("interrupted metadata"));
                   },

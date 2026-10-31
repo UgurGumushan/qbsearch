@@ -1,4 +1,8 @@
 /**
+ * Reload the live runner when engine source changes.
+ * @file
+ */
+/**
  * Watched live-test entrypoint.
  *
  * The coordinator reads the catalog and standalone Python engines at runtime.

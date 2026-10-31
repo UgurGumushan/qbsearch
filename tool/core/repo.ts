@@ -1,3 +1,7 @@
+/**
+ * Centralize repository paths and TypeScript source roots.
+ * @file
+ */
 import { resolve } from "node:path";
 
 /** Single source of truth for repository locations. */

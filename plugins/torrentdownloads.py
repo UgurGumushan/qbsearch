@@ -61,6 +61,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -113,6 +114,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -120,12 +122,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -186,6 +190,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -244,7 +249,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -350,7 +356,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -497,6 +503,8 @@ __all__ = [
 
 
 class torrentdownloads:
+    """Expose torrentdownloads search results through the qBittorrent engine interface."""
+
     url: str = "https://torrentdownloads.pro"
     name: str = "Torrent Downloads"
     supported_categories: ClassVar[dict[str, str]] = {
@@ -514,8 +522,10 @@ class torrentdownloads:
     has_next_page: bool = True
 
     class MyHtmlParser(HTMLParser):
+        """Extract torrentdownloads listing metadata while tracking HTML row and field boundaries."""
+
         def error(self, _message: str):
-            pass
+            """Tolerate parser error callbacks so one malformed page does not abort the engine."""
 
         DIV: str = "div"
         P: str = "p"
@@ -530,6 +540,7 @@ class torrentdownloads:
             seen_result_links: set[str],
             state_lock: LockType,
         ):
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
             self.magnet_regex: str = r'href=["\'](magnet:[^"\']+)["\']'
 
@@ -566,6 +577,7 @@ class torrentdownloads:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = dict(attrs)
             cssClasses = params.get("class") or ""
 
@@ -616,6 +628,7 @@ class torrentdownloads:
 
         @override
         def handle_data(self, data: str):
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.shouldParseName:
                 self.row["name"] = data
                 self.shouldParseName = False
@@ -635,6 +648,7 @@ class torrentdownloads:
 
         @override
         def handle_endtag(self, tag: str):
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if tag == self.SPAN or tag == self.P:
                 self.insideCell = False
 
@@ -662,17 +676,21 @@ class torrentdownloads:
                 self.shouldSkipResult = False
 
     def __init__(self) -> None:
+        """Initialize shared deduplication state and its synchronization lock."""
         self._seen_detail_links: set[str] = set()
         self._seen_result_links: set[str] = set()
         self._state_lock: LockType = _qbt_Lock()
 
     def download_torrent(self, info: str) -> None:
+        """Download the selected torrent and print its local path for qBittorrent."""
         print(download_file(info))
 
     def getPageUrl(self, what: str, cat: str, page: int) -> str:
+        """Build the keyword, category, and page endpoint used by the listing API."""
         return f"{self.url}/search/?new=1&s_cat={cat}&search={what}&page={page}"
 
     def threaded_search(self, page: int, what: str, cat: str) -> bool:
+        """Process a listing page within the engine shared search and detail limits."""
         parser = self.MyHtmlParser(
             self.url,
             self._seen_detail_links,
@@ -688,6 +706,7 @@ class torrentdownloads:
         return re.search(self.next_page_regex, retrievedHtml, re.MULTILINE) is not None
 
     def search(self, what: str, cat: str = "all") -> None:
+        """Fetch matching torrentdownloads entries and emit qBittorrent result records."""
         search_category = self.supported_categories[cat]
         what = what.replace("%20", "+")
         what = what.replace(" ", "+")

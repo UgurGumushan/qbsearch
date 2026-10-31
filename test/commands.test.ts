@@ -1,3 +1,7 @@
+/**
+ * Verify the canonical command surface and safe scaffold argument handling.
+ * @file
+ */
 import { expect, spyOn, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -6,6 +10,7 @@ import { tmpdir } from "node:os";
 import { runCommandLine } from "../tool/cli";
 import { ROOT } from "../tool/core/repo";
 
+/** Redirect scaffold writes to a disposable directory and return cleanup hooks. */
 async function scaffoldLocation() {
   const directory = await mkdtemp(resolve(tmpdir(), "qbsearch-command-scaffold-"));
   const path = resolve(directory, "engine.py");
@@ -18,6 +23,7 @@ async function scaffoldLocation() {
   });
   return {
     path,
+    /** Restore filesystem spies and remove the temporary scaffold directory. */
     cleanup: async () => {
       file.mockRestore();
       write.mockRestore();

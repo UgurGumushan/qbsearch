@@ -1,3 +1,7 @@
+/**
+ * Capture real parser actions through bounded Bun HTTP transport.
+ * @file
+ */
 import {
   replayParserFixture,
   assertUsableParserResults,
@@ -6,6 +10,7 @@ import {
   type ParserReport,
 } from "./parser_replay";
 
+/** Captured download evidence, including resolved URL and validated torrent or magnet. */
 export interface DownloadProof {
   link: string;
   resolvedUrl: string;
@@ -21,6 +26,7 @@ export async function captureEngine(
   archive: (fixture: ParserCase, report: ParserReport) => Promise<string>,
 ): Promise<DownloadProof[]> {
   const verified = new Set<string>();
+  /** Execute a captured search or download action through the offline Python harness. */
   const replay = async (
     action: "search" | "download",
     detailUrl?: string,

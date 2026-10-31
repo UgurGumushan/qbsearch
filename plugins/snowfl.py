@@ -105,6 +105,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -112,12 +113,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -178,6 +181,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -236,7 +240,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -342,7 +347,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -490,7 +495,7 @@ __all__ = [
 
 # Raised when a detail page is missing its magnet link.
 class ParseError(Exception):
-    pass
+    """Signal an unusable listing or download response from the remote site."""
 
 
 class Torrent(TypedDict):
@@ -507,17 +512,23 @@ class Torrent(TypedDict):
 
 
 class snowfl:
+    """Expose snowfl search results through the qBittorrent engine interface."""
+
     url: str = "https://snowfl.com/"
     name: str = "Snowfl"
     # No categories provided
     supported_categories: ClassVar[dict[str, str]] = {"all": "0"}
 
     class Parser:
+        """Manage the site API token and convert JSON listings into torrent records."""
+
         def __init__(self, url: str) -> None:
+            """Retrieve the API token required to construct search requests."""
             self.url: str = url
             self.token: str = self.__retrieveToken()
 
         def feed(self, collection: list[Torrent]) -> None:
+            """Emit unique torrent records from the API collection within the detail limit."""
             seen_links: set[str] = set()
             for raw_torrent in cast(list[object], collection):
                 if len(seen_links) >= MAX_DETAILS or not isinstance(raw_torrent, dict):
@@ -563,12 +574,14 @@ class snowfl:
             return token
 
         def generateQuery(self, what: str) -> str:
+            """Build the tokenized search URL with the nonce expected by the site API."""
             random_str = "".join(
                 random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
             )
             return f"{self.url}/{self.token}/{what}/{random_str}/0/SEED/NONE/1?_={int(time.time() * 1000)!s}"
 
     def download_torrent(self, info: str) -> None:
+        """Resolve the selected download and report its torrent path or magnet to qBittorrent."""
         if "magnet:?" in info:
             print(f"{info} {info}")
         else:
@@ -580,6 +593,7 @@ class snowfl:
                 raise ParseError("Error, please fill a bug report!")
 
     def search(self, what: str, _cat: str = "all") -> None:
+        """Fetch matching snowfl entries and emit qBittorrent result records."""
         try:
             parser = self.Parser(self.url)
             what = parser.generateQuery(what)

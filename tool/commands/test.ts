@@ -1,3 +1,7 @@
+/**
+ * Route deterministic, watch, and live test modes.
+ * @file
+ */
 import { resolve } from "node:path";
 import { checkCatalog } from "../checks/catalog";
 import { ROOT } from "../core/repo";

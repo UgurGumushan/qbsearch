@@ -1,12 +1,19 @@
+/**
+ * Preserve Python source layout during preamble generation.
+ * @file
+ */
+/** Test whether source ends with the newline preserved by generators. */
 export function hasFinalNewline(source: string): boolean {
   return source.endsWith("\n");
 }
 
+/** Measure leading indentation with tabs treated as four spaces. */
 export function indentation(line: string): number {
   const prefix = /^[ \t]*/.exec(line)?.[0] ?? "";
   return prefix.replaceAll("\t", "    ").length;
 }
 
+/** Distinguish executable lines from blank lines and comments. */
 export function isCodeLine(line: string): boolean {
   const trimmed = line.trim();
   return trimmed.length > 0 && !trimmed.startsWith("#");

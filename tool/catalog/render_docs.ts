@@ -1,11 +1,17 @@
+/**
+ * Render catalog metadata as deterministic plugin documentation.
+ * @file
+ */
 import { RAW_PLUGIN_BASE } from "./constants";
 import { catalogEntries } from "./storage";
 import type { Catalog } from "./types";
 
+/** Count one catalog value for the generated summary tables. */
 function increment(counter: Map<string, number>, value: string): void {
   counter.set(value, (counter.get(value) ?? 0) + 1);
 }
 
+/** Order text deterministically without locale-dependent collation. */
 function compareStrings(left: string, right: string): number {
   if (left < right) {
     return -1;
@@ -16,6 +22,7 @@ function compareStrings(left: string, right: string): number {
   return 0;
 }
 
+/** Format a catalog cell with a fallback for absent values. */
 function displayValue(value: unknown, fallback: string): string {
   if (typeof value === "string") {
     return value || fallback;

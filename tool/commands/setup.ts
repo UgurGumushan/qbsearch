@@ -1,3 +1,7 @@
+/**
+ * Install pinned development tools and enable repository hooks.
+ * @file
+ */
 import { runCommand, runPython } from "../core/run";
 
 /** Install pinned repository tools and enable the configured Git hook path. */

@@ -1,3 +1,7 @@
+/**
+ * Coordinate generated-file writes and drift audits.
+ * @file
+ */
 import { generatePluginCatalog } from "../catalog/command";
 import { hardenPlugins } from "../harden/command";
 import { checkMaintenanceLog } from "../checks/catalog";
@@ -7,6 +11,7 @@ import { renderCliDocs } from "../cli-docs";
 import { checkPluginSources, writePluginSources } from "../generators/plugin-sources";
 import { checkProbeFixtures, writeProbeFixtures } from "../../test/live/probe_fixtures";
 
+/** Write CLI documentation or report drift against the router table. */
 async function generateCli({ mode }: GenerationOptions): Promise<number> {
   const expected = renderCliDocs();
   if (mode === "write") {
@@ -20,6 +25,7 @@ async function generateCli({ mode }: GenerationOptions): Promise<number> {
   return reportDrift(current === expected ? [] : ["documentation/CLI.md is out of date"], "cli");
 }
 
+/** Print generated-file discrepancies and return a failing status when present. */
 function reportDrift(errors: string[], target: string): number {
   if (!errors.length) return 0;
   for (const error of errors) console.error("ERROR: " + error);
@@ -30,6 +36,7 @@ function reportDrift(errors: string[], target: string): number {
 const TARGETS: Record<string, (options: GenerationOptions) => Promise<number>> = {
   catalog: generatePluginCatalog,
   harden: hardenPlugins,
+  /** Write or audit the generated plugin watch manifest. */
   sources: async ({ mode }) => {
     if (mode === "write") {
       await writePluginSources();
@@ -39,6 +46,7 @@ const TARGETS: Record<string, (options: GenerationOptions) => Promise<number>> =
     const drift = await checkPluginSources();
     return reportDrift(drift === null ? [] : [drift], "sources");
   },
+  /** Write or audit deterministic search-endpoint fixtures. */
   probes: async ({ mode }) => {
     if (mode === "write") {
       await writeProbeFixtures(null);
@@ -49,6 +57,7 @@ const TARGETS: Record<string, (options: GenerationOptions) => Promise<number>> =
   cli: generateCli,
 };
 
+/** Parse generation mode and target, rejecting conflicting flags. */
 function parseArguments(args: string[]): GenerationOptions & { only: string | null } {
   let mode: GenerationOptions["mode"] = "check";
   let explicitMode = false;

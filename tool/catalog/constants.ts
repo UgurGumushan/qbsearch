@@ -1,3 +1,7 @@
+/**
+ * Define catalog paths, lifecycle states, and documentation conventions.
+ * @file
+ */
 export const RAW_PLUGIN_BASE =
   "https://raw.githubusercontent.com/UgurGumushan/qbsearch/main/plugins/";
 

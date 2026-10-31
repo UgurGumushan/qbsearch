@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 else:
 
     def override(function: _QBTCallable[..., object]) -> _QBTCallable[..., object]:
+        """Keep override annotations importable when qBittorrent lacks typing_extensions."""
         return function
 
 
@@ -114,6 +115,7 @@ _qbt_int = _qbt_cast(_QBTCallable[[object], int], int)
 
 
 def _qbt_get_deadline() -> float:
+    """Reuse the current search deadline, creating one for legacy callers if needed."""
     global _qbt_search_deadline
     if _qbt_search_deadline is None:
         _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
@@ -121,12 +123,14 @@ def _qbt_get_deadline() -> float:
 
 
 def _qbt_new_deadline() -> float:
+    """Start a fresh budget shared by all requests and workers in this search."""
     global _qbt_search_deadline
     _qbt_search_deadline = _qbt_time.monotonic() + max(0.0, float(SEARCH_DEADLINE))
     return _qbt_search_deadline
 
 
 def _qbt_sleep(attempt: int, deadline: float | None = None) -> bool:
+    """Apply bounded retry backoff and report whether any search budget remains."""
     if deadline is None:
         deadline = _qbt_get_deadline()
     remaining = deadline - _qbt_time.monotonic()
@@ -187,6 +191,7 @@ def _qbt_empty_response(url: object) -> _QBTResponseContext:
 
 
 def _qbt_response_limit(limit: object = None) -> int:
+    """Normalize a read limit, falling back to the configured cap for invalid input."""
     value = MAX_RESPONSE_BYTES if limit is None else limit
     try:
         return max(0, _qbt_int(value))
@@ -245,7 +250,8 @@ class _QBTTransientHTTPError(Exception):
 
 
 def _qbt_retry_call(operation: _QBTCallable[[], object]) -> str:
-    """Run a helper request a bounded number of times; return empty on failure."""
+    """Retry a legacy text helper within the search deadline; exhaustion yields no text."""
+    # Legacy helpers can raise arbitrary exceptions; isolate them from qBittorrent's search loop.
     attempts = max(1, int(MAX_ATTEMPTS))
     for attempt in range(attempts):
         if _qbt_time.monotonic() >= _qbt_get_deadline():
@@ -351,7 +357,7 @@ _qbt_output_lock = _qbt_Lock()
 
 
 def _qbt_prettyPrinter(result: object) -> None:
-    """Serialize result records emitted by parallel workers."""
+    """Serialize result emission so concurrent workers cannot interleave printer output."""
     with _qbt_output_lock:
         printer = _qbt_cast(_QBTCallable[[object], None], prettyPrinter)
         printer(result)
@@ -498,6 +504,8 @@ __all__ = [
 
 
 class esmeraldatorrent:
+    """Expose esmeraldatorrent search results through the qBittorrent engine interface."""
+
     url: str = "https://esmeraldatorrent.com/"
     headers: ClassVar[dict[str, str]] = {"Referer": url}
     name: str = "EsmeraldaTorrent"
@@ -506,11 +514,13 @@ class esmeraldatorrent:
     results_regex: str = r"<p.+?>Se han encontrado.+?<b>\d+</b>.+?resultados.+?</p>"
 
     class MyHtmlParser(HTMLParser):
+        """Extract esmeraldatorrent listing metadata while tracking HTML row and field boundaries."""
+
         magnet_regex: str = r'href=["\'].+?\.torrent["\']'
         size_regex: str = r"<p.+?><b.+?>Tamaño:</b>.+?</p>"
 
         def error(self, _message: str) -> None:
-            pass
+            """Tolerate parser error callbacks so one malformed page does not abort the engine."""
 
         DIV: str = "div"
         P: str = "p"
@@ -518,6 +528,7 @@ class esmeraldatorrent:
         SPAN: str = "span"
 
         def __init__(self, url: str):
+            """Initialize HTML parsing state and buffers for result metadata."""
             HTMLParser.__init__(self)
 
             self.url: str = url
@@ -539,6 +550,7 @@ class esmeraldatorrent:
 
         @override
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Track result boundaries and capture metadata from opening HTML tags."""
             params = dict(attrs)
             cssClasses = params.get("class", "") or ""
             elementId = params.get("id", "")
@@ -583,6 +595,7 @@ class esmeraldatorrent:
 
         @override
         def handle_data(self, data: str) -> None:
+            """Capture text only for the active result field, ignoring surrounding page content."""
             if self.insideLink:
                 self.row["name"] = data
                 return
@@ -597,6 +610,7 @@ class esmeraldatorrent:
 
         @override
         def handle_endtag(self, tag: str) -> None:
+            """Finalize captured fields and reset state at closing HTML boundaries."""
             if self.insideBadge and tag == self.SPAN:
                 self.insideBadge = False
                 return
@@ -643,12 +657,15 @@ class esmeraldatorrent:
                 return
 
     def download_torrent(self, info: str) -> None:
+        """Download the selected torrent and print its local path for qBittorrent."""
         print(download_file(info))
 
     def get_page_url(self, what: str, page: int) -> str:
+        """Build the site search URL for the requested query and page."""
         return f"{self.url}/buscar/{what}/page/{page}"
 
     def resolve_result(self, row: dict[str, str]) -> SearchResults | None:
+        """Resolve a listing detail link and complete its download metadata."""
         desc_link = row.get("desc_link")
         if not desc_link:
             return None
@@ -678,6 +695,7 @@ class esmeraldatorrent:
         )
 
     def process_page(self, retrieved_html: str, seen_links: set[str]) -> None:
+        """Parse a fetched listing and resolve its detail links within the search budget."""
         if not retrieved_html:
             return
         parser = self.MyHtmlParser(self.url)
@@ -690,6 +708,7 @@ class esmeraldatorrent:
                 _qbt_prettyPrinter(row)
 
     def search(self, what: str, _cat: str = "all") -> None:
+        """Fetch matching esmeraldatorrent entries and emit qBittorrent result records."""
         page = 1
         retrieved_html = retrieve_url(self.get_page_url(what, page), self.headers)
         matches = re.finditer(self.results_regex, retrieved_html, re.MULTILINE)

@@ -1,3 +1,7 @@
+/**
+ * Validate maintenance evidence tables and catalog status transitions.
+ * @file
+ */
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { VALID_STATUSES } from "../catalog/constants";
@@ -7,6 +11,7 @@ import { ROOT } from "../core/repo";
 const MAINTENANCE_LOG_PATH = resolve(ROOT, "documentation", "MAINTENANCE_LOG.md");
 const VALID_RESULTS = new Set(["ok", "empty", "failed", "blocked"]);
 
+/** Split a Markdown table row into trimmed cells, ignoring non-table lines. */
 function splitRow(line: string): string[] {
   const trimmed = line.trim();
   if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) {
@@ -18,10 +23,12 @@ function splitRow(line: string): string[] {
     .map((cell) => cell.trim());
 }
 
+/** Recognize a Markdown table separator independently of whitespace. */
 function isSeparatorRow(cells: string[]): boolean {
   return cells.length > 0 && cells.every((cell) => /^-+$/.test(cell.replace(/\s/g, "")));
 }
 
+/** Recognize the ISO date shape required by maintenance-log rows. */
 function isDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
