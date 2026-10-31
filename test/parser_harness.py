@@ -199,6 +199,9 @@ def replay(
             vars(module)["MAX_WORKERS"] = worker_limit
         if isinstance(deadline_ms, int):
             vars(module)["SEARCH_DEADLINE"] = deadline_ms / 1000
+            if deadline_ms == 0:
+                # An expired fixture must not depend on lazy initialization or clock resolution.
+                vars(module)["_qbt_search_deadline"] = float("-inf")
         # Missing fixture responses still exercise retries, without artificial sleeps.
         vars(module)["RETRY_DELAY"] = 0
         cache_xml = case.get("cacheXml")
