@@ -101,7 +101,6 @@ class FixtureResponse:
         if self._closed:
             return b""
         data = self._body.read(size)
-        self._transport.add_bytes(len(data))
         if self._body.tell() == self._length:
             self.close()
         return data
@@ -166,12 +165,7 @@ class FixtureTransport:
         self.request_concurrency: list[int] = []
         self.active = 0
         self.peak = 0
-        self.response_bytes = 0
         self.lock = Lock()
-
-    def add_bytes(self, size: int) -> None:
-        with self.lock:
-            self.response_bytes += size
 
     def finish(self) -> None:
         with self.lock:
@@ -264,7 +258,6 @@ class FixtureTransport:
                 raise urllib.error.HTTPError(
                     url, reply.status, "fixture HTTP error", Message(), None
                 )
-            self.add_bytes(len(reply.body))
             return reply.body.decode("utf-8")
         finally:
             self.finish()

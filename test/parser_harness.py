@@ -12,9 +12,6 @@ import re
 import shutil
 import sys
 import tempfile
-import time
-import tracemalloc
-import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -42,48 +39,10 @@ class ModuleLoader(Protocol):
     def exec_module(self, module: ModuleType) -> None: ...
 
 
-def usable_record(row: dict[str, object]) -> bool:
-    """Recognize downloadable search rows, excluding error placeholders."""
-    link, name = row.get("link"), row.get("name")
-    if not isinstance(link, str) or not isinstance(name, str) or not name.strip():
-        return False
-    decoded = urllib.parse.unquote(link)
-    if link.startswith("magnet:?"):
-        hashes = urllib.parse.parse_qs(urllib.parse.urlsplit(link).query).get("xt", [])
-        if not any(
-            re.fullmatch(r"urn:btih:(?:[a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", h) for h in hashes
-        ):
-            return False
-    elif not decoded.startswith(("http://", "https://")):
-        return False
-    if isinstance(row.get("size"), bool) or not isinstance(row.get("size"), (str, int, float)):
-        return False
-    for key in ("engine_url", "desc_link"):
-        value = row.get(key)
-        if key == "desc_link" and value is None:
-            continue
-        if not isinstance(value, str) or not value.startswith(("http://", "https://")):
-            return False
-    published = row.get("pub_date")
-    if published is not None and (isinstance(published, bool) or not isinstance(published, int)):
-        return False
-    for key in ("seeds", "leech"):
-        value = row.get(key)
-        try:
-            if isinstance(value, bool) or value is None:
-                return False
-            _ = int(str(value))
-        except ValueError:
-            return False
-    return True
-
-
 def replay(
     path: Path,
     *,
     source_root: Path | None = None,
-    measure: bool = False,
-    trace_allocations: bool = False,
 ) -> dict[str, object]:
     value = cast(object, json.loads(path.read_text(encoding="utf-8")))
     if not isinstance(value, dict):
@@ -144,9 +103,6 @@ def replay(
     errors: list[str] = []
     lock = Lock()
     transport = FixtureTransport(case, errors)
-    started = 0.0
-    first_result: float | None = None
-    result_times: list[float] = []
     executors: list[ThreadPoolExecutor] = []
 
     class ReplayExecutor(ThreadPoolExecutor):
@@ -170,7 +126,6 @@ def replay(
         return transport.urlopen(url, data)
 
     def printer(row: object) -> None:
-        nonlocal first_result
         with lock:
             if not isinstance(row, dict):
                 errors.append("result is not a dictionary")
@@ -178,11 +133,6 @@ def replay(
             record = cast(dict[str, object], row).copy()
             records.append(record)
             result_request_counts.append(len(transport.requests))
-            if measure and usable_record(record):
-                elapsed = time.perf_counter() - started
-                result_times.append(elapsed)
-                if first_result is None:
-                    first_result = elapsed
 
     def forbidden(*_args: object, **_kwargs: object) -> NoReturn:
         with lock:
@@ -214,7 +164,6 @@ def replay(
     source_hash = case.get("sourceSha256")
     if source_hash is not None and source_hash != actual_hash:
         raise ValueError("plugin source changed after response capture")
-    metrics: dict[str, object] = {}
     with (
         tempfile.TemporaryDirectory(prefix="qbsearch-replay-") as directory,
         patch("socket.socket.connect", forbidden),
@@ -244,13 +193,7 @@ def replay(
         sys.modules[plugin] = module
         random.seed(0)
         logging.getLogger().addHandler(logging.NullHandler())
-        if trace_allocations:
-            tracemalloc.start()
-        started = time.perf_counter()
-        cpu_started = time.process_time()
         loader.exec_module(module)
-        import_seconds = time.perf_counter() - started
-        import_cpu = time.process_time() - cpu_started
         vars(module).update({"MAX_PAGES": limits["maxPages"], "MAX_DETAILS": limits["maxDetails"]})
         if worker_limit is not None:
             vars(module)["MAX_WORKERS"] = worker_limit
@@ -266,11 +209,6 @@ def replay(
             cache.parent.mkdir(parents=True, exist_ok=True)
             cache_date = str(date.today()) if case.get("cacheFresh", True) else "2000-01-01"
             _ = cache.write_text(f"{cache_date}\n{cache_xml}", encoding="utf-8")
-            # Fixture setup is excluded from the engine's CPU/time/allocation metrics.
-            started = time.perf_counter() - import_seconds
-            cpu_started = time.process_time() - import_cpu
-            if trace_allocations:
-                tracemalloc.reset_peak()
         factory = cast(Callable[[], SearchEngine], getattr(module, str(plugin)))
         try:
             engine = factory()
@@ -303,30 +241,6 @@ def replay(
             # searches' already-running workers have finished their bounded I/O.
             for executor in executors:
                 executor.shutdown(wait=True)
-            if measure:
-                metrics = {
-                    "importSeconds": import_seconds,
-                    "firstResultSeconds": first_result,
-                    "totalSeconds": time.perf_counter() - started,
-                    "cpuSeconds": time.process_time() - cpu_started,
-                    "resultTimesSeconds": result_times,
-                    "responseBytes": transport.response_bytes,
-                    "usableResults": sum(usable_record(row) for row in records),
-                    "peakAllocatedBytes": None,
-                    "peakRssBytes": None,
-                }
-                if trace_allocations:
-                    _, peak = tracemalloc.get_traced_memory()
-                    metrics["peakAllocatedBytes"] = peak
-                try:
-                    import resource
-
-                    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-                    metrics["peakRssBytes"] = rss if sys.platform == "darwin" else rss * 1024
-                except ImportError:
-                    pass
-            if trace_allocations:
-                tracemalloc.stop()
     return {
         "plugin": plugin,
         "records": records,
@@ -340,7 +254,6 @@ def replay(
         "requestConcurrency": transport.request_concurrency,
         "sourceSha256": actual_hash,
         "python": sys.version.split()[0],
-        "metrics": metrics,
     }
 
 
@@ -351,14 +264,10 @@ def main() -> int:
         parser = argparse.ArgumentParser(description=__doc__)
         _ = parser.add_argument("case")
         _ = parser.add_argument("--source-root", type=Path)
-        _ = parser.add_argument("--measure", action="store_true")
-        _ = parser.add_argument("--trace", action="store_true")
         args = parser.parse_args()
         report = replay(
             Path(cast(str, args.case)),
             source_root=cast(Optional[Path], args.source_root),
-            measure=cast(bool, args.measure),
-            trace_allocations=cast(bool, args.trace),
         )
     except Exception as error:
         report = {

@@ -1,19 +1,8 @@
+import { catalogEntries, loadCatalog } from "../catalog/storage";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { CATALOG_PATH, PLUGIN_DIR } from "./repo";
+import { PLUGIN_DIR } from "./repo";
 import { metadataFromSource } from "./python-parse";
-
-export interface CatalogEntry {
-  id: string;
-  name: string;
-  site_url: string;
-  category: string;
-  default_query: string;
-  status: string;
-  icon: string;
-  requires_auth?: boolean;
-  [key: string]: unknown;
-}
 
 /** Find installable Python engines in deterministic filename order. */
 export async function discoverPlugins(): Promise<string[]> {
@@ -28,29 +17,15 @@ export function pluginId(path: string): string {
   return basename(path, ".py");
 }
 
-async function loadCatalogJson(): Promise<{ plugins: CatalogEntry[] }> {
-  const raw = await readFile(CATALOG_PATH, "utf8");
-  const parsed: unknown = JSON.parse(raw);
-  if (typeof parsed !== "object" || parsed === null || !("plugins" in parsed)) {
-    throw new Error("catalog must have a plugins array");
-  }
-  const plugins: unknown = parsed.plugins;
-  if (!Array.isArray(plugins)) {
-    throw new Error("catalog.plugins must be an array");
-  }
-  return { plugins: plugins as CatalogEntry[] };
-}
-
-export async function loadCatalogEntries(): Promise<CatalogEntry[]> {
-  return (await loadCatalogJson()).plugins;
-}
-
 /**
  * Return plugin files only when disk and catalog agree.
  * Throws with actionable detail otherwise.
  */
 export async function discoverCatalogPlugins(): Promise<string[]> {
-  const [paths, entries] = await Promise.all([discoverPlugins(), loadCatalogEntries()]);
+  const [paths, entries] = await Promise.all([
+    discoverPlugins(),
+    loadCatalog().then(catalogEntries),
+  ]);
   const catalogIds = entries.map((entry, index) => {
     if (typeof entry.id !== "string" || !entry.id) {
       throw new Error(`catalog.plugins entry ${index} has an invalid id`);

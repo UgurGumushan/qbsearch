@@ -52,15 +52,12 @@ function jsonReply(plugin: "knaben" | "torrentfunk" | "torrentclaw", ids: number
 for (const plugin of ["knaben", "torrentfunk", "torrentclaw"] as const) {
   test(`${plugin} retains metadata, deduplicates hashes and needs one request for 100 results`, async () => {
     const ids = Array.from({ length: 100 }, (_, id) => id + 1);
-    const report = await replay(
-      {
-        plugin,
-        query,
-        maxDetails: 100,
-        responses: { [apiUrls[plugin]]: jsonReply(plugin, ids) },
-      },
-      { measure: true },
-    );
+    const report = await replay({
+      plugin,
+      query,
+      maxDetails: 100,
+      responses: { [apiUrls[plugin]]: jsonReply(plugin, ids) },
+    });
     assertUsableParserResults(report, true);
     expect(report.records).toHaveLength(100);
     expect(report.requests).toEqual([apiUrls[plugin]]);
@@ -72,7 +69,7 @@ for (const plugin of ["knaben", "torrentfunk", "torrentclaw"] as const) {
       leech: 2,
     });
     expect(report.records[0].pub_date).toBe(1790856000);
-    expect(report.metrics?.usableResults).toBe(100);
+
     const duplicate = await replay({
       plugin,
       query,
@@ -452,22 +449,18 @@ test("Internet Archive caps the metadata fan-out at twenty even when the API ove
     responses[`https://archive.org/metadata/${item.identifier}`] = JSON.stringify({
       files: [{ name: `${item.identifier}_archive.torrent`, format: "Archive BitTorrent" }],
     });
-  const report = await replay(
-    {
-      plugin: "internetarchive",
-      query,
-      maxDetails: 100,
-      maxWorkers: 16,
-      responseDelayMs: 20,
-      responses,
-    },
-    { measure: true },
-  );
+  const report = await replay({
+    plugin: "internetarchive",
+    query,
+    maxDetails: 100,
+    maxWorkers: 16,
+    responseDelayMs: 20,
+    responses,
+  });
   assertUsableParserResults(report, true);
   expect(report.requests).toHaveLength(21);
   expect(report.records).toHaveLength(20);
   expect(report.peakConcurrentRequests).toBe(4);
-  expect(report.metrics?.usableResults).toBe(20);
 });
 
 test("new transport rejects oversized responses before parsing or printing", async () => {

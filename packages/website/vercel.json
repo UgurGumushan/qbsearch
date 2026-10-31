@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "public",
+  "redirects": [
+    {
+      "source": "/download/latest",
+      "destination": "https://github.com/UgurGumushan/qbsearch/releases/latest/download/qbsearch-latest.zip",
+      "permanent": false
+    }
+  ]
+}

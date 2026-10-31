@@ -1,5 +1,5 @@
 import { CATALOG_PATH } from "../../tool/core/repo";
-import { catalogEntries, loadCatalog } from "../../tool/catalog";
+import { catalogEntries, loadCatalog } from "../../tool/catalog/storage";
 
 export interface LiveCatalogEntry {
   id: string;

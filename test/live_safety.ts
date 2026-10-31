@@ -3,7 +3,7 @@
 import { basename } from "node:path";
 import { countResultMarkers, fetchTextWithRetry, inspectLivePlugin } from "./live_plugin";
 import { PLUGIN_SOURCES } from "./plugin_sources";
-import { discoverCatalogPlugins } from "./support/plugin_inventory";
+import { discoverCatalogPlugins } from "../tool/core/plugins";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {

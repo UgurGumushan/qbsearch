@@ -3,8 +3,8 @@ import eslintConfigPrettier from "eslint-config-prettier";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-// Source of truth for TS roots: tool/core/repo.ts TYPESCRIPT_DIRS (+ packages/website).
-const TYPESCRIPT_FILES = ["test/**/*.ts", "tool/**/*.ts", "packages/website/**/*.{ts,tsx}"];
+// Source of truth for TS roots: tool/core/repo.ts TYPESCRIPT_DIRS.
+const TYPESCRIPT_FILES = ["test/**/*.ts", "tool/**/*.ts"];
 
 export default tseslint.config(
   {
@@ -15,7 +15,6 @@ export default tseslint.config(
       "working/**",
       "dist/**",
       "build/**",
-      "**/.next/**",
       ".opencode/**",
       ".venv/**",
       ".ruff_cache/**",

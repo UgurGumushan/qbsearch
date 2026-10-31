@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>qbsearch — Download qBittorrent search plugins</title>
+    <meta
+      name="description"
+      content="Download qBittorrent search plugins in one ZIP, with icons and installers for Windows, macOS, and Linux."
+    />
+    <meta name="keywords" content="qBittorrent, nova3, search plugins, torrent search" />
+    <meta property="og:title" content="qbsearch — Download qBittorrent search plugins" />
+    <meta
+      property="og:description"
+      content="Download qBittorrent search plugins in one ZIP, with icons and installers for Windows, macOS, and Linux."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <main>
+        <header class="download">
+          <h1>qbsearch</h1>
+          <p class="description">Search plugins for qBittorrent.</p>
+          <a
+            class="download-button"
+            href="https://github.com/UgurGumushan/qbsearch/releases/latest/download/qbsearch-latest.zip"
+            >Download ZIP</a
+          >
+          <p class="archive-details">
+            Includes plugins, icons, and installers for Windows, macOS, and Linux.
+          </p>
+          <a class="releases-link" href="https://github.com/UgurGumushan/qbsearch/releases"
+            >All releases</a
+          >
+        </header>
+        <section class="installation" aria-labelledby="install-heading">
+          <h2 id="install-heading">Install</h2>
+          <p>You need qBittorrent and Python 3.9+.</p>
+          <ol class="install-steps">
+            <li>Download and extract the ZIP.</li>
+            <li>
+              Quit qBittorrent. Open a terminal in the extracted folder and run the command for your
+              system. On Windows, use PowerShell.
+              <dl class="commands">
+                <div>
+                  <dt>macOS</dt>
+                  <dd><code>sh install/macos.sh</code></dd>
+                </div>
+                <div>
+                  <dt>Linux</dt>
+                  <dd><code>sh install/linux.sh</code></dd>
+                </div>
+                <div>
+                  <dt>Windows</dt>
+                  <dd><code>.&#92;install&#92;windows.ps1</code></dd>
+                </div>
+              </dl>
+            </li>
+            <li>
+              Reopen qBittorrent. If the Search tab is hidden, enable
+              <strong>View → Search Engine</strong>.
+            </li>
+          </ol>
+          <p class="collection-note">The full collection includes adult search plugins.</p>
+        </section>
+      </main>
+      <footer>
+        <nav aria-label="More information">
+          <a href="https://github.com/UgurGumushan/qbsearch/blob/main/documentation/INSTALL.md"
+            >Installation guide</a
+          >
+          <a href="https://github.com/UgurGumushan/qbsearch/blob/main/documentation/PLUGINS.md"
+            >Plugin list</a
+          >
+          <a href="https://github.com/UgurGumushan/qbsearch">GitHub</a>
+          <a href="https://github.com/UgurGumushan/qbsearch/blob/main/LICENSE.md">License</a>
+        </nav>
+      </footer>
+    </div>
+  </body>
+</html>

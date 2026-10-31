@@ -12,10 +12,10 @@ For plugin install and end-user usage, use the main [README.md](README.md).
 - `tool/` is the maintainer command layer:
   - `tool/cli.ts` routes all commands.
   - `tool/core/` contains shared helpers.
-  - `tool/commands/`, `tool/generators/`, and worker modules (`catalog`, `checks`, `harden`, `icons`, `release`) implement maintainers flows.
+  - `tool/commands/`, `tool/generators/`, and worker modules (`catalog`, `checks`, `harden`, `release`) implement maintainers flows.
 - `test/` includes Bun tests, live-test workers, and Python compatibility harnesses.
 - `install/` contains native installers for macOS, Linux, and Windows.
-- `packages/website` is the distribution website package.
+- `packages/website` is the static distribution website; its HTML/CSS/SVG need no build.
 - `documentation/` is generated and checked; avoid hand editing generated markdown.
 
 ## Command reference
@@ -113,7 +113,8 @@ worker limit without multiplying pools.
    ```sh
    bun run gen -- --write --only harden
    ```
-3. Add the matching icon under `icons/<id>.ico` when available.
+3. Supply the matching checked-in icon under `icons/<id>.ico`. Favicon fetching
+   is no longer automated.
 4. Add one catalog record in `catalog/plugins.json`.
 5. Regenerate all generated docs/checks:
    ```sh
@@ -232,8 +233,8 @@ upstream license notices into the distributable zip.
 
 To publish a new stable version, add its entry at the top of
 `documentation/CHANGELOG.md` and write `documentation/releases/v<version>.md`.
-The release workflow runs after the full Python 3.9/3.11 checks and website
-build succeed for a push to `main`. It selects the changelog version, skips an
+The release workflow runs after the full Python 3.9/3.11 checks succeed for a
+push to `main`. Static website download checks are part of that gate. It selects the changelog version, skips an
 already published release, verifies the exact checked commit again, and uploads
 the versioned ZIP and `qbsearch-latest.zip`. Manual `v*` tag pushes also work;
 the tag must match the checked-out changelog version and have release notes.

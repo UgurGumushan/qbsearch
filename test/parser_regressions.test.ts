@@ -3,92 +3,14 @@ import { gzipSync } from "node:zlib";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { runCommandLine } from "../tool/cli";
 import { pythonCommand, runCapturedCommand } from "../tool/core/run";
-import { academicCase, benchmarkFixtures, darkWideCase, unionCase } from "./performance/fixtures";
-import { parseBenchmarkArguments } from "./performance/runner";
-import { acceptance, distribution, resultSignature, summarize } from "./performance/statistics";
+import { academicCase, darkWideCase, unionCase } from "./support/parser_cases";
+import { FIXTURES_DIR } from "../tool/core/repo";
 import {
   replayParserFixture as replay,
   assertUsableParserResults,
-  type ParserReport,
+  type ParserCase,
 } from "./support/parser_replay";
-
-test("benchmark flags validate values and reject live/watch combinations", async () => {
-  expect(parseBenchmarkArguments([])).toMatchObject({
-    baseline: "v0.1.10",
-    samples: 20,
-    warmups: 2,
-    matrix: false,
-  });
-  expect(parseBenchmarkArguments(["--plugin", "yts", "--matrix", "--samples", "1"])).toMatchObject({
-    plugins: ["yts"],
-    matrix: true,
-    samples: 1,
-  });
-  for (const args of [
-    ["--plugin"],
-    ["--samples", "0"],
-    ["--warmups", "-1"],
-    ["--live"],
-    ["--baseline", "--matrix"],
-  ]) {
-    expect(() => parseBenchmarkArguments(args)).toThrow();
-  }
-  expect(await runCommandLine(["test", "--benchmark", "--live"])).toBe(2);
-  expect(await runCommandLine(["test", "--benchmark", "--watch"])).toBe(2);
-});
-
-test("benchmark statistics use medians and nearest-rank p95; empty first result stays null", () => {
-  expect(distribution([4, 1, 2, 3])).toEqual({ median: 2.5, p95: 4 });
-  expect(distribution([])).toBeNull();
-  const report: ParserReport = {
-    code: 0,
-    records: [],
-    requests: [],
-    errors: [],
-    downloadRequests: [],
-    output: [],
-    metrics: {
-      importSeconds: 1,
-      firstResultSeconds: null,
-      totalSeconds: 2,
-      cpuSeconds: 0.003,
-      responseBytes: 0,
-      usableResults: 0,
-      peakAllocatedBytes: 100,
-      peakRssBytes: 1000,
-    },
-  };
-  const before = summarize([report], [report]);
-  const after = summarize(
-    [
-      {
-        ...report,
-        metrics: {
-          importSeconds: 1,
-          firstResultSeconds: null,
-          totalSeconds: 1.7,
-          cpuSeconds: 0.001,
-          responseBytes: 0,
-          usableResults: 0,
-          peakAllocatedBytes: 100,
-          peakRssBytes: 1000,
-        },
-      },
-    ],
-    [report],
-  );
-  expect(before.first).toBeNull();
-  expect(acceptance(before, after).wins).toEqual(["total >=10%"]);
-  expect(acceptance(after, before).regressions).toEqual(["total median >5%", "total p95 >10%"]);
-  expect(resultSignature({ ...report, records: [{ a: 1, b: 2 }, { b: 3 }] }, false)).toBe(
-    resultSignature({ ...report, records: [{ b: 3 }, { b: 2, a: 1 }] }, false),
-  );
-  expect(resultSignature({ ...report, records: [{ a: 1 }, { a: 2 }] }, true)).not.toBe(
-    resultSignature({ ...report, records: [{ a: 2 }, { a: 1 }] }, true),
-  );
-});
 
 test("offline transport matches POST bodies, custom openers, binary responses, redirects and errors", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "qbsearch-transport-"));
@@ -147,7 +69,7 @@ class elitetorrent:
           { url: "https://example.test/missing", method: "GET", response: { status: 404 } },
         ],
       },
-      { sourceRoot: directory, measure: true, trace: true },
+      { sourceRoot: directory },
     );
     assertUsableParserResults(report);
     expect(report.records.map((row) => row.name)).toEqual([
@@ -164,9 +86,6 @@ class elitetorrent:
     ]);
     expect(report.requestDetails?.[2].headers).toEqual({ "X-fixture": "yes" });
     expect(report.requestDetails?.map((item) => item.status)).toEqual([200, 200, 200, 404]);
-    expect(report.metrics?.usableResults).toBe(4);
-    expect(report.metrics?.firstResultSeconds).toBeGreaterThan(0);
-    expect(report.metrics?.peakAllocatedBytes).toBeGreaterThan(0);
     expect(await Bun.file(resolve(directory, "plugins", "cookie.txt")).exists()).toBe(false);
     expect(await Bun.file(resolve(directory, "home", "cache.txt")).exists()).toBe(false);
   } finally {
@@ -200,12 +119,14 @@ print("strict transport and EOF accounting preserved")`,
   expect(result.output).toBe("strict transport and EOF accounting preserved");
 });
 
-test("offline replay exercises a zero deadline and stops detail work", async () => {
-  const fixture = (await benchmarkFixtures("elitetorrent"))[0].case;
+test("offline replay with an expired deadline performs no network or detail work", async () => {
+  const fixture = (await Bun.file(
+    resolve(FIXTURES_DIR, "parsers", "elitetorrent-inception.json"),
+  ).json()) as ParserCase;
   const report = await replay({ ...fixture, deadlineMs: 0 });
   expect(report.errors).toEqual([]);
   expect(report.records).toEqual([]);
-  expect(report.requests).toEqual(["https://www.elitetorrent.com/?s=inception"]);
+  expect(report.requests).toEqual([]);
 });
 
 test("AcademicTorrents selects cached rows and rejects a malformed tail before any detail requests", async () => {
@@ -259,11 +180,10 @@ print("DOM semantics preserved")`,
   expect(result.output).toBe("DOM semantics preserved");
 });
 
-test("positive UnionDHT fixture executes the real parser; unknown engines are explicitly unverified", async () => {
+test("UnionDHT emits ordered, deduplicated results as each page arrives", async () => {
   const report = await replay(unionCase());
   expect(report.code).toBe(0);
   expect(report.records.length).toBe(10);
   expect(report.requests.length).toBe(5);
   expect(report.resultRequestCounts).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
-  expect((await benchmarkFixtures("dmhy"))[0].evidence).toBe("empty");
 });

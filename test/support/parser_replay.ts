@@ -49,21 +49,8 @@ export interface ParserCase {
   repeatSearches?: number;
 }
 
-export interface ReplayMetrics {
-  importSeconds: number;
-  firstResultSeconds: number | null;
-  totalSeconds: number;
-  cpuSeconds: number;
-  responseBytes: number;
-  usableResults: number;
-  peakAllocatedBytes: number | null;
-  peakRssBytes: number | null;
-}
-
 export interface ReplayOptions {
   sourceRoot?: string;
-  measure?: boolean;
-  trace?: boolean;
   timeoutSeconds?: number;
 }
 
@@ -87,8 +74,6 @@ export interface ParserReport {
   }[];
   sourceSha256?: string;
   python?: string;
-  metrics?: ReplayMetrics;
-  processSeconds?: number;
   resultRequestCounts?: number[];
 }
 
@@ -101,11 +86,7 @@ export async function replayParserCase(
   path: string,
   options: ReplayOptions = {},
 ): Promise<ParserReport> {
-  const flags = [
-    ...(options.sourceRoot ? ["--source-root", options.sourceRoot] : []),
-    ...(options.measure ? ["--measure"] : []),
-    ...(options.trace ? ["--trace"] : []),
-  ];
+  const flags = [...(options.sourceRoot ? ["--source-root", options.sourceRoot] : [])];
   const result = await runCapturedCommand(
     [...pythonCommand(), "-m", "test.parser_harness", path, ...flags],
     {
@@ -128,23 +109,6 @@ export async function replayParserCase(
   ) {
     throw new Error(`invalid parser report: ${result.output}`);
   }
-  const metrics = isRecord(value.metrics) ? value.metrics : undefined;
-  const requiredMetrics = [
-    "importSeconds",
-    "totalSeconds",
-    "cpuSeconds",
-    "responseBytes",
-    "usableResults",
-  ];
-  if (
-    options.measure &&
-    (!metrics || requiredMetrics.some((key) => typeof metrics[key] !== "number"))
-  ) {
-    throw new Error(`missing replay measurements: ${result.output}`);
-  }
-  const numeric = (key: string): number => Number(metrics?.[key] ?? 0);
-  const nullable = (key: string): number | null =>
-    typeof metrics?.[key] === "number" ? metrics[key] : null;
   return {
     code: result.code,
     records: value.records,
@@ -170,23 +134,9 @@ export async function replayParserCase(
       : [],
     sourceSha256: typeof value.sourceSha256 === "string" ? value.sourceSha256 : undefined,
     python: typeof value.python === "string" ? value.python : undefined,
-    processSeconds: result.elapsed,
     resultRequestCounts: Array.isArray(value.resultRequestCounts)
       ? value.resultRequestCounts.map((value: unknown) => Number(value))
       : [],
-    metrics:
-      metrics && requiredMetrics.every((key) => typeof metrics[key] === "number")
-        ? {
-            importSeconds: numeric("importSeconds"),
-            firstResultSeconds: nullable("firstResultSeconds"),
-            totalSeconds: numeric("totalSeconds"),
-            cpuSeconds: numeric("cpuSeconds"),
-            responseBytes: numeric("responseBytes"),
-            usableResults: numeric("usableResults"),
-            peakAllocatedBytes: nullable("peakAllocatedBytes"),
-            peakRssBytes: nullable("peakRssBytes"),
-          }
-        : undefined,
   };
 }
 

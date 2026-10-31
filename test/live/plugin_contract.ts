@@ -1,8 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { END_MARKER, START_MARKER } from "../../tool/harden/constants";
-import { inspectPlugin } from "../../tool/catalog/index";
-import { versionFromSource } from "./plugin_source";
+import {
+  metadataFromSource,
+  versionFromSource,
+  hasSearchMethod,
+} from "../../tool/core/python-parse";
 import type { LivePluginContract } from "./types";
 
 export async function inspectLivePlugin(
@@ -16,7 +19,7 @@ export async function inspectLivePlugin(
   let siteUrl = "";
 
   try {
-    const metadata = await inspectPlugin(path);
+    const metadata = metadataFromSource(source, id);
     name = metadata.name;
     siteUrl = metadata.site_url;
   } catch (error) {
@@ -24,10 +27,10 @@ export async function inspectLivePlugin(
   }
 
   const version = versionFromSource(source);
-  if (!version) {
+  if (!version || !/^\d+\.\d+$/.test(version)) {
     errors.push("missing or invalid #VERSION: line (qBittorrent requires two numeric parts)");
   }
-  if (!/^[ \t]+def\s+search\s*\(/m.test(source)) {
+  if (!hasSearchMethod(source)) {
     errors.push("missing qBittorrent search method");
   }
   if (!source.includes(START_MARKER) || !source.includes(END_MARKER)) {

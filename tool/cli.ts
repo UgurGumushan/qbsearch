@@ -1,31 +1,23 @@
-import { resolve } from "node:path";
-import { buildRelease } from "./release/command";
-import { normalizeReleaseArguments } from "./release/command_arguments";
-import { checkCatalog } from "./checks/catalog";
-import { ROOT } from "./core/repo";
-import { runCommand } from "./core/run";
-import { runCheckCommand } from "./commands/check";
-import { runGenCommand } from "./commands/gen";
-import { runPluginCommand } from "./commands/plugin";
-import { setup } from "./commands/setup";
 import { stripArgumentSeparator } from "./core/args";
-import { runBenchmark } from "../test/performance/runner";
 
 export interface CommandSpec {
   name: string;
   description: string;
   examples: string[];
+  run: (args: string[]) => Promise<number>;
 }
 
 /** Single source of truth for repository commands. */
 export const COMMANDS: CommandSpec[] = [
   {
     name: "setup",
+    run: async (args) => (await import("./commands/setup")).setup(args),
     description: "Install pinned Bun/Python checkers and enable the pre-commit hook.",
     examples: ["bun run setup"],
   },
   {
     name: "check",
+    run: async (args) => (await import("./commands/check")).runCheckCommand(args),
     description:
       "Run deterministic checks. --fast is the pre-commit hook subset; --full (default) adds bun test. --strict enforces metadata warnings as failures.",
     examples: [
@@ -37,23 +29,24 @@ export const COMMANDS: CommandSpec[] = [
   },
   {
     name: "gen",
-    description: "Regenerate or audit generated files (catalog docs, preambles, icons, CLI docs).",
+    run: async (args) => (await import("./commands/gen")).runGenCommand(args),
+    description:
+      "Regenerate or audit generated files (catalog docs, preambles, watch sources, probes, CLI docs).",
     examples: ["bun run gen -- --check", "bun run gen -- --write --only catalog"],
   },
   {
     name: "plugin",
+    run: async (args) => (await import("./commands/plugin")).runPluginCommand(args),
     description: "Validate or scaffold standalone plugins.",
     examples: ["bun run plugin -- --validate", "bun run plugin -- --new myengine --kind json"],
   },
   {
     name: "test",
-    description:
-      "Run deterministic tests, live network tests (--live), or offline benchmarks (--benchmark).",
+    run: async (args) => (await import("./commands/test")).runTestCommand(args),
+    description: "Run deterministic tests or live network tests (--live).",
     examples: [
       "bun run test",
       "bun run test -- --watch",
-      "bun run test -- --benchmark",
-      "bun run test -- --benchmark --plugin elitetorrent --baseline v0.1.10 --matrix",
       "bun run test -- --live --plugin yts",
       "bun run test -- --live --plugin yts --require-results",
       "bun run test -- --live --record-probes",
@@ -61,6 +54,7 @@ export const COMMANDS: CommandSpec[] = [
   },
   {
     name: "release",
+    run: async (args) => (await import("./commands/release")).runReleaseCommand(args),
     description: "Build a release ZIP after validating the catalog.",
     examples: ["bun run release -- 0.1.3"],
   },
@@ -71,76 +65,17 @@ export function printHelp(): void {
   console.log(`Usage: bun run <command> [-- arguments]\n\nCommands:\n${rows}\n`);
 }
 
-async function runLive(args: string[]): Promise<number> {
-  const catalogExit = await checkCatalog();
-  if (catalogExit !== 0) {
-    return catalogExit;
-  }
-  const watch = args.includes("--watch");
-  const rest = args.filter((a) => a !== "--watch");
-  const entry = resolve(ROOT, "test", watch ? "live_watch.ts" : "live.ts");
-  const argv = watch
-    ? [process.execPath, "--watch", entry, ...rest]
-    : [process.execPath, entry, ...rest];
-  return runCommand(argv, "Live plugin tests");
-}
-
-async function runDeterministicTest(args: string[]): Promise<number> {
-  if (args.includes("--benchmark")) {
-    if (args.includes("--live") || args.includes("--watch")) {
-      console.error("--benchmark cannot be combined with --live or --watch");
-      return 2;
-    }
-    return runBenchmark(args.filter((arg) => arg !== "--benchmark"));
-  }
-  if (args.includes("--live")) {
-    return runLive(args.filter((a) => a !== "--live"));
-  }
-  if (args.includes("--help") || args.includes("-h")) {
-    console.log(`Usage: bun run test [-- --watch|--live|--benchmark ...]
-
-  (no flags)           Run the deterministic Bun test suite
-  --watch              Keep Bun tests watching plugins/
-  --live [live flags]  Run live network tests (pass-through to test/live.ts)
-  --benchmark [flags]  Compare saved responses against v0.1.10 (use --help for flags)
-`);
-    return 0;
-  }
-  if (args.includes("--watch")) {
-    return runCommand([process.execPath, "test", "--watch"], "Bun tests (watch)");
-  }
-  return runCommand([process.execPath, "test"], "Bun tests");
-}
-
 /** Dispatch one repository maintenance command. */
 export async function runCommandLine(rawArgs: string[]): Promise<number> {
-  const command = rawArgs[0] ?? "help";
-  const args = stripArgumentSeparator(rawArgs.slice(1));
-  switch (command) {
-    case "setup":
-      return setup(args);
-    case "check":
-      return runCheckCommand(args);
-    case "gen":
-      return runGenCommand(args);
-    case "plugin":
-      return runPluginCommand(args);
-    case "test":
-      return runDeterministicTest(args);
-    case "release": {
-      const catalogExit = await checkCatalog();
-      if (catalogExit !== 0) {
-        return catalogExit;
-      }
-      return buildRelease(normalizeReleaseArguments(args));
-    }
-    case "help":
-    case "--help":
-    case "-h":
-      printHelp();
-      return 0;
-    default:
-      console.error(`Unknown command '${command}'. Run 'bun run help' for usage.`);
-      return 2;
+  const name = rawArgs[0] ?? "help";
+  if (["help", "--help", "-h"].includes(name)) {
+    printHelp();
+    return 0;
   }
+  const command = COMMANDS.find((entry) => entry.name === name);
+  if (!command) {
+    console.error(`Unknown command '${name}'. Run 'bun run help' for usage.`);
+    return 2;
+  }
+  return command.run(stripArgumentSeparator(rawArgs.slice(1)));
 }

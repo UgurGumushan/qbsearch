@@ -1,14 +1,8 @@
-import { CHECK_TASKS } from "../checks/tasks";
+import { checkTasks, type CheckOptions } from "../checks/tasks";
 import { runParallel } from "../core/run";
 
-export type CheckMode = "fast" | "full";
-interface CheckArguments {
-  mode: CheckMode;
-  strict: boolean;
-}
-
-function parseArguments(rawArgs: string[]): CheckArguments {
-  let mode: CheckMode = "full";
+function parseArguments(rawArgs: string[]): CheckOptions {
+  let mode: CheckOptions["mode"] = "full";
   let strict = false;
   for (const arg of rawArgs) {
     if (arg === "--fast") {
@@ -37,7 +31,7 @@ Modes:
     return 0;
   }
 
-  let parsed: CheckArguments;
+  let parsed: CheckOptions;
   try {
     parsed = parseArguments(rawArgs);
   } catch (error) {
@@ -45,8 +39,5 @@ Modes:
     return 2;
   }
 
-  if (parsed.mode === "fast") {
-    return runParallel(parsed.strict ? CHECK_TASKS.staticStrict : CHECK_TASKS.static);
-  }
-  return runParallel(parsed.strict ? CHECK_TASKS.checkStrict : CHECK_TASKS.check);
+  return runParallel(checkTasks(parsed));
 }

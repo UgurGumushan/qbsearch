@@ -5,7 +5,8 @@
 All repository automation runs through one router, `tool/cli.ts`, exposed as
 six package scripts: `setup`, `check`, `gen`, `plugin`, `test`, `release`.
 `documentation/CLI.md` is rendered from the router table, so `--help` output
-and docs cannot drift apart.
+and docs cannot drift apart. The same table dispatches lazily loaded command
+adapters; domain workers take typed options rather than parsing CLI arguments.
 
 - `tool/core/repo.ts` — paths and TypeScript roots (`TYPESCRIPT_DIRS`, the
   source of truth for `tsconfig.json` and `eslint.config.js`).
@@ -21,7 +22,7 @@ and docs cannot drift apart.
 - `tool/generators/` — pure renderers (watch manifest, CLI docs, standalone plugin templates).
 
 Domain workers live in matching directories (`tool/catalog/`, `tool/harden/`,
-`tool/icons/`, `tool/checks/`, `tool/release/`) and share
+`tool/checks/`, `tool/release/`) and share
 `tool/core/`. New shared code goes in `tool/core/`.
 
 ## Check modes
@@ -33,7 +34,17 @@ Domain workers live in matching directories (`tool/catalog/`, `tool/harden/`,
   which adds catalog validation, preamble audits, Python compilation, the
   qBittorrent installability harness, and the fake-server safety suite.
 
-CI runs the full gate on Python 3.9 and 3.11, then builds the website.
+Check modes share a flat task list; full mode adds Bun tests to the same static
+checks, and strict mode passes strictness to the generated catalog audit.
+CI runs the full gate on Python 3.9 and 3.11.
+
+## Distribution website
+
+`packages/website/public` is served directly as HTML, CSS, and SVG. The site has
+no runtime package or build. Root formatting and deterministic download-contract
+tests cover its public assets and stable GitHub ZIP link. `vercel.json` retains
+the `/download/latest` HTTP 307 redirect. Icons are maintained as checked-in ICO
+files; no favicon fetching or conversion pipeline remains.
 
 ## Plugins
 

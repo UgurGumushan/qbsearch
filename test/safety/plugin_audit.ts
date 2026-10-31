@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { auditPlugin } from "../../tool/checks/harden/audit_plugin";
-import { discoverCatalogPlugins } from "../support/plugin_inventory";
+import { discoverCatalogPlugins } from "../../tool/core/plugins";
 
 export async function auditPlugins(): Promise<void> {
   const plugins = await discoverCatalogPlugins();

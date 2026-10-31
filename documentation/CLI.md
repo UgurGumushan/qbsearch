@@ -25,7 +25,7 @@ bun run check -- --strict
 
 ## `bun run gen`
 
-Regenerate or audit generated files (catalog docs, preambles, icons, CLI docs).
+Regenerate or audit generated files (catalog docs, preambles, watch sources, probes, CLI docs).
 
 ```sh
 bun run gen -- --check
@@ -43,13 +43,11 @@ bun run plugin -- --new myengine --kind json
 
 ## `bun run test`
 
-Run deterministic tests, live network tests (--live), or offline benchmarks (--benchmark).
+Run deterministic tests or live network tests (--live).
 
 ```sh
 bun run test
 bun run test -- --watch
-bun run test -- --benchmark
-bun run test -- --benchmark --plugin elitetorrent --baseline v0.1.10 --matrix
 bun run test -- --live --plugin yts
 bun run test -- --live --plugin yts --require-results
 bun run test -- --live --record-probes

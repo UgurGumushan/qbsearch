@@ -2,8 +2,7 @@ import type { InstallableCatalogEntry } from "../catalog/types";
 
 export type CatalogEntry = InstallableCatalogEntry;
 
-export interface ParsedArguments {
-  help: boolean;
+export interface ReleaseOptions {
   version: string;
   output: string;
 }

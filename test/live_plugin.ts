@@ -8,7 +8,8 @@
 
 export { inspectLivePlugin } from "./live/plugin_contract";
 export { countResultMarkers, fetchTextWithRetry } from "./live/http";
-export { buildProbeUrl, versionFromSource } from "./live/plugin_source";
+export { buildProbeUrl } from "./live/plugin_source";
+export { versionFromSource } from "../tool/core/python-parse";
 export { parseWorkerArguments, runLiveProbe, runWorker } from "./live/worker";
 export type {
   LivePluginContract,

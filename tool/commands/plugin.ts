@@ -5,11 +5,11 @@ import { renderPluginTemplate } from "../generators/plugin-template";
 
 /** Validate standalone plugins without editing (catalog + preamble audit). */
 export async function validatePlugins(): Promise<number> {
-  const catalogExit = await generatePluginCatalog(["--check"]);
+  const catalogExit = await generatePluginCatalog({ mode: "check" });
   if (catalogExit !== 0) {
     return catalogExit;
   }
-  return hardenPlugins(["--check"]);
+  return hardenPlugins({ mode: "check" });
 }
 
 /** plugin --validate audits; --new scaffolds a slim engine (preamble added by gen). */

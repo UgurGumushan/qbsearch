@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+import { ROOT } from "../tool/core/repo";
 import { expect, test } from "bun:test";
 import { rejects } from "node:assert/strict";
 import { parseLiveArguments } from "./live/cli";
@@ -40,7 +42,7 @@ test("live worker parser resolves a plugin path from the repository root", () =>
     allowEmpty: false,
     installOnly: true,
   });
-  expect(parsed?.plugin).toContain("/plugins/yts.py");
+  expect(parsed?.plugin).toBe(resolve(ROOT, "plugins", "yts.py"));
 });
 
 test("probe URL expansion handles query, category, and page placeholders", () => {

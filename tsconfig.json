@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "types": ["bun", "node"]
   },
-  "include": ["test/**/*.ts", "tool/**/*.ts", "packages/website/**/*.{ts,tsx}"],
+  "include": ["test/**/*.ts", "tool/**/*.ts"],
   "exclude": [
     "node_modules",
     "external",
@@ -19,7 +19,6 @@
     "working",
     "dist",
     "build",
-    "**/.next",
     ".opencode",
     ".venv",
     ".ruff_cache",

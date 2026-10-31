@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { unzipSync } from "fflate";
-import { catalogEntries, loadCatalog } from "../tool/catalog";
+import { catalogEntries, loadCatalog } from "../tool/catalog/storage";
 import { buildRelease } from "../tool/release/command";
 import { publicationTag } from "../tool/release/publication";
 
@@ -22,7 +22,7 @@ test("release archives contain canonical documentation and installers", async ()
   const output = join(directory, "qbsearch-test.zip");
 
   try {
-    expect(await buildRelease(["--version", "test", "--output", output])).toBe(0);
+    expect(await buildRelease({ version: "test", output })).toBe(0);
 
     const archive = unzipSync(await Bun.file(output).bytes());
     const names = Object.keys(archive);

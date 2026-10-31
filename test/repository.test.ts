@@ -1,14 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { expect, setDefaultTimeout, test } from "bun:test";
-import {
-  CATALOG_PATH,
-  DOCS_PATH,
-  catalogEntries,
-  discoverPlugins,
-  loadCatalog,
-  renderPluginDocs,
-} from "../tool/catalog/index";
+import { catalogEntries, loadCatalog } from "../tool/catalog/storage";
+import { CATALOG_PATH, DOCS_PATH } from "../tool/core/repo";
+import { discoverPlugins } from "../tool/core/plugins";
+import { renderPluginDocs } from "../tool/catalog/render_docs";
 import { validateCatalog } from "../tool/checks/catalog_validation";
 import { auditPlugin } from "../tool/checks/harden/audit_plugin";
 import { runSafetySuite } from "./safety";

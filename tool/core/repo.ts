@@ -14,7 +14,6 @@ export const WORKING_DIR = resolve(ROOT, "working");
 export const TEST_DIR = resolve(ROOT, "test");
 export const FIXTURES_DIR = resolve(TEST_DIR, "fixtures");
 export const PLUGIN_SOURCES_PATH = resolve(TEST_DIR, "plugin_sources.ts");
-export const ICONS_MANIFEST_PATH = resolve(WORKING_DIR, "icons-manifest.json");
 
 /**
  * TypeScript source roots owned by the repo command layer.
@@ -24,5 +23,3 @@ export const ICONS_MANIFEST_PATH = resolve(WORKING_DIR, "icons-manifest.json");
 export const TYPESCRIPT_DIRS = ["test", "tool"] as const;
 
 export const TYPESCRIPT_GLOBS = TYPESCRIPT_DIRS.map((dir) => `${dir}/**/*.ts`);
-
-export const WEBSITE_GLOBS = ["packages/website/**/*.{ts,tsx}"];

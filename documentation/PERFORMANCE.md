@@ -86,25 +86,15 @@ regression limit. The existing parser, daily cache format, and metadata request
 behavior remain in place. The rejected source and measurements are saved under
 `working/performance/benchmark-2026-10-01T21-46-33-730Z/`.
 
-## Reproduce the measurements
+## Historical measurement method
 
-```sh
-bun run test -- --benchmark
-bun run test -- --benchmark --plugin elitetorrent --baseline v0.1.10 --matrix
-QBSEARCH_PYTHON=/usr/bin/python3 bun run test -- --benchmark --plugin darklibria
-QBSEARCH_PYTHON=/path/to/python3.11 bun run test -- --benchmark --plugin uniondht --matrix
-```
+The comparison runner and its `--benchmark` mode have been retired. To reproduce
+these historical measurements, use the tooling from release `v0.1.11`. The tables,
+evidence paths, and methodology below are retained as a record, not as commands
+supported by the current checkout. Current deterministic tests preserve parser
+results, ordering, deadlines, request budgets, and concurrency limits.
 
-The benchmark is a mode of the existing `test` command. It rejects `--live` and
-`--watch` combinations. `--plugin` can be repeated; `--baseline` accepts a Git
-commit or tag and defaults to `v0.1.10`. Git supplies baseline source bytes into
-a temporary directory without changing the checkout. `--samples` defaults to
-20 measured pairs and `--warmups` to two pairs. Fewer than 20 samples are marked
-exploratory. `--matrix` runs workers 1, 4, and 16 with zero, 20 ms, 100 ms, and
-uneven 5/150 ms response delays. The default inventory run uses four workers
-and zero delay.
-
-Each pair alternates baseline/candidate order in fresh Python processes.
+Each pair alternated baseline/candidate order in fresh Python processes.
 Allocation tracing runs separately from elapsed/CPU timing. The JSON report
 includes median and nearest-rank p95 import time, process startup plus replay,
 time to first usable result (null for empty output), total engine time, CPU,
@@ -118,7 +108,7 @@ loaded fixture; traced allocations start at engine import. Cache fixture setup
 is excluded from engine elapsed/CPU time. All reported memory numbers compare
 the same harness and fixture on both sides.
 
-Reports, exact fixtures, and both source snapshots are written beneath the
+Reports, exact fixtures, and both source snapshots were written beneath the
 ignored `working/performance/benchmark-<UTC timestamp>/` directory. Source and
 fixture SHA-256 hashes and interpreter details are recorded. Result dictionary
 multisets must match; engines with ordered output also compare result order.

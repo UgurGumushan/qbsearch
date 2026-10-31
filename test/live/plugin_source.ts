@@ -1,33 +1,20 @@
+import { decodePythonString } from "../../tool/core/python-parse";
+
 function searchFunctionBody(source: string): string {
   const matches = [...source.matchAll(/^[ \t]+def\s+search\s*\(/gm)];
   const start = matches.at(-1)?.index;
   return start === undefined ? "" : source.slice(start);
 }
 
-function unescapePythonLiteral(value: string): string {
-  return value.replace(/\\([\\'"nrt])/g, (_match, character: string) => {
-    switch (character) {
-      case "n":
-        return "\n";
-      case "r":
-        return "\r";
-      case "t":
-        return "\t";
-      default:
-        return character;
-    }
-  });
-}
-
 function formattedLiterals(source: string): string[] {
   return [...source.matchAll(/\b(?:f|fr|rf)(["'])([\s\S]*?)\1/gi)].map((match) =>
-    unescapePythonLiteral(match[2]),
+    decodePythonString(match[2]),
   );
 }
 
 function literalUrls(source: string): string[] {
   return [...source.matchAll(/["'](https?:\/\/[^"'\n]+)["']/g)].map((match) =>
-    unescapePythonLiteral(match[1]),
+    decodePythonString(match[1]),
   );
 }
 
@@ -247,10 +234,6 @@ export function buildProbeUrls(
   }
 
   return candidates;
-}
-
-export function versionFromSource(source: string): string | null {
-  return /^\s*#\s*VERSION:\s*(\d+\.\d+)\s*$/im.exec(source)?.[1] ?? null;
 }
 
 export function buildProbeUrl(

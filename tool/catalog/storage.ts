@@ -1,6 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { CATALOG_PATH, ROOT } from "../core/repo";
+import { readFile } from "node:fs/promises";
+import { CATALOG_PATH } from "../core/repo";
 import { isRecord } from "../core/guards";
 import type { Catalog, CatalogEntry, InstallableCatalogEntry } from "./types";
 
@@ -24,11 +23,6 @@ export async function loadCatalog(path: string = CATALOG_PATH): Promise<Catalog>
     throw new TypeError("catalog root must be an object");
   }
   return value as Catalog;
-}
-
-export async function writeCatalog(catalog: Catalog, path: string = CATALOG_PATH): Promise<void> {
-  await mkdir(resolve(path, ".."), { recursive: true });
-  await writeFile(path, JSON.stringify(catalog, null, 2) + "\n", "utf8");
 }
 
 export function catalogEntries(catalog: Catalog): CatalogEntry[] {
@@ -57,20 +51,4 @@ export function installableCatalogEntries(catalog: Catalog): InstallableCatalogE
     }
     return { id: entry.id, icon: entry.icon };
   });
-}
-
-export async function licenseMap(): Promise<Record<string, string>> {
-  const licenseFile = resolve(ROOT, "LICENSE.md");
-  let source: string;
-  try {
-    source = await readFile(licenseFile, "utf8");
-  } catch {
-    return {};
-  }
-  const licenses: Record<string, string> = {};
-  const pattern = /^\| \[([A-Za-z0-9_]+)\.py\]\(plugins\/[^)]+\) \| ([^|]+) \|$/gm;
-  for (const match of source.matchAll(pattern)) {
-    licenses[match[1]] = match[2].trim();
-  }
-  return licenses;
 }

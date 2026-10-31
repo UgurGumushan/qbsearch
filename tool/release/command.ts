@@ -1,20 +1,16 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { zipSync } from "fflate";
-import { installableCatalogEntries, loadCatalog } from "../catalog";
+import { installableCatalogEntries, loadCatalog } from "../catalog/storage";
 import { archivePath, manifestText } from "./archive";
 import { archiveSources } from "./sources";
-import { expandHome, parseArguments, usage } from "./arguments";
+import { homedir } from "node:os";
+import type { ReleaseOptions } from "./types";
 import { ROOT } from "./constants";
 
 /** Build a self-contained release archive from the checked-in catalog. */
-export async function buildRelease(rawArgs: string[]): Promise<number> {
+export async function buildRelease(args: ReleaseOptions): Promise<number> {
   try {
-    const args = parseArguments(rawArgs);
-    if (args.help) {
-      console.log(usage());
-      return 0;
-    }
     if (!args.version || /[\\/:*?"<>|]/u.test(args.version)) {
       throw new Error("--version contains invalid archive characters");
     }
@@ -30,7 +26,7 @@ export async function buildRelease(rawArgs: string[]): Promise<number> {
       manifestText(args.version, entries),
     );
 
-    const output = resolve(ROOT, expandHome(args.output));
+    const output = resolve(ROOT, args.output.replace(/^~(?=$|[\\/])/, homedir()));
     await mkdir(dirname(output), { recursive: true });
     await Bun.write(output, zipSync(archiveContents, { level: 6 }));
     console.log(`Built ${output} with ${entries.length} plugins.`);

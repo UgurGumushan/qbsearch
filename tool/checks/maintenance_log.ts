@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { VALID_STATUSES } from "../catalog/constants";
-import { loadCatalog } from "../catalog/index";
+import { loadCatalog } from "../catalog/storage";
 import { ROOT } from "../core/repo";
 
 const MAINTENANCE_LOG_PATH = resolve(ROOT, "documentation", "MAINTENANCE_LOG.md");

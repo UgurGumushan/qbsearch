@@ -33,6 +33,3 @@ jobs:
       # The pre-commit hook runs the same entrypoint with --fast.
       - name: Run repository checks
         run: bun run check -- --strict
-      - name: Build website
-        working-directory: packages/website
-        run: bun run build

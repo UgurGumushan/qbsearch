@@ -2,3 +2,8 @@
 export function stripArgumentSeparator(args: string[]): string[] {
   return args[0] === "--" ? args.slice(1) : args;
 }
+
+export interface GenerationOptions {
+  mode: "check" | "write";
+  strict?: boolean;
+}

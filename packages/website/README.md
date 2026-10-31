@@ -1,44 +1,35 @@
 # qbsearch website
 
-The download page for the qBittorrent search plugin collection. It contains one
-ZIP download link, installation commands, and links to the repository documentation.
+A static download page with installation commands and repository links. Edit
+`public/index.html`, `public/styles.css`, and `public/icon.svg` directly. No build,
+package installation, or JavaScript is required.
 
-## Run locally
+## Preview locally
 
 From the repository root:
 
 ```sh
-bun install
-bun run --cwd packages/website dev
+python -m http.server 3000 --bind 127.0.0.1 --directory packages/website/public
 ```
 
-The homepage is static and uses native links, so downloading works with
-JavaScript disabled. It does not read the catalog or call the GitHub API.
-The plugin list lives in `documentation/PLUGINS.md`.
+Open <http://localhost:3000>. The simple file server previews the page and assets;
+Vercel handles the compatibility redirect described below.
 
-For Vercel, set the project root directory to `packages/website` and use Bun as
-the package manager. Deploy from the repository checkout: the workspace manifest,
-lockfile, and Bun dependency layout are shared with the root. The app's
-`next.config.ts` includes the repository root in the file-tracing boundary.
+## Deploy
 
-To build the production app:
-
-```sh
-bun run --cwd packages/website build
-```
+Keep the Vercel project root at `packages/website`. `vercel.json` selects the
+Other framework preset, skips installation and building, and serves only `public/`.
+The root formatter and `bun run test` cover the page's download contract.
 
 ## Release downloads
 
-The Download ZIP link points directly to:
+The Download ZIP link points directly to the stable GitHub release asset:
 
 ```text
 https://github.com/UgurGumushan/qbsearch/releases/latest/download/qbsearch-latest.zip
 ```
 
-`/download/latest` remains available for existing links and returns an HTTP 307
-redirect to the same URL without making a network request. Both use
-`lib/links.ts`.
-
-The release workflow must continue uploading `qbsearch-latest.zip` beside the
-versioned archive. GitHub resolves the stable link to the latest release asset,
-so the website does not need a version update for each release.
+`/download/latest` remains an HTTP 307 redirect to that same URL, configured in
+`vercel.json`. Verify both links in a Vercel preview when changing deployment
+configuration. The release workflow continues uploading `qbsearch-latest.zip`
+beside the versioned archive, so the page requires no per-release updates.
