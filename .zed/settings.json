@@ -1,0 +1,31 @@
+{
+  "$schema": "https://zed.dev/schema-settings.json",
+  "languages": {
+    "Python": {
+      // This repo's Python stack: basedpyright (type checking, reads
+      // [tool.basedpyright] in pyproject.toml) + ruff (lint/format, reads
+      // [tool.ruff]). Both are Zed's defaults for Python and are pinned in
+      // requirements-dev.txt; Zed discovers .venv as the toolchain and uses
+      // the venv's copies of the binary and python interpreter automatically.
+      "language_servers": ["basedpyright", "ruff", "!ty", "!pyrefly", "!pyright", "!pylsp", "..."],
+      "formatter": {
+        "language_server": {
+          "name": "ruff"
+        }
+      },
+      "code_actions_on_format": {
+        "source.organizeImports.ruff": true
+      },
+      "format_on_save": "on"
+    },
+    "TypeScript": {
+      // vtsls is Zed's default TS/JS server and is used here unmodified:
+      // it indexes the workspace via tsconfig.json (tool/ + test/) and
+      // prettier formatting uses the repo .prettierrc.json.
+      "language_servers": ["vtsls"]
+    },
+    "JavaScript": {
+      "language_servers": ["vtsls"]
+    }
+  }
+}
