@@ -1,8 +1,10 @@
 name: Offline checks
 
 on:
+  # Hosted-runner budget: run the 2x Python matrix only when main advances.
   push:
-  pull_request:
+    branches:
+      - "main"
 
 permissions:
   contents: read
